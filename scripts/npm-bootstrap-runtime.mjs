@@ -118,27 +118,36 @@ async function cgroup() {
   }
 }
 
-async function empty(group) {
-  return (await cgroupPids(group)).length === 0;
+export function cgroupContainment() {
+  return {
+    create: cgroup,
+    kill: (group) => writeFile(join(group, "cgroup.kill"), "1"),
+    pids: cgroupPids,
+    remove: rmdir,
+  };
 }
 
-async function waitForEmpty(group) {
-  const deadline = Date.now() + REAP_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    if (await empty(group)) return;
-    await delay(10);
-  }
-  if (!(await empty(group))) throw new BootstrapError("NPM_BOOTSTRAP_SPAWN");
+async function empty(group, containment) {
+  return (await containment.pids(group)).length === 0;
 }
 
-async function removeCgroup(group) {
-  await waitForEmpty(group);
+async function waitForEmpty(group, containment) {
   const deadline = Date.now() + REAP_TIMEOUT_MS;
   while (Date.now() < deadline) {
-    try { await rmdir(group); return; } catch (error) { if (error?.code === "ENOENT") return; if (error?.code !== "EBUSY") throw error; }
+    if (await empty(group, containment)) return;
     await delay(10);
   }
-  await rmdir(group);
+  if (!(await empty(group, containment))) throw new BootstrapError("NPM_BOOTSTRAP_SPAWN");
+}
+
+async function removeCgroup(group, containment) {
+  await waitForEmpty(group, containment);
+  const deadline = Date.now() + REAP_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    try { await containment.remove(group); return; } catch (error) { if (error?.code === "ENOENT") return; if (error?.code !== "EBUSY") throw error; }
+    await delay(10);
+  }
+  await containment.remove(group);
 }
 
 function childExit(child) {
@@ -148,16 +157,16 @@ function childExit(child) {
   });
 }
 
-async function terminate(group, exit, killProcess) {
-  for (const pid of await cgroupPids(group)) signal(pid, "SIGTERM", killProcess);
+async function terminate(group, exit, killProcess, containment) {
+  for (const pid of await containment.pids(group)) signal(pid, "SIGTERM", killProcess);
   await Promise.race([exit, delay(TERM_GRACE_MS)]);
-  await writeFile(join(group, "cgroup.kill"), "1");
+  await containment.kill(group);
   await Promise.race([exit, delay(REAP_TIMEOUT_MS)]);
-  await waitForEmpty(group);
+  await waitForEmpty(group, containment);
 }
 
-export async function installWithTimeout(cli, root, timeoutMs, spawnProcess = spawn, killProcess = process.kill) {
-  const group = await cgroup();
+export async function installWithTimeout(cli, root, timeoutMs, spawnProcess = spawn, killProcess = process.kill, containment = cgroupContainment()) {
+  const group = await containment.create();
   let child;
   let exit;
   let timer;
@@ -173,14 +182,14 @@ export async function installWithTimeout(cli, root, timeoutMs, spawnProcess = sp
     timer = undefined;
     if (outcome.kind === "close") return outcome.code;
     if (outcome.kind === "error") throw new BootstrapError("NPM_BOOTSTRAP_SPAWN");
-    await terminate(group, exit, killProcess);
+    await terminate(group, exit, killProcess, containment);
     throw new BootstrapError("NPM_BOOTSTRAP_TIMEOUT");
   } finally {
     if (timer !== undefined) clearTimeout(timer);
     if (exit !== undefined && child !== undefined) {
-      try { await writeFile(join(group, "cgroup.kill"), "1"); } catch (error) { if (error?.code !== "ENOENT") throw error; }
+      try { await containment.kill(group); } catch (error) { if (error?.code !== "ENOENT") throw error; }
       await Promise.race([exit, delay(REAP_TIMEOUT_MS)]);
     }
-    await removeCgroup(group);
+    await removeCgroup(group, containment);
   }
 }

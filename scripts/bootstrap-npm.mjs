@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import https from "node:https";
 
 import { canonicalJson } from "./canonical-json.mjs";
-import { BootstrapError, downloadArchive, executeNode, extractArchive, readRegular, regular, rejectLinks, sha256, sri, installWithTimeout } from "./npm-bootstrap-runtime.mjs";
+import { BootstrapError, cgroupContainment, downloadArchive, executeNode, extractArchive, readRegular, regular, rejectLinks, sha256, sri, installWithTimeout } from "./npm-bootstrap-runtime.mjs";
 
 const ABI_SHA256 = "92d2991c2b39e6c6099c61fe8a876ad0106b2d8204cbb7756bbf85be70091083";
 const NPM_SRI = "sha512-T67M4L5wNm0cZ7EBLErcEkY1SmzEW/WJ+SADBzsFUY1UdAPfFHXFQtZ6SEXiK0+vzXysCvAsepbMaBTwnrAD+w==";
@@ -23,6 +23,7 @@ function phase(operation, code) {
 }
 function defaultDependencies() {
   return {
+    containment: cgroupContainment(),
     download: downloadArchive,
     extract: extractArchive,
     install: installWithTimeout,
@@ -108,7 +109,7 @@ export async function bootstrapNpm({ root, tarball = NPM_URL, timeoutMs = 120_00
     const cli = join(temporary, "package", "bin", "npm-cli.js");
     const cliSha256 = sha256(await readRegular(cli));
     installStarted = true;
-    const code = await phase((npmCli, directory, limit) => deps.install(npmCli, directory, limit, deps.spawn, deps.kill), "NPM_BOOTSTRAP_SPAWN")(cli, root, timeoutMs);
+    const code = await phase((npmCli, directory, limit) => deps.install(npmCli, directory, limit, deps.spawn, deps.kill, deps.containment), "NPM_BOOTSTRAP_SPAWN")(cli, root, timeoutMs);
     if (code !== 0 || !(expectedLock(JSON.parse(await readFile(lock, "utf8"))))) throw new BootstrapError("NPM_BOOTSTRAP_INSTALL");
     return { cliSha256, status: "approved" };
   } catch (error) {

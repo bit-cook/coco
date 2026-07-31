@@ -37,6 +37,31 @@ async function waitForFile(path) {
 
 function dead(pid) { try { process.kill(pid, 0); return false; } catch (error) { return error?.code === "ESRCH"; } }
 
+function fixtureContainment(root, afterKill = async () => {}) {
+  const group = join(root, "containment");
+  async function pids() {
+    try {
+      return (await readFile(join(group, "cgroup.procs"), "utf8")).trim().split("\n").filter(Boolean).map(Number).filter((pid) => !dead(pid));
+    } catch (error) {
+      if (error?.code === "ENOENT") return [];
+      throw error;
+    }
+  }
+  return {
+    create: async () => {
+      await mkdir(group);
+      await writeFile(join(group, "cgroup.procs"), "");
+      return group;
+    },
+    kill: async () => {
+      for (const pid of await pids()) process.kill(pid, "SIGKILL");
+      await afterKill();
+    },
+    pids,
+    remove: () => rm(group, { force: true, recursive: true }),
+  };
+}
+
 function controlledRequest({ body, headers = {}, statusCode = 200, timeout = false }) {
   return (_url, _options, onResponse) => {
     const request = new EventEmitter();
@@ -147,7 +172,7 @@ test("Given missing executable and a failed npm process spawn, when bootstrap in
 test("Given nonzero or malformed installs, when bootstrap finishes the child, then it returns INSTALL and removes only generated artifacts", async () => {
   for (const source of [`${installScript} process.exit(1);`, `${installScript} writeFileSync(join(process.cwd(), "package-lock.json"), "{}");`]) await withFixture(async (root) => {
     const fixture = await archive(root, source);
-    const result = await bootstrapNpm({ dependencies: { download: async (destination) => writeFile(destination, fixture.bytes), expectedSri: sri(fixture.bytes) }, root });
+    const result = await bootstrapNpm({ dependencies: { containment: fixtureContainment(root), download: async (destination) => writeFile(destination, fixture.bytes), expectedSri: sri(fixture.bytes) }, root });
     assert.equal(result.code, "NPM_BOOTSTRAP_INSTALL");
     await absent(join(root, "package-lock.json"));
     await absent(join(root, "node_modules"));
@@ -162,6 +187,7 @@ test("Given a bootstrap install, when it invokes npm, then its command and cwd a
       dependencies: {
         download: async (destination) => writeFile(destination, fixture.bytes),
         expectedSri: sri(fixture.bytes),
+        containment: fixtureContainment(root),
         spawn: (command, args, options) => {
           if (command !== "tar") invocation = { args, command, options };
           return spawn(command, args, options);
@@ -179,6 +205,61 @@ test("Given a bootstrap install, when it invokes npm, then its command and cwd a
   });
 });
 
+test("Given real cgroup containment is unavailable, when bootstrap uses its injected containment, then the fixture spawn still reaches INSTALL", async () => {
+  await withFixture(async (root) => {
+    const fixture = await archive(root, `${installScript} require("node:fs").writeFileSync("spawned", "yes"); process.exit(1);`);
+    const group = join(root, "containment");
+    const calls = [];
+    const result = await bootstrapNpm({
+      dependencies: {
+        containment: {
+          create: async () => {
+            calls.push("create");
+            await mkdir(group);
+            await writeFile(join(group, "cgroup.procs"), "");
+            return group;
+          },
+          kill: async () => {
+            calls.push("kill");
+          },
+          pids: async () => {
+            calls.push("pids");
+            return [];
+          },
+          remove: async () => {
+            calls.push("remove");
+            await rm(group, { force: true, recursive: true });
+          },
+        },
+        download: async (destination) => writeFile(destination, fixture.bytes),
+        expectedSri: sri(fixture.bytes),
+      },
+      root,
+    });
+    assert.equal(result.code, "NPM_BOOTSTRAP_INSTALL");
+    assert.equal(await readFile(join(root, "spawned"), "utf8"), "yes");
+    assert.deepEqual(calls, ["create", "kill", "pids", "remove"]);
+  });
+});
+
+test("Given containment setup fails, when bootstrap installs, then it fails closed before fixture spawn", async () => {
+  await withFixture(async (root) => {
+    const fixture = await archive(root, `${installScript} require("node:fs").writeFileSync("spawned", "yes");`);
+    const result = await bootstrapNpm({
+      dependencies: {
+        containment: { create: async () => { throw new Error("unavailable"); } },
+        download: async (destination) => writeFile(destination, fixture.bytes),
+        expectedSri: sri(fixture.bytes),
+      },
+      root,
+    });
+    assert.equal(result.code, "NPM_BOOTSTRAP_SPAWN");
+    await absent(join(root, "spawned"));
+    await absent(join(root, "package-lock.json"));
+    await absent(join(root, "node_modules"));
+  });
+});
+
 test("Given a TERM-ignoring process tree, when installation times out, then TERM and KILL reap it before cleanup", async () => {
   await withFixture(async (root) => {
     const detached = "const { spawn } = require('node:child_process');const { writeFileSync } = require('node:fs');const { join } = require('node:path');const child = spawn(process.execPath,['-e',\"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)\"],{detached:true,stdio:'ignore'});child.unref();writeFileSync(join(process.cwd(),'pids'),JSON.stringify([Number(process.env.PARENT_PID),Number(process.env.CHILD_PID),child.pid]));";
@@ -191,7 +272,17 @@ test("Given a TERM-ignoring process tree, when installation times out, then TERM
       setInterval(() => {}, 1000);
     `;
     const fixture = await archive(root, source);
-    const bootstrapping = bootstrapNpm({ dependencies: { download: async (destination) => writeFile(destination, fixture.bytes), expectedSri: sri(fixture.bytes) }, root, timeoutMs: 1_000 });
+    const bootstrapping = bootstrapNpm({
+      dependencies: {
+        containment: fixtureContainment(root, async () => {
+          for (const pid of JSON.parse(await waitForFile(join(root, "pids")))) if (!dead(pid)) process.kill(pid, "SIGKILL");
+        }),
+        download: async (destination) => writeFile(destination, fixture.bytes),
+        expectedSri: sri(fixture.bytes),
+      },
+      root,
+      timeoutMs: 1_000,
+    });
     const pids = JSON.parse(await waitForFile(join(root, "pids")));
     const result = await bootstrapping;
     assert.equal(result.code, "NPM_BOOTSTRAP_TIMEOUT");
@@ -205,7 +296,7 @@ test("Given an installer that exits during TERM grace, when installation times o
   await withFixture(async (root) => {
     const fixture = await archive(root, `${installScript} process.on("SIGTERM", () => process.exit(0)); setInterval(() => {}, 1000);`);
     const started = Date.now();
-    const result = await bootstrapNpm({ dependencies: { download: async (destination) => writeFile(destination, fixture.bytes), expectedSri: sri(fixture.bytes) }, root, timeoutMs: 200 });
+    const result = await bootstrapNpm({ dependencies: { containment: fixtureContainment(root), download: async (destination) => writeFile(destination, fixture.bytes), expectedSri: sri(fixture.bytes) }, root, timeoutMs: 200 });
     assert.equal(result.code, "NPM_BOOTSTRAP_TIMEOUT");
     assert.ok(Date.now() - started < 1_000);
     await absent(join(root, "package-lock.json"));
@@ -219,7 +310,7 @@ test("Given existing node_modules, when a generated install fails, then cleanup 
     await mkdir(join(root, "node_modules"), { recursive: true });
     await writeFile(existing, "existing\n");
     const fixture = await archive(root, `${installScript} process.exit(1);`);
-    const result = await bootstrapNpm({ dependencies: { download: async (destination) => writeFile(destination, fixture.bytes), expectedSri: sri(fixture.bytes) }, root });
+    const result = await bootstrapNpm({ dependencies: { containment: fixtureContainment(root), download: async (destination) => writeFile(destination, fixture.bytes), expectedSri: sri(fixture.bytes) }, root });
     assert.equal(result.code, "NPM_BOOTSTRAP_INSTALL");
     assert.equal(await readFile(existing, "utf8"), "existing\n");
     await absent(join(root, "package-lock.json"));
