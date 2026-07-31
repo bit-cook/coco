@@ -14,11 +14,20 @@ import { generateAssetMap, verifyAssetMap } from "../scripts/generate-asset-map.
 const root = new URL("..", import.meta.url).pathname;
 const exec = promisify(execFile);
 
-async function pack() {
-  await new Promise((resolvePack, rejectPack) => {
-    const child = spawn(process.execPath, [localNpmCli(root), "pack", "--json"], { cwd: root, env: { ...process.env, TMPDIR: "/root/.cache/coco-tmp" }, stdio: "ignore" });
+async function pack(destination) {
+  return new Promise((resolvePack, rejectPack) => {
+    let stderr = "";
+    let stdout = "";
+    const child = spawn(process.execPath, [localNpmCli(root), "pack", "--json", "--pack-destination", destination], { cwd: root, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.once("error", rejectPack);
-    child.once("close", (code) => code === 0 ? resolvePack() : rejectPack(new Error(`npm pack exited ${code}`)));
+    child.once("close", (code) => {
+      if (code !== 0) return rejectPack(new Error(`npm pack exited ${code}; captured stderr bytes: ${Buffer.byteLength(stderr)}`));
+      try { resolvePack(join(destination, JSON.parse(stdout)[0].filename)); } catch { rejectPack(new Error("npm pack returned invalid JSON")); }
+    });
   });
 }
 
@@ -47,12 +56,12 @@ test("Given the intended package tree, when its asset map is generated and verif
 test("Given Task-2 runtime producers, when npm packs the project, then tar members exactly equal the canonical asset map without local tools", async () => {
   const generatedDirectory = await mkdtemp(join(tmpdir(), "coco-task-2-pack-map-"));
   const generatedMap = join(generatedDirectory, "assets.json");
-  const tarball = join(root, "coco-0.1.1.tgz");
   try {
     const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
     assert.ok(packageJson.files.includes("scripts"), "scripts selector must ship all runtime producers and helpers");
     await generateAssetMap({ output: generatedMap, root });
-    await pack();
+    const tarball = await pack(generatedDirectory);
+    assert.ok(tarball.startsWith(`${generatedDirectory}/`));
     const map = JSON.parse(await readFile(generatedMap, "utf8"));
     const members = (await tarMembers(tarball)).filter((path) => !path.startsWith("node_modules/"));
     assert.deepEqual(members, map.entries.map((entry) => entry.path).sort());
@@ -60,7 +69,6 @@ test("Given Task-2 runtime producers, when npm packs the project, then tar membe
     assert.ok(members.includes("scripts/npm-bootstrap-runtime.mjs"));
     assert.equal(members.some((path) => path.startsWith(".coco-tools/") || path.includes("__pycache__") || /\.(pyc|pyo)$/.test(path) || path.startsWith("../") || path.startsWith("/")), false);
   } finally {
-    await rm(tarball, { force: true });
     await rm(generatedDirectory, { force: true, recursive: true });
   }
 });
