@@ -76,6 +76,17 @@ test("Given release workflows, when runtime tests execute, then the patched runt
   }
 });
 
+test("Given release workflows, when npm packs release assets, then the destination directory exists first", async () => {
+  for (const workflowName of ["ci.yml", "release.yml"]) {
+    const workflow = await readFile(join(root, ".github", "workflows", workflowName), "utf8");
+    const createDirectory = workflow.indexOf("- run: mkdir release");
+    const pack = workflow.indexOf("- run: npm pack --json --pack-destination release");
+    assert.notEqual(createDirectory, -1);
+    assert.notEqual(pack, -1);
+    assert.ok(createDirectory < pack);
+  }
+});
+
 test("Given the v0.1.1 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
   const version = "0.1.1";
   const [packageJson, packageLock, installer, readme, englishReadme, chineseReadme, ciWorkflow, releaseWorkflow] = await Promise.all([

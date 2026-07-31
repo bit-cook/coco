@@ -24,6 +24,7 @@ jobs:
       - run: npm test
       - run: npm run verify:closure
       - run: node scripts/publication-secret-scanner.mjs .
+      - run: mkdir release
       - run: npm pack --json --pack-destination release
       - run: node scripts/publication-secret-scanner.mjs release
       - run: node -e "import('./scripts/verify-package-closure.mjs').then(async ({verifyTarballClosure}) => { const {readdir}=await import('node:fs/promises'); const tarball=(await readdir('release')).find((entry)=>entry.endsWith('.tgz')); const result=await verifyTarballClosure({root:process.cwd(),tarball:`release/${tarball}`}); console.log(JSON.stringify(result)); process.exit(result.status==='approved'?0:1); })"
