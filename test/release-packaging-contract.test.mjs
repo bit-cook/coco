@@ -6,14 +6,17 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 
+import { localNpmCli } from "../scripts/bootstrap-npm.mjs";
+
 const exec = promisify(execFile);
 const root = new URL("..", import.meta.url).pathname;
 
 test("Given the public package contract, when Coco is packed, then only release-safe files are included", async () => {
   const output = await mkdtemp(join(tmpdir(), "coco-release-package-"));
   try {
-    const { version } = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
-    const { stdout } = await exec("npm", ["pack", "--json", "--pack-destination", output], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
+    const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+    const { version } = packageJson;
+    const { stdout } = await exec(process.execPath, [localNpmCli(root), "pack", "--json", "--pack-destination", output], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
     const [{ filename }] = JSON.parse(stdout);
     const { stdout: members } = await exec("tar", ["-tzf", join(output, filename)], { maxBuffer: 64 * 1024 * 1024 });
     const paths = members.split("\n").filter(Boolean);
@@ -32,6 +35,11 @@ test("Given the public package contract, when Coco is packed, then only release-
     const extracted = join(output, "extracted");
     await mkdir(extracted);
     await exec("tar", ["-xzf", join(output, filename), "-C", extracted]);
+    const packagedRoot = join(extracted, "package");
+    await exec(process.execPath, ["--input-type=module", "--eval", 'import * as providerSync from "./scripts/provider-sync.mjs"; if ("syncProviderModelsFromSourceFixture" in providerSync) process.exit(1);'], {
+      cwd: packagedRoot,
+      maxBuffer: 64 * 1024 * 1024,
+    });
     const { stdout: candidateVersion } = await exec(process.execPath, [join(extracted, "package", "bin", "coco"), "--version"], {
       env: { ...process.env, COCO_CODING_AGENT_DIR: join(output, "agent") },
       maxBuffer: 64 * 1024 * 1024,
@@ -53,6 +61,17 @@ test("Given release workflows, when package sidecars are generated, then GNU che
   for (const workflowName of ["ci.yml", "release.yml"]) {
     const workflow = await readFile(join(root, ".github", "workflows", workflowName), "utf8");
     assert.match(workflow, /working-directory: release\n\s+run: sha256sum coco-\*\.tgz > coco-\$\(node -p "require\('\.\.\/package\.json'\)\.version"\)\.tgz\.sha256/);
+  }
+});
+
+test("Given release workflows, when runtime tests execute, then the patched runtime build precedes them", async () => {
+  for (const workflowName of ["ci.yml", "release.yml"]) {
+    const workflow = await readFile(join(root, ".github", "workflows", workflowName), "utf8");
+    const build = workflow.indexOf("- run: npm run build");
+    const test = workflow.indexOf("- run: npm test");
+    assert.notEqual(build, -1);
+    assert.notEqual(test, -1);
+    assert.ok(build < test);
   }
 });
 

@@ -22,8 +22,8 @@ jobs:
       - run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
       - run: npm run build
+      - run: npm test
       - run: npm run verify:closure
       - run: node scripts/publication-secret-scanner.mjs .
       - run: mkdir release
