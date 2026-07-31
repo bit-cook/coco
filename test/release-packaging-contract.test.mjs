@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 
-import { localNpmCli } from "../scripts/bootstrap-npm.mjs";
+import { packageNpmCli } from "./package-npm-cli.mjs";
 
 const exec = promisify(execFile);
 const root = new URL("..", import.meta.url).pathname;
@@ -16,7 +16,8 @@ test("Given the public package contract, when Coco is packed, then only release-
   try {
     const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
     const { version } = packageJson;
-    const { stdout } = await exec(process.execPath, [localNpmCli(root), "pack", "--json", "--pack-destination", output], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
+    const npmCli = await packageNpmCli(root);
+    const { stdout } = await exec(process.execPath, [npmCli, "pack", "--json", "--pack-destination", output], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
     const [{ filename }] = JSON.parse(stdout);
     const { stdout: members } = await exec("tar", ["-tzf", join(output, filename)], { maxBuffer: 64 * 1024 * 1024 });
     const paths = members.split("\n").filter(Boolean);

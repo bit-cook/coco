@@ -6,19 +6,20 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 
-import { localNpmCli } from "../scripts/bootstrap-npm.mjs";
 import { canonicalJson } from "../scripts/canonical-json.mjs";
 import { executeWindowsAbi } from "../scripts/execute-windows-abi.mjs";
 import { generateAssetMap, verifyAssetMap } from "../scripts/generate-asset-map.mjs";
+import { assertNpmPinParity, packageNpmCli } from "./package-npm-cli.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const exec = promisify(execFile);
 
 async function pack(destination) {
+  const npmCli = await packageNpmCli(root);
   return new Promise((resolvePack, rejectPack) => {
     let stderr = "";
     let stdout = "";
-    const child = spawn(process.execPath, [localNpmCli(root), "pack", "--json", "--pack-destination", destination], { cwd: root, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(process.execPath, [npmCli, "pack", "--json", "--pack-destination", destination], { cwd: root, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => { stdout += chunk; });
@@ -51,6 +52,24 @@ test("Given the intended package tree, when its asset map is generated and verif
   } finally {
     await rm(fixture, { force: true, recursive: true });
   }
+});
+
+test("Given npm ci installed dependencies, when the package npm CLI is resolved and executed, then it is the pinned node_modules CLI without a bootstrap-tool component", async () => {
+  const npmCli = await packageNpmCli(root);
+  assert.equal(npmCli, join(root, "node_modules", "npm", "bin", "npm-cli.js"));
+  assert.equal(npmCli.split("/").includes(".coco-tools"), false);
+  const { stdout } = await exec(process.execPath, [npmCli, "--version"]);
+  assert.equal(stdout.trim(), "11.18.0");
+});
+
+test("Given an npm range or a mismatched lock pin, when package npm parity is validated, then it rejects", () => {
+  const valid = {
+    installed: { version: "11.18.0" },
+    lock: { packages: { "": { devDependencies: { npm: "11.18.0" } }, "node_modules/npm": { version: "11.18.0" } } },
+    package: { devDependencies: { npm: "11.18.0" }, packageManager: "npm@11.18.0" },
+  };
+  assert.throws(() => assertNpmPinParity({ ...valid.package, devDependencies: { npm: "^11.18.0" } }, valid.lock, valid.installed));
+  assert.throws(() => assertNpmPinParity(valid.package, { packages: { ...valid.lock.packages, "node_modules/npm": { version: "11.18.1" } } }, valid.installed));
 });
 
 test("Given Task-2 runtime producers, when npm packs the project, then tar members exactly equal the canonical asset map without local tools", async () => {
