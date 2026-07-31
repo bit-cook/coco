@@ -12,8 +12,11 @@ import { validateAuthorizationTable, authorizeChange } from "../scripts/verify-b
 import { verifyPlanEvidence } from "../scripts/verify-plan-evidence.mjs";
 import { receiptValid } from "../scripts/bootstrap-final-verification.mjs";
 import { verifyScope } from "../scripts/final-scope-redaction.mjs";
+import { hasWritableCgroupV2 } from "./task-1-cgroup-capability.mjs";
 
-test("Given a child creating a local TCP connection, when egress deny-all runs it, then the connection is blocked and evidenced", async () => {
+const testWithWritableCgroup = (await hasWritableCgroupV2()) ? test : test.skip;
+
+testWithWritableCgroup("Given a child creating a local TCP connection, when egress deny-all runs it, then the connection is blocked and evidenced", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-egress-"));
   const server = createServer();
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -28,7 +31,7 @@ test("Given a child creating a local TCP connection, when egress deny-all runs i
   }
 });
 
-test("Given a direct Node child catching TCP and DNS errors, when deny-all runs it, then runtime attempts reject", async () => {
+testWithWritableCgroup("Given a direct Node child catching TCP and DNS errors, when deny-all runs it, then runtime attempts reject", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-deny-direct-"));
   try {
     const result = await runEgressAllowlist({ allow: [], command: [process.execPath, "-e", "const net=require('net'),dns=require('dns');try{net.connect(53,'1.1.1.1')}catch{};try{dns.lookup('example.com',()=>{})}catch{}"], denyAll: true, evidence: join(fixture, "egress.jsonl") });
@@ -37,7 +40,7 @@ test("Given a direct Node child catching TCP and DNS errors, when deny-all runs 
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
-test("Given a spawned Node child catching network errors, when its parent exits zero under deny-all, then it rejects", async () => {
+testWithWritableCgroup("Given a spawned Node child catching network errors, when its parent exits zero under deny-all, then it rejects", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-deny-descendant-"));
   try {
     const childCode = "const net=require('net');try{net.connect(53,'1.1.1.1')}catch{}";
@@ -48,7 +51,7 @@ test("Given a spawned Node child catching network errors, when its parent exits 
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
-test("Given a network-free Node child, when deny-all guard runs it, then zero-attempt evidence permits completion", async () => {
+testWithWritableCgroup("Given a network-free Node child, when deny-all guard runs it, then zero-attempt evidence permits completion", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-deny-clean-"));
   try {
     const result = await runEgressAllowlist({ allow: [], command: [process.execPath, "-e", "process.exit(0)"], denyAll: true, evidence: join(fixture, "egress.jsonl") });
@@ -57,7 +60,7 @@ test("Given a network-free Node child, when deny-all guard runs it, then zero-at
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
-test("Given a descendant overriding its evidence path, when it attempts TCP, then the parent sink still rejects", async () => {
+testWithWritableCgroup("Given a descendant overriding its evidence path, when it attempts TCP, then the parent sink still rejects", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-deny-sink-"));
   try {
     const childCode = "try{require('net').connect(53,'1.1.1.1')}catch{}";
@@ -68,7 +71,7 @@ test("Given a descendant overriding its evidence path, when it attempts TCP, the
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
-test("Given Socket and DNS API variants, when caught attempts run, then each is runtime-evidenced", async () => {
+testWithWritableCgroup("Given Socket and DNS API variants, when caught attempts run, then each is runtime-evidenced", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-deny-apis-"));
   try {
     const code = "const n=require('net'),d=require('dns');for(const f of [()=>new n.Socket().connect(53,'1.1.1.1'),()=>d.resolve4('example.com',()=>{}),()=>d.promises.lookup('example.com'),()=>new d.Resolver().resolve4('example.com',()=>{})])try{f()}catch{}";
@@ -78,7 +81,7 @@ test("Given Socket and DNS API variants, when caught attempts run, then each is 
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
-test("Given a network-free descendant with hostile env, when deny-all runs it, then authoritative zero proof completes", async () => {
+testWithWritableCgroup("Given a network-free descendant with hostile env, when deny-all runs it, then authoritative zero proof completes", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-deny-clean-child-"));
   try {
     const code = "require('child_process').spawn(process.execPath,['-e','process.exit(0)'],{env:{COCO_EGRESS_RUNTIME_EVIDENCE:'/tmp/other',NODE_OPTIONS:''},stdio:'ignore'}).unref()";
@@ -88,7 +91,7 @@ test("Given a network-free descendant with hostile env, when deny-all runs it, t
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
-test("Given registry-only mode, when a Node child connects to loopback, then it rejects rather than bypassing", async () => {
+testWithWritableCgroup("Given registry-only mode, when a Node child connects to loopback, then it rejects rather than bypassing", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-registry-"));
   const server = createServer();
   let connections = 0;
@@ -143,7 +146,9 @@ test("Given evidence with tampered partial manifest hash, when verified, then it
   const fixture = await mkdtemp(join(tmpdir(), "coco-evidence-"));
   try {
     await writeFile(join(fixture, "evidence.json"), '{"artifacts":{"partialManifestSha256":"0"},"planSha256":"x","schemaVersion":1,"status":"approved","task":1}\n');
-    const result = await verifyPlanEvidence({ evidencePath: join(fixture, "evidence.json"), manifestPath: new URL("../scripts/final-verifier-manifest.partial.v1.json", import.meta.url), planPath: "/root/.omo/plans/coco-production-hardening.md" });
+    const planPath = join(fixture, "plan.md");
+    await writeFile(planPath, "fixture plan\n");
+    const result = await verifyPlanEvidence({ evidencePath: join(fixture, "evidence.json"), manifestPath: new URL("../scripts/final-verifier-manifest.partial.v1.json", import.meta.url), planPath });
     assert.equal(result.status, "rejected");
   } finally {
     await rm(fixture, { force: true, recursive: true });
@@ -177,7 +182,21 @@ test("Given credential markers split across multiline and binary chunks, when sc
 });
 
 test("Given the approved receipt and binding variants, when parsed, then only the exact receipt passes", async () => {
-  const receipt = await readFile("/root/.omo/drafts/coco-production-hardening.md", "utf8");
+  const receipt = `---
+status: review-approved
+plan_sha256: 03966a1e794e6f766d381d429ac6a5a4197e349b0a9e80c7a34d60cbdfc7c9d6
+review_round_id: 5d084cdd-c96f-43a4-b3b6-32a8378da93a
+  momus:
+    status: approved
+    launch_id: ea5aa9c3-6d04-487e-9f8d-3b03b787aae6
+    session: ses_fixture_momus
+    result: OKAY
+  independent:
+    status: approved
+    launch_id: 76078c2b-abe4-4450-9639-f1a0deba9976
+    session: ses_fixture_independent
+    result: OKAY
+`;
   assert.equal(receiptValid(receipt), true);
   assert.equal(receiptValid(receipt.replace("result: OKAY", "result: NO")), false);
   assert.equal(receiptValid(receipt.replace("review-approved", "review-in-flight")), false);

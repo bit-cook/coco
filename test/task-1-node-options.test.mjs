@@ -5,8 +5,10 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { runEgressAllowlist } from "../scripts/run-egress-allowlist.mjs";
+import { hasWritableCgroupV2 } from "./task-1-cgroup-capability.mjs";
 
 const NETWORK = "try{require('net').connect(53,'1.1.1.1')}catch{}";
+const testWithWritableCgroup = (await hasWritableCgroupV2()) ? test : test.skip;
 
 function hostile(preload, marker, api) {
   const options = `{env:{NODE_OPTIONS:'--require ${preload}',COCO_EGRESS_RUNTIME_EVIDENCE:'/tmp/other'},stdio:'ignore'}`;
@@ -20,7 +22,7 @@ function hostile(preload, marker, api) {
 }
 
 for (const api of ["spawn", "execFile", "exec", "fork"]) {
-  test(`Given a hostile NODE_OPTIONS preload via ${api}, when it restores net on nextTick, then it never runs and TCP rejects`, async () => {
+  testWithWritableCgroup(`Given a hostile NODE_OPTIONS preload via ${api}, when it restores net on nextTick, then it never runs and TCP rejects`, async () => {
     const fixture = await mkdtemp(join(tmpdir(), `coco-options-${api}-`));
     const marker = join(fixture, "marker");
     const preload = join(fixture, "hostile.cjs");
@@ -33,7 +35,7 @@ for (const api of ["spawn", "execFile", "exec", "fork"]) {
   });
 }
 
-test("Given a marker-only caller preload and clean child APIs, when guarded, then marker is absent and canonical NODE_OPTIONS is sole", async () => {
+testWithWritableCgroup("Given a marker-only caller preload and clean child APIs, when guarded, then marker is absent and canonical NODE_OPTIONS is sole", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-options-clean-"));
   const marker = join(fixture, "marker");
   const preload = join(fixture, "hostile.cjs");

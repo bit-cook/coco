@@ -1,29 +1,44 @@
 import assert from "node:assert/strict";
-import { access, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { runEgressAllowlist } from "../scripts/run-egress-allowlist.mjs";
+import { hasWritableCgroupV2 } from "./task-1-cgroup-capability.mjs";
 
 async function run(options) { const fixture = await mkdtemp(join(tmpdir(), "coco-observer-")); return { evidence: join(fixture, "evidence.jsonl"), fixture, result: await runEgressAllowlist({ allow: [], command: [process.execPath, "-e", "process.exit(0)"], denyAll: true, ...options, evidence: join(fixture, "evidence.jsonl") }) }; }
 
-test("Given a missing observer binary, when egress starts, then it records inconclusive instead of throwing", async () => {
+const testWithWritableCgroup = (await hasWritableCgroupV2()) ? test : test.skip;
+
+test("Given unavailable containment, when observer egress is requested, then it stays inconclusive before launch", async () => {
+  const fixture = await mkdtemp(join(tmpdir(), "coco-observer-unavailable-"));
+  const marker = join(fixture, "marker");
+  const evidence = join(fixture, "evidence.jsonl");
+  try {
+    const result = await runEgressAllowlist({ allow: [], command: [process.execPath, "-e", `require('fs').writeFileSync(${JSON.stringify(marker)},'ran')`], containment: { available: async () => { throw new Error("unavailable"); } }, denyAll: true, evidence });
+    assert.equal(result.status, "inconclusive");
+    assert.match(await readFile(evidence, "utf8"), /"reason":"CGROUP_UNAVAILABLE"/);
+    await assert.rejects(readFile(marker));
+  } finally { await rm(fixture, { force: true, recursive: true }); }
+});
+
+testWithWritableCgroup("Given a missing observer binary, when egress starts, then it records inconclusive instead of throwing", async () => {
   const item = await run({ observerCommand: "missing-coco-observer" });
   try { assert.equal(item.result.status, "inconclusive"); assert.match(await readFile(item.evidence, "utf8"), /"reason":"OBSERVER_SPAWN"|"reason":"OBSERVER_EXIT"/); } finally { await rm(item.fixture, { force: true, recursive: true }); }
 });
 
-test("Given an observer that exits early or cannot create a trace, when egress starts, then it is inconclusive", async () => {
+testWithWritableCgroup("Given an observer that exits early or cannot create a trace, when egress starts, then it is inconclusive", async () => {
   const item = await run({ observerCommand: process.execPath, observerArgs: ["-e", "process.exit(9)"] });
   try { assert.equal(item.result.status, "inconclusive"); } finally { await rm(item.fixture, { force: true, recursive: true }); }
 });
 
-test("Given a hung direct child, when internal deadline expires, then it is reaped and evidence is inconclusive", async () => {
+testWithWritableCgroup("Given a hung direct child, when internal deadline expires, then it is reaped and evidence is inconclusive", async () => {
   const item = await run({ command: [process.execPath, "-e", "setInterval(()=>{},1000)"], timeoutMs: 100 });
   try { assert.equal(item.result.status, "inconclusive"); assert.match(await readFile(item.evidence, "utf8"), /"reason":"OBSERVER_TIMEOUT"/); } finally { await rm(item.fixture, { force: true, recursive: true }); }
 });
 
-test("Given a hung detached descendant, when internal deadline expires, then it is reaped", async () => {
+testWithWritableCgroup("Given a hung detached descendant, when internal deadline expires, then it is reaped", async () => {
   const item = await run({ command: [process.execPath, "-e", "require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'}).unref();setInterval(()=>{},1000)"], timeoutMs: 100 });
   try { assert.equal(item.result.status, "inconclusive"); } finally { await rm(item.fixture, { force: true, recursive: true }); }
 });
@@ -31,7 +46,7 @@ test("Given a hung detached descendant, when internal deadline expires, then it 
 async function pidFrom(path) { return Number(await readFile(path, "utf8")); }
 function isAlive(pid) { try { process.kill(pid, 0); return true; } catch { return false; } }
 
-test("Given a TERM-ignoring direct child, when timeout resolves, then its recorded PID is already dead", async () => {
+testWithWritableCgroup("Given a TERM-ignoring direct child, when timeout resolves, then its recorded PID is already dead", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-observer-term-"));
   const pidPath = join(fixture, "pid");
   try {
@@ -41,7 +56,7 @@ test("Given a TERM-ignoring direct child, when timeout resolves, then its record
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
-test("Given a TERM-ignoring detached descendant, when timeout resolves, then every recorded PID is dead", async () => {
+testWithWritableCgroup("Given a TERM-ignoring detached descendant, when timeout resolves, then every recorded PID is dead", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-observer-detached-term-"));
   const pidPath = join(fixture, "pid");
   try {
@@ -53,7 +68,7 @@ test("Given a TERM-ignoring detached descendant, when timeout resolves, then eve
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
-test("Given an immediate-parent-exit detached TERM-ignoring child, when timeout resolves, then it is contained and dead", async () => {
+testWithWritableCgroup("Given an immediate-parent-exit detached TERM-ignoring child, when timeout resolves, then it is contained and dead", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-observer-reparent-"));
   const pidPath = join(fixture, "pid");
   const before = new Set((await readdir("/sys/fs/cgroup")).filter((name) => name.startsWith("coco-egress-"))); let group;
