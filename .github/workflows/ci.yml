@@ -27,7 +27,7 @@ jobs:
       - run: mkdir release
       - run: npm pack --json --pack-destination release
       - run: node scripts/publication-secret-scanner.mjs release
-      - run: node -e "import('./scripts/verify-package-closure.mjs').then(async ({verifyTarballClosure}) => { const {readdir}=await import('node:fs/promises'); const tarball=(await readdir('release')).find((entry)=>entry.endsWith('.tgz')); const result=await verifyTarballClosure({root:process.cwd(),tarball:`release/${tarball}`}); console.log(JSON.stringify(result)); process.exit(result.status==='approved'?0:1); })"
+      - run: node -e "import('./scripts/verify-package-closure.mjs').then(async ({verifyTarballClosure}) => { const {readdir}=await import('node:fs/promises'); const tarball=(await readdir('release')).find((entry)=>entry.endsWith('.tgz')); const result=await verifyTarballClosure({root:process.cwd(),tarball:'release/'+tarball}); console.log(JSON.stringify(result)); process.exit(result.status==='approved'?0:1); })"
       - run: tar -tzf release/coco-*.tgz | (! grep -E '(^package/(\.coco-tools|documentation/[^/]+/logs|test/)|/\.omo/)')
       - working-directory: release
         run: sha256sum coco-*.tgz > coco-$(node -p "require('../package.json').version").tgz.sha256

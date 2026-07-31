@@ -87,6 +87,16 @@ test("Given release workflows, when npm packs release assets, then the destinati
   }
 });
 
+test("Given release workflows, when tarball closure runs through the shell, then its inline JavaScript contains no command substitution", async () => {
+  for (const workflowName of ["ci.yml", "release.yml"]) {
+    const workflow = await readFile(join(root, ".github", "workflows", workflowName), "utf8");
+    const closureLine = workflow.split("\n").find((line) => line.includes("verifyTarballClosure"));
+    assert.notEqual(closureLine, undefined);
+    assert.equal(closureLine.includes("`"), false);
+    assert.match(closureLine, /tarball:'release\/'\+tarball/);
+  }
+});
+
 test("Given the v0.1.1 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
   const version = "0.1.1";
   const [packageJson, packageLock, installer, readme, englishReadme, chineseReadme, ciWorkflow, releaseWorkflow] = await Promise.all([
