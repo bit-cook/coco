@@ -1,0 +1,8 @@
+#!/usr/bin/env node
+import { realpath } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const entry = await realpath(fileURLToPath(import.meta.url));
+const bootstrap = join(dirname(entry), "..", "scripts", "coco-bootstrap.cjs");
+await import(pathToFileURL(bootstrap).href);

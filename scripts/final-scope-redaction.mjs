@@ -1,0 +1,8 @@
+import { createReadStream } from "node:fs";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { verifyBaseline } from "./verify-protected-baseline.mjs";
+
+async function files(root, prefix = "") { const entries = await readdir(join(root, prefix), { withFileTypes: true }); return (await Promise.all(entries.map(async (entry) => entry.isDirectory() ? files(root, join(prefix, entry.name)) : [join(prefix, entry.name)]))).flat(); }
+async function containsSecret(path) { try { let tail = ""; for await (const chunk of createReadStream(path, { highWaterMark: 7 })) { const text = `${tail}${chunk.toString("latin1")}`; if (/api[\s_\-]*key\s*[:=]\s*["'][^"']+/i.test(text)) return true; tail = text.slice(-32); } return false; } catch (error) { if (error instanceof Error && error.code === "EISDIR") return false; throw error; } }
+export async function verifyScope({ baselinePath, root, evidencePath }) { const baseline = await verifyBaseline({ baselinePath }); const scopeViolations = baseline.status === "approved" ? [] : [baseline.code]; const paths = await files(root); const secretViolations = (await Promise.all(paths.map((path) => containsSecret(join(root, path))))).some(Boolean) ? ["SECRET_PATTERN"] : []; const evidence = await readFile(evidencePath, "utf8"); const egressViolations = /EGRESS_FORBIDDEN|"status":"blocked"/.test(evidence) ? ["EGRESS_FORBIDDEN"] : []; const status = scopeViolations.length + secretViolations.length + egressViolations.length === 0 ? "approved" : "rejected"; return { egressViolations, schemaVersion: 1, scopeViolations, secretViolations, status }; }

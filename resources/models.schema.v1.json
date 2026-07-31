@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"coco/models.v1","type":"object","required":["providers"],"properties":{"providers":{"type":"object"}},"additionalProperties":true}
