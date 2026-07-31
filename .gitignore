@@ -1,0 +1,21 @@
+# Dependencies and local tooling
+node_modules/
+.coco-tools/
+.cache/
+coverage/
+
+# Release, temporary, and evidence artifacts
+*.tgz
+*.sha256
+release/
+tmp/
+temp/
+evidence/
+.omo/
+
+# Local Coco state and credentials
+.coco/
+*.session.json
+
+# Generated operational documentation logs stay local
+documentation/*/logs/

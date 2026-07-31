@@ -1,0 +1,9 @@
+Coco is a downstream distribution built on Pi Coding Agent.
+
+Upstream project: Pi Coding Agent by Mario Zechner and earendil-works
+Upstream repository: https://github.com/earendil-works/pi
+Upstream package: @earendil-works/pi-coding-agent
+Upstream license: MIT
+
+Coco retains applicable upstream copyright and license notices. Coco-specific
+changes are distributed under the MIT License in LICENSE.
