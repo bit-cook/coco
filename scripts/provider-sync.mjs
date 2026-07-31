@@ -138,13 +138,3 @@ async function syncModels({ agentDir, allowEmpty = false, fetchCatalog, provider
 export async function syncProviderModels({ agentDir, allowEmpty = false, providerIds = PROVIDERS, root }) {
   return syncModels({ agentDir, allowEmpty, fetchCatalog: ({ authorization, entry }) => fetchJson(providerUrl(entry), authorization), providerIds, root });
 }
-
-export async function syncProviderModelsFromSourceFixture({ agentDir, allowEmpty = false, origin, provider, root }) {
-  return syncModels({
-    agentDir,
-    allowEmpty,
-    fetchCatalog: ({ authorization, entry }) => fetchJson(new URL(entry.modelsPath, origin), authorization),
-    providerIds: [provider],
-    root,
-  });
-}

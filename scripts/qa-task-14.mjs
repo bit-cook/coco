@@ -1,12 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
-import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 import { getAuthStatus } from "./auth-management.mjs";
 import { canonicalJson, sha256 } from "./canonical-json.mjs";
-import { syncProviderModelsForTest } from "./dev-provider-sync.mjs";
+import { createProviderSyncTestCapability, syncProviderModelsForTest } from "./dev-provider-sync.mjs";
 import { migrateState } from "./migrate-state.mjs";
 import { StateError } from "./state-schema.mjs";
 
@@ -60,7 +60,6 @@ async function main() {
   const root = resolve(new URL("..", import.meta.url).pathname);
   const sandbox = await mkdtemp(join(tmpdir(), "coco-task-14-"));
   const agent = join(sandbox, "agent");
-  const marker = join(root, ".coco-provider-sync-test-root");
   const cases = [];
   const savedNodeEnv = process.env.NODE_ENV;
   let server;
@@ -72,10 +71,9 @@ async function main() {
     await writeFile(join(agent, "auth.json"), canonicalJson({ achai: { key: SENTINEL, type: "api_key" }, agnes: { key: SENTINEL, type: "api_key" }, idepub: { key: SENTINEL, type: "api_key" }, stepfun: { key: SENTINEL, type: "api_key" } }), { mode: 0o600 });
     await writeFile(join(agent, "APPEND_SYSTEM.md"), "Fixture prompt policy.\n", { mode: 0o600 });
     await writeFile(join(agent, "settings.json"), canonicalJson({ retry: { provider: { maxRetries: 0, timeoutMs: 100 } } }), { mode: 0o600 });
-    await writeFile(marker, "coco-source-test-root-v1\n", { mode: 0o600 });
-    await chmod(marker, 0o600);
+    const capability = createProviderSyncTestCapability(root);
     process.env.NODE_ENV = "test";
-    const sync = (provider) => syncProviderModelsForTest({ agentDir: agent, origin: server.origin, provider, root });
+    const sync = (provider) => syncProviderModelsForTest({ agentDir: agent, capability, origin: server.origin, provider, root });
     const idepub = await sync("idepub");
     const achai = await sync("achai");
     const metadata = JSON.parse(await readFile(join(agent, "catalogs", "idepub", "current.meta.json"), "utf8"));
@@ -98,7 +96,7 @@ async function main() {
     server.setMode("happy");
     const before = sha256(await readFile(join(agent, "models.json")));
     process.env.NODE_ENV = "production";
-    cases.push(result("production-registry-seam-rejected", await rejects(() => syncProviderModelsForTest({ agentDir: agent, origin: server.origin, provider: "idepub", root }), "TEST_SEAM_FORBIDDEN")));
+    cases.push(result("production-registry-seam-rejected", await rejects(() => syncProviderModelsForTest({ agentDir: agent, capability, origin: server.origin, provider: "idepub", root }), "TEST_SEAM_FORBIDDEN")));
     const packed = JSON.parse(execFileSync("npm", ["pack", "--json"], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }));
     const tarball = packed[0]?.filename;
     const members = typeof tarball === "string" ? execFileSync("tar", ["-tzf", tarball], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }) : "package/scripts/dev-provider-sync.mjs";
@@ -110,7 +108,6 @@ async function main() {
   } finally {
     if (savedNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = savedNodeEnv;
     await server?.close();
-    await rm(marker, { force: true });
     await rm(sandbox, { force: true, recursive: true });
   }
 }
