@@ -151,7 +151,7 @@ async function main() {
     // Step 9: Verify installed coco binary runs
     const cocoBin = join(installedRoot, "bin", "coco");
     const versionResult = execSafe("node", [cocoBin, "--version"], { timeout: 30000 });
-    cases.push(result("installed-coco-version-works", versionResult.exitCode === 0 && versionResult.stdout.includes("0.1.0")));
+  cases.push(result("installed-coco-version-works", versionResult.exitCode === 0 && versionResult.stdout.includes("0.1.1")));
 
     // Step 10: Verify doctor works (doctor runs integrity checks 4x, each ~6s for 17k entries)
     const agentDir = join(fakeHome, ".coco", "agent");

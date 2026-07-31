@@ -33,7 +33,7 @@ async function localCore(root) {
 }
 function registry() {
   return new Promise((resolve) => {
-    const request = httpsRequest(REGISTRY_URL, { method: "GET", headers: { Accept: "application/json", "User-Agent": "coco/0.1.0" }, timeout: 10_000 }, (response) => {
+const request = httpsRequest(REGISTRY_URL, { method: "GET", headers: { Accept: "application/json", "User-Agent": "coco/0.1.1" }, timeout: 10_000 }, (response) => {
       const status = response.statusCode ?? 0;
       if (status !== 200) { response.resume(); resolve({ kind: "http", status }); return; }
       const chunks = []; let size = 0;

@@ -14,8 +14,8 @@
 安装经过审阅且固定版本的发布版：
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.0/install.sh
-COCO_VERSION=0.1.0 bash install.sh
+curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.1/install.sh
+COCO_VERSION=0.1.1 bash install.sh
 ```
 
 安装项目发布的最新版本：

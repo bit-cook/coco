@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.1.0}"
+COCO_VERSION="${COCO_VERSION:-0.1.1}"
 COCO_RELEASE_BASE="https://github.com/aithernexus/coco/releases/download/v${COCO_VERSION}"
 COCO_INSTALL_DIR="${COCO_INSTALL_DIR:-$HOME/.coco}"
 COCO_BIN_DIR="${COCO_BIN_DIR:-$HOME/.local/bin}"

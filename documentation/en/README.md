@@ -14,8 +14,8 @@ Your personal coding agent, built as a downstream distribution of [Pi Coding Age
 Install a reviewed, pinned release:
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.0/install.sh
-COCO_VERSION=0.1.0 bash install.sh
+curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.1/install.sh
+COCO_VERSION=0.1.1 bash install.sh
 ```
 
 Install the latest release published by the project:

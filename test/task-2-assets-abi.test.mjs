@@ -47,7 +47,7 @@ test("Given the intended package tree, when its asset map is generated and verif
 test("Given Task-2 runtime producers, when npm packs the project, then tar members exactly equal the canonical asset map without local tools", async () => {
   const generatedDirectory = await mkdtemp(join(tmpdir(), "coco-task-2-pack-map-"));
   const generatedMap = join(generatedDirectory, "assets.json");
-  const tarball = join(root, "coco-0.1.0.tgz");
+  const tarball = join(root, "coco-0.1.1.tgz");
   try {
     const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
     assert.ok(packageJson.files.includes("scripts"), "scripts selector must ship all runtime producers and helpers");

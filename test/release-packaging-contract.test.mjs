@@ -55,3 +55,30 @@ test("Given release workflows, when package sidecars are generated, then GNU che
     assert.match(workflow, /working-directory: release\n\s+run: sha256sum coco-\*\.tgz > coco-\$\(node -p "require\('\.\.\/package\.json'\)\.version"\)\.tgz\.sha256/);
   }
 });
+
+test("Given the v0.1.1 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
+  const version = "0.1.1";
+  const [packageJson, packageLock, installer, readme, englishReadme, chineseReadme, ciWorkflow, releaseWorkflow] = await Promise.all([
+    readFile(join(root, "package.json"), "utf8"),
+    readFile(join(root, "package-lock.json"), "utf8"),
+    readFile(join(root, "install.sh"), "utf8"),
+    readFile(join(root, "README.md"), "utf8"),
+    readFile(join(root, "documentation", "en", "README.md"), "utf8"),
+    readFile(join(root, "documentation", "zh-CN", "README.md"), "utf8"),
+    readFile(join(root, ".github", "workflows", "ci.yml"), "utf8"),
+    readFile(join(root, ".github", "workflows", "release.yml"), "utf8"),
+  ]);
+
+  assert.equal(JSON.parse(packageJson).version, version);
+  assert.equal(JSON.parse(packageLock).version, version);
+  assert.match(installer, new RegExp(`COCO_VERSION="\\$\\{COCO_VERSION:-${version}\\}"`));
+  for (const document of [readme, englishReadme, chineseReadme]) {
+    assert.match(document, new RegExp(`releases/download/v${version}/install\\.sh`));
+    assert.match(document, new RegExp(`COCO_VERSION=${version} bash install\\.sh`));
+  }
+  assert.match(packageJson, /tarball:'coco-'\+require\('\.\/package\.json'\)\.version\+'\.tgz'/);
+  assert.match(ciWorkflow, /actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02/);
+  for (const workflow of [ciWorkflow, releaseWorkflow]) {
+    assert.match(workflow, /coco-\$\(node -p "require\('\.\.\/package\.json'\)\.version"\)\.tgz\.sha256/);
+  }
+});

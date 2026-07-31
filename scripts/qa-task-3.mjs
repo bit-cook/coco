@@ -17,7 +17,7 @@ async function main() {
   const evidence = options(process.argv.slice(2));
   const root = resolve(new URL("..", import.meta.url).pathname);
   const temp = await mkdtemp(join(tmpdir(), "coco-task-3-"));
-  const tarball = join(root, "coco-0.1.0.tgz");
+const tarball = join(root, "coco-0.1.1.tgz");
   const cases = [];
   try {
     const npm = localNpmCli(root);

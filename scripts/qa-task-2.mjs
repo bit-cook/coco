@@ -40,7 +40,7 @@ async function main() {
   const root = resolve(new URL("..", import.meta.url).pathname);
   const npmCli = localNpmCli(root);
   const fixture = await mkdtemp(join(tmpdir(), "coco-task-2-"));
-  const tarball = join(root, "coco-0.1.0.tgz");
+const tarball = join(root, "coco-0.1.1.tgz");
   const assetMap = join(root, "scripts", "package-asset-map.v1.json");
   const cases = [];
   const npmEnv = { ...process.env, TMPDIR: "/root/.cache/coco-tmp" };
