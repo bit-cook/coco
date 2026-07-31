@@ -21,7 +21,7 @@ COCO_VERSION=0.1.1 bash install.sh
 安装项目发布的最新版本：
 
 ```bash
-curl -fsSL https://github.com/aithernexus/coco/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/aithernexus/coco/releases/latest/download/install.sh | bash
 ```
 
 安装程序会根据已发布的 SHA-256 校验文件验证发行包，安全解压，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。校验和只能证明相对于下载位置的完整性，不能证明发布者身份。安装前请通过可信渠道审阅发布版、源代码和校验和。

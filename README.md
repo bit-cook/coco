@@ -21,7 +21,7 @@ COCO_VERSION=0.1.1 bash install.sh
 Install the latest release published by the project:
 
 ```bash
-curl -fsSL https://github.com/aithernexus/coco/releases/latest/download/install.sh | sh
+curl -fsSL https://github.com/aithernexus/coco/releases/latest/download/install.sh | bash
 ```
 
 The installer verifies the release tarball against its published SHA-256 sidecar, safely extracts it, and preserves existing `~/.coco/agent` configuration during updates and reinstalls. A checksum proves integrity only relative to the download location; it does not establish publisher identity. Review the release, its source, and the checksum through a trusted channel before installation.
