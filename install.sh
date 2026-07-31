@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+umask 077
+
+COCO_VERSION="${COCO_VERSION:-0.1.0}"
+COCO_RELEASE_BASE="https://github.com/aithernexus/coco/releases/download/v${COCO_VERSION}"
+COCO_INSTALL_DIR="${COCO_INSTALL_DIR:-$HOME/.coco}"
+COCO_BIN_DIR="${COCO_BIN_DIR:-$HOME/.local/bin}"
+COCO_AGENT_DIR="${COCO_AGENT_DIR:-${COCO_CODING_AGENT_DIR:-$HOME/.coco/agent}}"
+NODE_MIN_MAJOR=22
+NODE_MIN_MINOR=19
+MAX_ARCHIVE_MEMBERS=100000
+MAX_ARCHIVE_BYTES=2147483648
+
+info() { printf 'coco: %s\n' "$*"; }
+die() { printf 'coco: %s\n' "$*" >&2; exit 1; }
+need() { command -v "$1" >/dev/null 2>&1 || die "Required command not found: $1"; }
+
+TMPDIR_install="$(mktemp -d)"
+INSTALL_PARENT="$(dirname "$COCO_INSTALL_DIR")"
+INSTALL_NAME="$(basename "$COCO_INSTALL_DIR")"
+CANDIDATE_DIR="${INSTALL_PARENT}/.${INSTALL_NAME}.coco-candidate-$$"
+ROLLBACK_DIR="${INSTALL_PARENT}/.${INSTALL_NAME}.coco-rollback-$$"
+AGENT_BACKUP="${TMPDIR_install}/agent-backup"
+PREVIOUS_LINK="${TMPDIR_install}/previous-link"
+HAD_INSTALL=0
+HAD_AGENT=0
+HAD_LINK=0
+SWAPPED=0
+LINKED=0
+COMMITTED=0
+CREATED_MODELS=0
+CREATED_AUTH=0
+
+cleanup() {
+  local status=$?
+  trap - EXIT
+  if [ "$COMMITTED" -ne 1 ]; then
+    if [ "$CREATED_MODELS" -eq 1 ]; then rm -f "$COCO_AGENT_DIR/models.json"; fi
+    if [ "$CREATED_AUTH" -eq 1 ]; then rm -f "$COCO_AGENT_DIR/auth.json"; fi
+    if [ "$LINKED" -eq 1 ]; then rm -f "$COCO_BIN_DIR/coco"; fi
+    if [ "$HAD_LINK" -eq 1 ]; then mv "$PREVIOUS_LINK" "$COCO_BIN_DIR/coco"; fi
+    if [ "$SWAPPED" -eq 1 ]; then
+      if [ "$HAD_AGENT" -eq 1 ] && [ -e "$COCO_AGENT_DIR" ]; then
+        mv "$COCO_AGENT_DIR" "$AGENT_BACKUP"
+      fi
+      rm -rf "$COCO_INSTALL_DIR"
+    fi
+    if [ "$HAD_INSTALL" -eq 1 ] && [ -e "$ROLLBACK_DIR" ]; then mv "$ROLLBACK_DIR" "$COCO_INSTALL_DIR"; fi
+    if [ "$HAD_AGENT" -eq 1 ] && [ -e "$AGENT_BACKUP" ]; then
+      rm -rf "$COCO_AGENT_DIR"
+      mkdir -p "$(dirname "$COCO_AGENT_DIR")"
+      mv "$AGENT_BACKUP" "$COCO_AGENT_DIR"
+    fi
+  fi
+  rm -rf "$CANDIDATE_DIR" "$ROLLBACK_DIR" "$TMPDIR_install"
+  exit "$status"
+}
+trap cleanup EXIT
+
+detect_platform() {
+  case "$(uname -s)" in Linux*|Darwin*) ;; *) die "Unsupported OS: $(uname -s). coco supports macOS and Linux." ;; esac
+  case "$(uname -m)" in arm64|aarch64|x86_64|amd64) ;; *) die "Unsupported architecture: $(uname -m). coco supports arm64 and amd64." ;; esac
+}
+
+check_node() {
+  need node
+  local version major minor
+  version="$(node --version 2>/dev/null)" || die "Failed to run 'node --version'"
+  version="${version#v}"; major="${version%%.*}"; minor="${version#*.}"; minor="${minor%%.*}"
+  if [ "$major" -lt "$NODE_MIN_MAJOR" ] || { [ "$major" -eq "$NODE_MIN_MAJOR" ] && [ "$minor" -lt "$NODE_MIN_MINOR" ]; }; then die "Node.js >= ${NODE_MIN_MAJOR}.${NODE_MIN_MINOR} required (found ${version})."; fi
+}
+
+download() {
+  local filename="coco-${COCO_VERSION}.tgz" sidecar line expected actual
+  TARBALL="${TMPDIR_install}/${filename}"; sidecar="${TARBALL}.sha256"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fSL --retry 3 --retry-delay 2 -o "$TARBALL" "${COCO_RELEASE_BASE}/${filename}"
+    curl -fSL --retry 3 --retry-delay 2 -o "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q --tries=3 -O "$TARBALL" "${COCO_RELEASE_BASE}/${filename}"; wget -q --tries=3 -O "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256"
+  else die "Neither curl nor wget found. Install one and retry."; fi
+  line="$(cat "$sidecar")"
+  printf '%s\n' "$line" | grep -Eq "^[0-9a-fA-F]{64}  ${filename}$" || die "Invalid SHA-256 sidecar for ${filename}"
+  expected="${line%%  *}"
+  if command -v sha256sum >/dev/null 2>&1; then actual="$(sha256sum "$TARBALL" | cut -d ' ' -f1)"; elif command -v shasum >/dev/null 2>&1; then actual="$(shasum -a 256 "$TARBALL" | cut -d ' ' -f1)"; else die "Neither sha256sum nor shasum found. Install one and retry."; fi
+  [ "$(printf '%s' "$actual" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$expected" | tr '[:upper:]' '[:lower:]')" ] || die "SHA-256 verification failed for ${filename}"
+}
+
+validate_archive() {
+  node - "$TARBALL" "$MAX_ARCHIVE_MEMBERS" "$MAX_ARCHIVE_BYTES" <<'NODE' || die "Unsafe or unexpected release archive"
+const { spawn } = require("node:child_process");
+const [archive, maxMembersArgument, maxBytesArgument] = process.argv.slice(2);
+const MAX_LIST_LINE_BYTES = 4096; // Bounds streamed tar metadata per member.
+const maxMembers = Number(maxMembersArgument), maxBytes = Number(maxBytesArgument);
+async function* lines(args) {
+  const child = spawn("tar", args, { stdio: ["ignore", "pipe", "ignore"] });
+  const exited = new Promise((resolve, reject) => { child.once("error", reject); child.once("close", (code) => code === 0 ? resolve() : reject(new Error("tar failed"))); });
+  let line = Buffer.alloc(0);
+  try {
+    for await (const chunk of child.stdout) for (let offset = 0; offset < chunk.length;) {
+      const newline = chunk.indexOf(10, offset), end = newline === -1 ? chunk.length : newline, segment = chunk.subarray(offset, end);
+      if (line.length + segment.length > MAX_LIST_LINE_BYTES) throw new Error("tar list line too long");
+      line = Buffer.concat([line, segment]);
+      if (newline === -1) break;
+      yield line.toString("utf8").replace(/\r$/, ""); line = Buffer.alloc(0); offset = newline + 1;
+    }
+    if (line.length > 0) yield line.toString("utf8").replace(/\r$/, "");
+    await exited;
+  } finally { child.kill(); await exited.catch(() => {}); }
+}
+async function validate() {
+  if (!Number.isSafeInteger(maxMembers) || !Number.isSafeInteger(maxBytes) || maxMembers < 1 || maxBytes < 0) return false;
+  const names = lines(["-tzf", archive]), details = lines(["-tzvf", archive]), paths = new Set();
+  let bytes = 0, members = 0, root = null;
+  try {
+    while (true) {
+      const [name, detail] = await Promise.all([names.next(), details.next()]);
+      if (name.done || detail.done) return name.done && detail.done && members > 0 && root === "package";
+      const fields = detail.value.trim().split(/\s+/), size = Number(fields[2]), member = name.value.replace(/\/$/, ""), parts = member.split("/");
+      if (++members > maxMembers || !Number.isSafeInteger(size) || size < 0 || (detail.value[0] !== "-" && detail.value[0] !== "d")) return false;
+      bytes += size;
+      if (bytes > maxBytes || !member || member.startsWith("/") || member.includes("\\") || /^[A-Za-z]:/.test(member) || parts.some((part) => part === "" || part === "." || part === "..") || paths.has(member) || (root !== null && root !== parts[0])) return false;
+      paths.add(member); root = parts[0];
+    }
+  } finally { await Promise.allSettled([names.return(), details.return()]); }
+}
+validate().then((valid) => { if (!valid) process.exitCode = 1; }, () => { process.exitCode = 1; });
+NODE
+}
+
+validate_candidate() {
+  [ -x "$CANDIDATE_DIR/bin/coco" ] || die "Candidate binary not found or not executable"
+  [ -f "$CANDIDATE_DIR/resources/provider-registry.v1.json" ] || die "Candidate is missing provider registry"
+  [ -d "$CANDIDATE_DIR/node_modules" ] || die "Candidate is missing bundled node_modules"
+  "$CANDIDATE_DIR/bin/coco" --version >/dev/null 2>&1 || die "Candidate did not pass its version check"
+}
+
+validate_regular_path() {
+  local path=$1 label=$2
+  if [ -L "$path" ]; then die "Refusing symlinked ${label}: ${path}"; fi
+  if [ -e "$path" ] && [ ! -f "$path" ]; then die "Refusing non-regular ${label}: ${path}"; fi
+}
+
+validate_directory_ancestors() {
+  local path="$(dirname "$1")"
+  while [ "$path" != "/" ]; do
+    if [ -L "$path" ]; then die "Refusing symlinked configuration ancestor: ${path}"; fi
+    if [ -e "$path" ] && [ ! -d "$path" ]; then die "Refusing non-directory configuration ancestor: ${path}"; fi
+    path="$(dirname "$path")"
+  done
+}
+
+validate_agent_path() {
+  [ "$COCO_AGENT_DIR" != "$COCO_INSTALL_DIR" ] || die "Agent directory must not equal install directory"
+  validate_directory_ancestors "$COCO_AGENT_DIR"
+  if [ -L "$COCO_AGENT_DIR" ]; then die "Refusing symlinked agent directory: ${COCO_AGENT_DIR}"; fi
+  if [ -e "$COCO_AGENT_DIR" ] && [ ! -d "$COCO_AGENT_DIR" ]; then die "Refusing non-directory agent path: ${COCO_AGENT_DIR}"; fi
+  validate_regular_path "$COCO_AGENT_DIR/models.json" "models configuration"
+  validate_regular_path "$COCO_AGENT_DIR/auth.json" "auth configuration"
+}
+
+fail_at_test_seam() {
+  local seam=$1 message=$2
+  [ -z "${!seam:-}" ] && return
+  [ "${COCO_INSTALL_TEST_MODE:-}" = "1" ] || die "${seam} is reserved for the installer test harness"
+  die "$message"
+}
+
+prepare_agent_backup() {
+  case "${COCO_AGENT_DIR}/" in
+    "${COCO_INSTALL_DIR}/"*)
+      if [ -e "$COCO_AGENT_DIR" ]; then mv "$COCO_AGENT_DIR" "$AGENT_BACKUP"; HAD_AGENT=1; fi
+      ;;
+  esac
+}
+
+install_coco() {
+  local extract="${TMPDIR_install}/extract"
+  validate_archive
+  mkdir -p "$extract" "$INSTALL_PARENT"
+  tar --no-same-owner --no-same-permissions -xzf "$TARBALL" -C "$extract"
+  mv "$extract/package" "$CANDIDATE_DIR"
+  validate_candidate
+  validate_agent_path
+  prepare_agent_backup
+  if [ -e "$COCO_INSTALL_DIR" ]; then mv "$COCO_INSTALL_DIR" "$ROLLBACK_DIR"; HAD_INSTALL=1; fi
+  mv "$CANDIDATE_DIR" "$COCO_INSTALL_DIR"; SWAPPED=1
+  if [ "$HAD_AGENT" -eq 1 ]; then
+    mkdir -p "$(dirname "$COCO_AGENT_DIR")"
+    mv "$AGENT_BACKUP" "$COCO_AGENT_DIR"
+  fi
+  fail_at_test_seam COCO_INSTALL_TEST_FAIL_AFTER_SWAP "Injected failure after candidate swap"
+}
+
+write_config() {
+  mkdir -p "$COCO_AGENT_DIR"
+  [ ! -L "$COCO_AGENT_DIR" ] || die "Refusing symlinked agent directory: ${COCO_AGENT_DIR}"
+  chmod 700 "$COCO_AGENT_DIR"
+  validate_regular_path "$COCO_AGENT_DIR/models.json" "models configuration"
+  validate_regular_path "$COCO_AGENT_DIR/auth.json" "auth configuration"
+  if [ ! -e "$COCO_AGENT_DIR/models.json" ]; then
+    node -e '
+      const fs = require("fs"); const registry = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); const providers = {};
+      for (const [id, entry] of Object.entries(registry.providers)) providers[id] = { api: entry.api, authHeader: entry.authHeader, baseUrl: entry.baseUrl, compat: entry.compat, models: [] };
+      const target = process.argv[2]; const handle = fs.openSync(target, "wx", 0o600); fs.writeFileSync(handle, JSON.stringify({ providers }) + "\n"); fs.closeSync(handle);
+    ' "$COCO_INSTALL_DIR/resources/provider-registry.v1.json" "$COCO_AGENT_DIR/models.json"
+    CREATED_MODELS=1
+  fi
+  if [ ! -e "$COCO_AGENT_DIR/auth.json" ]; then
+    (umask 077; set -C; printf '{}\n' > "$COCO_AGENT_DIR/auth.json") || die "Could not create auth configuration exclusively"
+    CREATED_AUTH=1
+  fi
+  if [ "$CREATED_MODELS" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/models.json"; fi
+  if [ "$CREATED_AUTH" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/auth.json"; fi
+}
+
+verify_config() {
+  node -e '
+    const fs = require("fs"); const dir = process.argv[1];
+    const models = JSON.parse(fs.readFileSync(dir + "/models.json", "utf8")); const auth = JSON.parse(fs.readFileSync(dir + "/auth.json", "utf8"));
+    if (models === null || typeof models !== "object" || Array.isArray(models) || models.providers === null || typeof models.providers !== "object" || Array.isArray(models.providers) || auth === null || typeof auth !== "object" || Array.isArray(auth)) process.exit(1);
+  ' "$COCO_AGENT_DIR" || die "Configuration verification failed"
+}
+
+link_binary() {
+  mkdir -p "$COCO_BIN_DIR"
+  if [ -L "$COCO_BIN_DIR/coco" ] || [ -f "$COCO_BIN_DIR/coco" ]; then mv "$COCO_BIN_DIR/coco" "$PREVIOUS_LINK"; HAD_LINK=1; elif [ -e "$COCO_BIN_DIR/coco" ]; then die "Refusing non-regular binary link path"; fi
+  ln -s "$COCO_INSTALL_DIR/bin/coco" "$COCO_BIN_DIR/coco"; LINKED=1
+  fail_at_test_seam COCO_INSTALL_TEST_FAIL_AFTER_LINK "Injected failure after binary link"
+}
+
+main() {
+  detect_platform; check_node; download; install_coco; write_config; verify_config; link_binary
+  COMMITTED=1
+  rm -rf "$ROLLBACK_DIR"
+  info "Installed coco v${COCO_VERSION}"
+}
+
+main "$@"
