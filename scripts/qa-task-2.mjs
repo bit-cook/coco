@@ -40,10 +40,10 @@ async function main() {
   const root = resolve(new URL("..", import.meta.url).pathname);
   const npmCli = localNpmCli(root);
   const fixture = await mkdtemp(join(tmpdir(), "coco-task-2-"));
-const tarball = join(root, "coco-0.1.1.tgz");
+  const tarball = join(fixture, "coco-0.1.1.tgz");
   const assetMap = join(root, "scripts", "package-asset-map.v1.json");
   const cases = [];
-  const npmEnv = { ...process.env, TMPDIR: "/root/.cache/coco-tmp" };
+  const npmEnv = { ...process.env, TMPDIR: fixture };
   try {
     cases.push(result("local-npm-launcher-present", true, (await lstat(npmCli)).isFile()));
     for (const [name, args] of [
@@ -52,7 +52,7 @@ const tarball = join(root, "coco-0.1.1.tgz");
       ["tests-real-bootstrap-package-inputs-assets-abi", [npmCli, "test"]],
       ["build-map-deterministic", [npmCli, "run", "build"]],
       ["npm-ls-production", [npmCli, "ls", "--all", "--omit=dev", "--json", "--long"]],
-      ["npm-pack", [npmCli, "pack", "--json"]],
+      ["npm-pack", [npmCli, "pack", "--json", "--pack-destination", fixture]],
     ]) cases.push(result(name, 0, (await command(process.execPath, args, root, npmEnv)).code));
     cases.push(result("local-npm-launcher-survives-ci", true, (await lstat(npmCli)).isFile()));
     const map = JSON.parse(await readFile(assetMap, "utf8"));
@@ -66,7 +66,7 @@ const tarball = join(root, "coco-0.1.1.tgz");
     const home = join(fixture, "home");
     const cache = join(fixture, "empty-cache");
     await mkdir(home); await mkdir(cache);
-    const consumerEnv = { HOME: home, NODE_PATH: "", PATH: "/usr/local/bin:/usr/bin:/bin", TMPDIR: "/root/.cache/coco-tmp", npm_config_cache: cache, npm_config_offline: "true" };
+    const consumerEnv = { HOME: home, NODE_PATH: "", PATH: "/usr/local/bin:/usr/bin:/bin", TMPDIR: fixture, npm_config_cache: cache, npm_config_offline: "true" };
     cases.push(result("offline-empty-cache-install", 0, (await command(process.execPath, [npmCli, "install", "--offline", "--ignore-scripts", "--omit=dev", "--cache", cache, "--prefix", prefix, tarball], root, consumerEnv)).code));
     const bin = join(prefix, "node_modules", ".bin");
     const piBin = join(prefix, "node_modules", "coco", "node_modules", ".bin");
@@ -84,7 +84,6 @@ const tarball = join(root, "coco-0.1.1.tgz");
     await writeFile(evidence, canonicalJson({ artifacts, cases, planSha256: PLAN_SHA256, schemaVersion: 2, status, task: 2 }), { encoding: "utf8", flag: "wx", mode: 0o600 });
     process.exitCode = status === "approved" ? 0 : 1;
   } finally {
-    await rm(tarball, { force: true });
     await rm(fixture, { force: true, recursive: true });
   }
 }
