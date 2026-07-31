@@ -30,7 +30,7 @@ jobs:
       - run: tar -tzf release/coco-*.tgz | (! grep -E '(^package/(\.coco-tools|documentation/[^/]+/logs|test/)|/\.omo/)')
       - working-directory: release
         run: sha256sum coco-*.tgz > coco-$(node -p "require('../package.json').version").tgz.sha256
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: coco-package
           path: release/
