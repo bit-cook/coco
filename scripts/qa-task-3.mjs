@@ -17,11 +17,11 @@ async function main() {
   const evidence = options(process.argv.slice(2));
   const root = resolve(new URL("..", import.meta.url).pathname);
   const temp = await mkdtemp(join(tmpdir(), "coco-task-3-"));
-const tarball = join(root, "coco-0.1.1.tgz");
+  const tarball = join(temp, "coco-0.1.1.tgz");
   const cases = [];
   try {
     const npm = localNpmCli(root);
-    const env = { ...process.env, PI_OFFLINE: "1", TMPDIR: "/root/.cache/coco-tmp" };
+    const env = { ...process.env, PI_OFFLINE: "1", TMPDIR: temp };
     cases.push(result("build-runtime-manifest", 0, (await command(process.execPath, [npm, "run", "build"], root, env)).code));
     cases.push(result("source-integrity", 0, (await command(join(root, "bin", "coco"), ["--version"], root, env)).code));
     const sourceOutput = await command(join(root, "bin", "coco"), ["--help"], root, env);
@@ -43,12 +43,11 @@ const tarball = join(root, "coco-0.1.1.tgz");
     await writeFile(join(copy, "resources", "unexpected.json"), "{}\n");
     const asset = await command(join(copy, "bin", "coco"), ["--version"], copy, env);
     cases.push(result("unexpected-mapped-resource-rejects", true, asset.code !== 0 && asset.stderr.includes("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY")));
-    await rm(tarball, { force: true });
-    cases.push(result("pack", 0, (await command(process.execPath, [npm, "pack", "--json"], root, env)).code));
+    cases.push(result("pack", 0, (await command(process.execPath, [npm, "pack", "--json", "--pack-destination", temp], root, env)).code));
     const prefix = join(temp, "prefix with spaces");
     const cache = join(temp, "empty-cache");
     await mkdir(cache);
-    const installEnv = { HOME: join(temp, "home"), NODE_PATH: "", PATH: "/usr/local/bin:/usr/bin:/bin", TMPDIR: "/root/.cache/coco-tmp", npm_config_cache: cache, npm_config_offline: "true" };
+    const installEnv = { HOME: join(temp, "home"), NODE_PATH: "", PATH: "/usr/local/bin:/usr/bin:/bin", TMPDIR: temp, npm_config_cache: cache, npm_config_offline: "true" };
     cases.push(result("offline-packed-install", 0, (await command(process.execPath, [npm, "install", "--offline", "--ignore-scripts", "--omit=dev", "--cache", cache, "--prefix", prefix, tarball], root, installEnv)).code));
     const installed = join(prefix, "node_modules", "coco", "bin", "coco");
     cases.push(result("packed-identity-spaces", 0, (await command(installed, ["--version"], prefix, { ...installEnv, PI_OFFLINE: "1" })).code));
@@ -56,6 +55,6 @@ const tarball = join(root, "coco-0.1.1.tgz");
     const status = cases.every((entry) => entry.status === "passed") ? "approved" : "rejected";
     await writeFile(evidence, canonicalJson({ artifacts: { manifestEntries: JSON.parse(await readFile(manifest, "utf8")).entries.length, manifestSha256: sha256(await readFile(manifest)), manifestSidecarSha256: sha256(await readFile(`${manifest}.sha256`)), tarballSha256: sha256(await readFile(tarball)) }, cases, schemaVersion: 1, status, task: 3 }), { encoding: "utf8", flag: "wx", mode: 0o600 });
     process.exitCode = status === "approved" ? 0 : 1;
-  } finally { await rm(tarball, { force: true }); await rm(temp, { force: true, recursive: true }); }
+  } finally { await rm(temp, { force: true, recursive: true }); }
 }
 void main();
