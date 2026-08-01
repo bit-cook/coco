@@ -60,23 +60,21 @@ function writeCache(manifestHash, entries) {
  * paths relative to root. Scope matches manifest generation: ROOTS +
  * dependency roots only. Returns null on unexpected entry types. */
 function walkPaths(absolute, output = []) {
-  const info = lstatSync(absolute);
-  if (info.isSymbolicLink() || (!info.isDirectory() && !info.isFile())) return null;
-  if (info.isFile()) {
+  const rootInfo = lstatSync(absolute);
+  if (rootInfo.isSymbolicLink() || (!rootInfo.isFile() && !rootInfo.isDirectory())) return null;
+  if (rootInfo.isFile()) {
     const filePath = pathOf(absolute);
     if (!PACKAGE_EXCLUDED.has(filePath)) output.push(filePath);
     return output;
   }
-  const entries = readdirSync(absolute, { withFileTypes: true });
+  const entries = readdirSync(absolute, { withFileTypes: true, recursive: true });
   for (const dirent of entries) {
-    if (EXCLUDED_COMPONENTS.has(dirent.name)) continue;
-    const child = join(absolute, dirent.name);
-    if (dirent.isSymbolicLink() || (!dirent.isFile() && !dirent.isDirectory())) return null;
-    if (dirent.isFile()) {
-      const filePath = pathOf(child);
-      if (PACKAGE_EXCLUDED.has(filePath)) continue;
-      output.push(filePath);
-    } else if (walkPaths(child, output) === null) return null;
+    if (EXCLUDED_COMPONENTS.has(dirent.name) || dirent.parentPath.split(sep).some((component) => EXCLUDED_COMPONENTS.has(component))) continue;
+    if (dirent.isSymbolicLink()) return null;
+    if (!dirent.isFile() && !dirent.isDirectory()) return null;
+    if (!dirent.isFile()) continue;
+    const filePath = pathOf(join(dirent.parentPath, dirent.name));
+    if (!PACKAGE_EXCLUDED.has(filePath)) output.push(filePath);
   }
   return output;
 }
@@ -187,6 +185,10 @@ async function main() {
     closeSync(descriptor); closeSync(rootDescriptor);
     process.env.COCO_INTEGRITY_VERIFIED = "1";
     if (process.env.PI_OFFLINE === undefined) process.env.PI_OFFLINE = "1";
+    if (process.argv.length === 3 && (process.argv[2] === "--version" || process.argv[2] === "-v")) {
+      process.stdout.write(`${JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version}\n`);
+      return;
+    }
     await import(pathToFileURL(join(root, "scripts", "coco-launcher.mjs")).href);
   } catch (error) {
     console.error("BOOTSTRAP_ERROR", error);

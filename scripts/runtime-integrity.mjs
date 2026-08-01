@@ -69,24 +69,21 @@ async function files(root, absolute = root) {
  * paths relative to root. Scope matches manifest generation: ROOTS +
  * dependency roots only. Symlinks and special entries are integrity violations. */
 async function walkPaths(root, absolute, output = []) {
-  const info = await lstat(absolute);
-  if (info.isSymbolicLink() || (!info.isDirectory() && !info.isFile())) throw new Error("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY");
-  if (info.isFile()) {
+  const rootInfo = await lstat(absolute);
+  if (rootInfo.isSymbolicLink() || (!rootInfo.isFile() && !rootInfo.isDirectory())) throw new Error("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY");
+  if (rootInfo.isFile()) {
     const filePath = pathOf(root, absolute);
     if (!PACKAGE_EXCLUDED.has(filePath)) output.push(filePath);
     return output;
   }
-  const entries = await readdir(absolute, { withFileTypes: true });
+  const entries = await readdir(absolute, { withFileTypes: true, recursive: true });
   for (const dirent of entries) {
-    if (EXCLUDED_COMPONENTS.has(dirent.name)) continue;
-    const child = join(absolute, dirent.name);
-    if (dirent.isSymbolicLink() || (!dirent.isFile() && !dirent.isDirectory())) throw new Error("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY");
-    if (dirent.isFile()) {
-      const filePath = pathOf(root, child);
-      if (!PACKAGE_EXCLUDED.has(filePath)) output.push(filePath);
-    } else {
-      await walkPaths(root, child, output);
-    }
+    if (EXCLUDED_COMPONENTS.has(dirent.name) || dirent.parentPath.split(sep).some((component) => EXCLUDED_COMPONENTS.has(component))) continue;
+    if (dirent.isSymbolicLink()) throw new Error("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY");
+    if (!dirent.isFile() && !dirent.isDirectory()) throw new Error("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY");
+    if (!dirent.isFile()) continue;
+    const filePath = pathOf(root, join(dirent.parentPath, dirent.name));
+    if (!PACKAGE_EXCLUDED.has(filePath)) output.push(filePath);
   }
   return output;
 }
