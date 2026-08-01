@@ -45,7 +45,7 @@ function writeCache(manifestHash, entries) {
   try {
     const snapshots = {};
     for (const entry of entries) {
-      if (entry.path.startsWith("node_modules/")) continue; // node_modules verified structurally only
+      if (entry.path.startsWith("node_modules/")) continue; // dependencies are hashed directly on warm checks
       try {
         const info = lstatSync(join(root, entry.path));
         snapshots[entry.path] = { size: info.size, mtimeMs: info.mtimeMs, mode: mode(info) };
@@ -89,8 +89,9 @@ function structureCheck(expected, runtimeRoots) {
     walked.push(...result);
   }
   const filtered = walked.filter((path) => path !== MANIFEST_ENTRY && path !== SIDECAR_ENTRY && !TRUST_ANCHORS.has(path));
-  if (filtered.length !== expected.size) return false;
-  for (const path of filtered) if (!expected.has(path)) return false;
+  const expectedRuntime = new Set([...expected].filter((path) => runtimeRoots.some((directory) => path === directory || path.startsWith(`${directory}/`))));
+  if (filtered.length !== expectedRuntime.size) return false;
+  for (const path of filtered) if (!expectedRuntime.has(path)) return false;
   return true;
 }
 
@@ -122,14 +123,21 @@ async function main() {
     const runtimeRoots = [...ROOTS, "node_modules"];
 
     // Fast path: readdir-only structural check + stat snapshot comparison for
-    // the top-level runtime files only. node_modules is verified structurally.
+    // package files. Dependencies retain authoritative content hashing.
     // Set COCO_INTEGRITY_FULL=1 (or delete the cache) to force full hashing.
     let verified = false;
     if (process.env.COCO_INTEGRITY_FULL !== "1") {
       const cached = readCache();
       if (cached?.manifestHash === manifestHash && structureCheck(expected, runtimeRoots)) {
         verified = manifest.entries.every((entry) => {
-          if (entry.path.startsWith("node_modules/")) return true;
+          if (entry.path.startsWith("node_modules/")) {
+            try {
+              const path = join(root, entry.path);
+              return regular(path) && hash(readFileSync(path)) === entry.sha256;
+            } catch {
+              return false;
+            }
+          }
           const snapshot = cached.entries?.[entry.path];
           if (!snapshot || typeof snapshot.size !== "number" || typeof snapshot.mtimeMs !== "number" || typeof snapshot.mode !== "number") return false;
           try {
@@ -184,6 +192,7 @@ async function main() {
     }
     closeSync(descriptor); closeSync(rootDescriptor);
     process.env.COCO_INTEGRITY_VERIFIED = "1";
+    process.env.COCO_INTEGRITY_MODE = verified ? "fast" : "full";
     if (process.env.PI_OFFLINE === undefined) process.env.PI_OFFLINE = "1";
     if (process.argv.length === 3 && (process.argv[2] === "--version" || process.argv[2] === "-v")) {
       process.stdout.write(`${JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version}\n`);
