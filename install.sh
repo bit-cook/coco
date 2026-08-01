@@ -290,7 +290,7 @@ fs.writeFileSync(modelsPath, JSON.stringify(models) + "\n", { mode: 0o600 });
 const settings = fs.existsSync(settingsPath) ? JSON.parse(fs.readFileSync(settingsPath, "utf8")) : {};
 settings.defaultProvider = "agnes";
 settings.defaultModel = "agnes-2.5-flash";
-settings.defaultThinkingLevel = "off";
+settings.defaultThinkingLevel = "max";
 settings.enabledModels = [...new Set([...(settings.enabledModels ?? []), "agnes/agnes-2.5-flash"])];
 fs.writeFileSync(settingsPath, JSON.stringify(settings) + "\n", { mode: 0o600 });
 if (process.env.AGNES_API_KEY) {
