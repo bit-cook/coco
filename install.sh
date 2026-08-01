@@ -6,7 +6,9 @@ umask 077
 COCO_VERSION="${COCO_VERSION:-0.1.1}"
 COCO_RELEASE_BASE="https://github.com/aithernexus/coco/releases/download/v${COCO_VERSION}"
 COCO_INSTALL_DIR="${COCO_INSTALL_DIR:-$HOME/.coco}"
-COCO_BIN_DIR="${COCO_BIN_DIR:-$HOME/.local/bin}"
+if [ -z "${COCO_BIN_DIR:-}" ]; then
+  if [ "$(id -u)" = "0" ]; then COCO_BIN_DIR="/usr/local/bin"; else COCO_BIN_DIR="$HOME/.local/bin"; fi
+fi
 COCO_AGENT_DIR="${COCO_AGENT_DIR:-${COCO_CODING_AGENT_DIR:-$HOME/.coco/agent}}"
 NODE_MIN_MAJOR=22
 NODE_MIN_MINOR=19
