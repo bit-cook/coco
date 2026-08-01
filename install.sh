@@ -270,16 +270,16 @@ const modelsPath = `${agentDir}/models.json`;
 const settingsPath = `${agentDir}/settings.json`;
 const authPath = `${agentDir}/auth.json`;
 const models = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
-const stepfun = registry.providers.stepfun;
-models.providers.stepfun = {
-  api: stepfun.api,
+const agnes = registry.providers.agnes;
+models.providers.agnes = {
+  api: agnes.api,
   authHeader: true,
-  baseUrl: "https://api.stepfun.com/step_plan/v1",
-  compat: stepfun.compat,
+  baseUrl: agnes.baseUrl,
+  compat: agnes.compat,
   models: [{
-    id: "step-3.7-flash",
-    name: "Step 3.7 Flash",
-    reasoning: true,
+    id: "agnes-2.5-flash",
+    name: "Agnes 2.5 Flash",
+    reasoning: false,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 128000,
@@ -288,14 +288,14 @@ models.providers.stepfun = {
 };
 fs.writeFileSync(modelsPath, JSON.stringify(models) + "\n", { mode: 0o600 });
 const settings = fs.existsSync(settingsPath) ? JSON.parse(fs.readFileSync(settingsPath, "utf8")) : {};
-settings.defaultProvider = "stepfun";
-settings.defaultModel = "step-3.7-flash";
-settings.defaultThinkingLevel = "high";
-settings.enabledModels = [...new Set([...(settings.enabledModels ?? []), "stepfun/step-3.7-flash"])];
+settings.defaultProvider = "agnes";
+settings.defaultModel = "agnes-2.5-flash";
+settings.defaultThinkingLevel = "off";
+settings.enabledModels = [...new Set([...(settings.enabledModels ?? []), "agnes/agnes-2.5-flash"])];
 fs.writeFileSync(settingsPath, JSON.stringify(settings) + "\n", { mode: 0o600 });
-if (process.env.STEPFUN_API_KEY) {
+if (process.env.AGNES_API_KEY) {
   const auth = JSON.parse(fs.readFileSync(authPath, "utf8"));
-  auth.stepfun = { type: "api_key", key: process.env.STEPFUN_API_KEY };
+  auth.agnes = { type: "api_key", key: process.env.AGNES_API_KEY };
   fs.writeFileSync(authPath, JSON.stringify(auth) + "\n", { mode: 0o600 });
 }
 NODE
