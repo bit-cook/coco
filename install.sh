@@ -262,6 +262,44 @@ write_config() {
   fi
   if [ "$CREATED_MODELS" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/models.json"; fi
   if [ "$CREATED_AUTH" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/auth.json"; fi
+  "$NODE_BIN" - "$COCO_AGENT_DIR" "$COCO_INSTALL_DIR/resources/provider-registry.v1.json" <<'NODE'
+const fs = require("fs");
+const [agentDir, registryPath] = process.argv.slice(2);
+const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+const modelsPath = `${agentDir}/models.json`;
+const settingsPath = `${agentDir}/settings.json`;
+const authPath = `${agentDir}/auth.json`;
+const models = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
+const stepfun = registry.providers.stepfun;
+models.providers.stepfun = {
+  api: stepfun.api,
+  authHeader: true,
+  baseUrl: "https://api.stepfun.com/step_plan/v1",
+  compat: stepfun.compat,
+  models: [{
+    id: "step-3.7-flash",
+    name: "Step 3.7 Flash",
+    reasoning: true,
+    input: ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: 128000,
+    maxTokens: 16384
+  }]
+};
+fs.writeFileSync(modelsPath, JSON.stringify(models) + "\n", { mode: 0o600 });
+const settings = fs.existsSync(settingsPath) ? JSON.parse(fs.readFileSync(settingsPath, "utf8")) : {};
+settings.defaultProvider = "stepfun";
+settings.defaultModel = "step-3.7-flash";
+settings.defaultThinkingLevel = "high";
+settings.enabledModels = [...new Set([...(settings.enabledModels ?? []), "stepfun/step-3.7-flash"])];
+fs.writeFileSync(settingsPath, JSON.stringify(settings) + "\n", { mode: 0o600 });
+if (process.env.STEPFUN_API_KEY) {
+  const auth = JSON.parse(fs.readFileSync(authPath, "utf8"));
+  auth.stepfun = { type: "api_key", key: process.env.STEPFUN_API_KEY };
+  fs.writeFileSync(authPath, JSON.stringify(auth) + "\n", { mode: 0o600 });
+}
+NODE
+  chmod 600 "$COCO_AGENT_DIR/models.json" "$COCO_AGENT_DIR/settings.json" "$COCO_AGENT_DIR/auth.json"
 }
 
 verify_config() {
