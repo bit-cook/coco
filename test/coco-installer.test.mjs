@@ -30,7 +30,7 @@ async function runInstaller(script, environment) {
 
 async function writeChecksum(tarball) {
   const digest = createHash("sha256").update(await readFile(tarball)).digest("hex");
-  await writeFile(`${tarball}.sha256`, `${digest}  coco-0.1.1.tgz\n`);
+  await writeFile(`${tarball}.sha256`, `${digest}  coco-0.1.2.tgz\n`);
 }
 
 async function fixture() {
@@ -39,7 +39,7 @@ async function fixture() {
   const install = join(root, "install");
   const agent = join(install, "agent");
   const bin = join(root, "bin");
-  const tarball = join(server, "coco-0.1.1.tgz");
+  const tarball = join(server, "coco-0.1.2.tgz");
   const packageRoot = join(root, "package");
   await mkdir(join(packageRoot, "bin"), { recursive: true });
   await mkdir(join(packageRoot, "node_modules"), { recursive: true });
@@ -63,7 +63,7 @@ async function fixture() {
         COCO_CODING_AGENT_DIR: agent,
         COCO_INSTALL_DIR: install,
         COCO_INSTALL_TEST_MODE: "1",
-  COCO_TEST_SIDECAR: join(server, "coco-0.1.1.tgz.sha256"),
+      COCO_TEST_SIDECAR: join(server, "coco-0.1.2.tgz.sha256"),
       COCO_TEST_TARBALL: tarball,
       HOME: root,
       PATH: `${bin}:${process.env.PATH}`,
@@ -99,7 +99,7 @@ for (const installer of installers) {
   test(`Given a clean home, when ${installer} installs from a verified release artifact, then it writes public models metadata and an empty auth store`, async () => {
     const setup = await fixture();
     try {
-      assert.equal(await runInstaller(installer, setup.environment), 0);
+      assert.equal(await runInstaller(installer, { ...setup.environment, COCO_INSTALL_TEST_MODE: "0" }), 0);
       await stat(join(setup.install, "node_modules"));
       const models = JSON.parse(await readFile(join(setup.agent, "models.json"), "utf8"));
       const auth = JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8"));
@@ -107,9 +107,19 @@ for (const installer of installers) {
       assert.deepEqual(Object.fromEntries(Object.entries(models.providers).map(([provider, model]) => [provider, model.baseUrl])), publicBaseUrls);
       assert.equal(JSON.stringify(models).includes("apiKey"), false);
       assert.deepEqual(auth, {});
-      await assert.rejects(stat(join(setup.agent, "settings.json")));
+      assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "settings.json"), "utf8")), { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enabledModels: ["agnes/agnes-2.5-flash"] });
       assert.equal((await stat(join(setup.agent, "models.json"))).mode & 0o777, 0o600);
       assert.equal((await stat(join(setup.agent, "auth.json"))).mode & 0o777, 0o600);
+    } finally {
+      await rm(setup.root, { force: true, recursive: true });
+    }
+  });
+
+  test(`Given an explicit Agnes key, when ${installer} installs, then only that key is stored`, async () => {
+    const setup = await fixture();
+    try {
+      assert.equal(await runInstaller(installer, { ...setup.environment, AGNES_API_KEY: "test-agnes-key", COCO_INSTALL_TEST_MODE: "0" }), 0);
+      assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8")), { agnes: { type: "api_key", key: "test-agnes-key" } });
     } finally {
       await rm(setup.root, { force: true, recursive: true });
     }
@@ -162,7 +172,7 @@ for (const installer of installers) {
       assert.equal(await runInstaller(installer, setup.environment), 0);
       await writeFile(join(setup.agent, "settings.json"), settings);
       await writeFile(join(setup.install, "installed-before-checksum-failure"), "preserve\n");
-  await writeFile(join(setup.server, "coco-0.1.1.tgz.sha256"), `${"0".repeat(64)}  coco-0.1.1.tgz\n`);
+      await writeFile(join(setup.server, "coco-0.1.2.tgz.sha256"), `${"0".repeat(64)}  coco-0.1.2.tgz\n`);
       assert.notEqual(await runInstaller(installer, setup.environment), 0);
       assert.equal(await readFile(join(setup.install, "installed-before-checksum-failure"), "utf8"), "preserve\n");
       assert.deepEqual(await readFile(join(setup.agent, "settings.json")), settings);
@@ -211,7 +221,7 @@ for (const installer of installers) {
         await writeFile(join(setup.install, "runtime-before-injected-failure"), "preserve\n");
         await writeFile(join(setup.agent, "settings.json"), settings);
         const previousLink = await readFile(join(setup.bin, "coco"), "utf8").catch(() => Buffer.alloc(0));
-        assert.notEqual(await runInstaller(installer, { ...setup.environment, [failureSeam]: "1" }), 0);
+        assert.notEqual(await runInstaller(installer, { ...setup.environment, COCO_INSTALL_TEST_MODE: "1", [failureSeam]: "1" }), 0);
         assert.equal(await readFile(join(setup.install, "runtime-before-injected-failure"), "utf8"), "preserve\n");
         assert.deepEqual(await readFile(join(setup.agent, "settings.json")), settings);
         assert.equal((await lstat(join(setup.bin, "coco"))).isSymbolicLink(), true);

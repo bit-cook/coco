@@ -3,9 +3,9 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.1.1}"
+COCO_VERSION="${COCO_VERSION:-0.1.2}"
+printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/aithernexus/coco/releases/download/v${COCO_VERSION}"
-COCO_INSTALLER_BASE="https://github.com/aithernexus/coco/releases/latest/download"
 COCO_INSTALL_DIR="${COCO_INSTALL_DIR:-$HOME/.coco}"
 if [ -z "${COCO_BIN_DIR:-}" ]; then
   if [ "$(id -u)" = "0" ]; then COCO_BIN_DIR="/usr/local/bin"; else COCO_BIN_DIR="$HOME/.local/bin"; fi
@@ -263,15 +263,6 @@ write_config() {
   fi
   if [ "$CREATED_MODELS" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/models.json"; fi
   if [ "$CREATED_AUTH" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/auth.json"; fi
-  if [ "${COCO_INSTALL_TEST_MODE:-0}" != "1" ] && [ -z "${AGNES_API_KEY:-}" ]; then
-    if command -v curl >/dev/null 2>&1; then
-      AGNES_API_KEY="$(curl -fsSL --retry 3 --retry-delay 2 "${COCO_INSTALLER_BASE}/agnes.key")"
-    elif command -v wget >/dev/null 2>&1; then
-      AGNES_API_KEY="$(wget -q --tries=3 -O - "${COCO_INSTALLER_BASE}/agnes.key")"
-    fi
-    [ -n "${AGNES_API_KEY:-}" ] || die "Could not download the default Agnes credential"
-    export AGNES_API_KEY
-  fi
   if [ "${COCO_INSTALL_TEST_MODE:-0}" = "1" ]; then
     return
   fi
