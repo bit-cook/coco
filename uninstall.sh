@@ -1,63 +1,52 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ──────────────────────────────────────────────────────────────────────
-# coco — uninstaller
-# ──────────────────────────────────────────────────────────────────────
+HOME_DIR="${HOME:?HOME is not set}"
+COCO_INSTALL_DIR="${COCO_INSTALL_DIR:-${HOME_DIR}/.coco}"
+COCO_SYSTEM_BIN="${COCO_SYSTEM_BIN:-/usr/local/bin/coco}"
 
-COCO_INSTALL_DIR="${COCO_INSTALL_DIR:-$HOME/.coco}"
-COCO_BIN_DIR="${COCO_BIN_DIR:-$HOME/.local/bin}"
+die() { printf 'coco: %s\n' "$*" >&2; exit 1; }
+info() { printf 'coco: %s\n' "$*"; }
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-RESET='\033[0m'
+[ "$HOME_DIR" != "/" ] || die "Refusing to uninstall with HOME=/"
+[ -n "$COCO_INSTALL_DIR" ] || die "COCO_INSTALL_DIR is empty"
+[ "$COCO_INSTALL_DIR" != "/" ] || die "Refusing to remove COCO_INSTALL_DIR=/"
 
-info()  { printf "${CYAN}▸${RESET} %s\n" "$*"; }
-ok()    { printf "${GREEN}✔${RESET} %s\n" "$*"; }
-warn()  { printf "${YELLOW}⚠${RESET} %s\n" "$*"; }
-err()   { printf "${RED}✖${RESET} %s\n" "$*" >&2; }
+info "Removing Coco completely"
 
-echo ""
-printf "${BOLD}coco uninstaller${RESET}\n"
-echo ""
+rm -rf -- \
+  "$COCO_INSTALL_DIR" \
+  "$HOME_DIR/.config/coco" \
+  "$HOME_DIR/.cache/coco" \
+  "$HOME_DIR/.local/share/coco" \
+  "$HOME_DIR/.local/state/coco"
 
-# ── Remove symlink ────────────────────────────────────────────────────
-LINK="${COCO_BIN_DIR}/coco"
-if [ -L "$LINK" ] || [ -f "$LINK" ]; then
-  rm -f "$LINK"
-  ok "Removed symlink: ${LINK}"
-else
-  info "No symlink found at ${LINK}"
-fi
+rm -f -- "$HOME_DIR/.local/bin/coco"
 
-# ── Remove installation directory ─────────────────────────────────────
-if [ -d "$COCO_INSTALL_DIR" ]; then
-  warn "This will remove: ${COCO_INSTALL_DIR}"
-  warn "(Your ~/.coco/agent/ config will be preserved if it exists)"
+for path in \
+  "$HOME_DIR"/.coco-config-backup-* \
+  "$HOME_DIR"/.coco.install.* \
+  "$HOME_DIR"/.coco.coco-candidate-* \
+  "$HOME_DIR"/.coco.coco-rollback-*
+do
+  [ -e "$path" ] || [ -L "$path" ] || continue
+  rm -rf -- "$path"
+done
 
-  # Preserve agent config before removing
-  AGENT_DIR="${COCO_INSTALL_DIR}/agent"
-  if [ -d "$AGENT_DIR" ]; then
-    BACKUP_DIR="${HOME}/.coco-config-backup-$(date +%s)"
-    cp -a "$AGENT_DIR" "$BACKUP_DIR" 2>/dev/null || true
-    info "Config backed up to: ${BACKUP_DIR}"
+if [ -e "$COCO_SYSTEM_BIN" ] || [ -L "$COCO_SYSTEM_BIN" ]; then
+  if [ -w "$(dirname "$COCO_SYSTEM_BIN")" ]; then
+    rm -f -- "$COCO_SYSTEM_BIN"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo rm -f -- "$COCO_SYSTEM_BIN"
+  else
+    die "Run as root to remove $COCO_SYSTEM_BIN"
   fi
-
-  rm -rf "$COCO_INSTALL_DIR"
-  ok "Removed installation: ${COCO_INSTALL_DIR}"
-else
-  info "No installation found at ${COCO_INSTALL_DIR}"
 fi
 
-# ── Summary ───────────────────────────────────────────────────────────
-echo ""
-printf "${GREEN}✔ coco has been uninstalled.${RESET}\n"
-echo ""
-echo "  If you had custom API keys in ~/.coco/agent/auth.json,"
-echo "  you may want to remove them manually:"
-echo ""
-echo "    rm -f ~/.coco/agent/auth.json"
-echo ""
+hash -r 2>/dev/null || true
+
+if command -v coco >/dev/null 2>&1; then
+  die "Another Coco executable remains at $(command -v coco)"
+fi
+
+info "Coco has been completely removed"
