@@ -56,8 +56,8 @@
     "navigation_files_exist": true
   },
   "publication_assets": {
-    "logs_per_locale": 2,
-    "logs": {"en":["en/logs/opencode/2026-07-31.md","en/logs/project-development.md"],"zh-CN":["zh-CN/logs/opencode/2026-07-31.md","zh-CN/logs/project-development.md"]},
+    "logs_per_locale": 0,
+    "logs": {"en":[],"zh-CN":[]},
     "images_per_locale": 4,
     "images": {"en":["en/docs/images/doom-extension.png","en/docs/images/exy.png","en/docs/images/interactive-mode.png","en/docs/images/tree-view.png"],"zh-CN":["zh-CN/docs/images/doom-extension.png","zh-CN/docs/images/exy.png","zh-CN/docs/images/interactive-mode.png","zh-CN/docs/images/tree-view.png"]},
     "image_sha256": {"doom-extension.png":"c3b89b5e1fba711a5bcfa188e13d8695a84f7cdda12d9e127bb45b36d13cbb27","exy.png":"a8f253347440aed01ff659f41f573d340bcfd6010d829726ae92fe18abf601de","interactive-mode.png":"54de24b4c95a4f1833b2462000ce7de64a41e961745be7a776b30083c8b69715","tree-view.png":"ca61e7bbf300dfb3840cc191dc66dc4e9f5166b2f1f4089e6fb13fd04a2c3c66"}
@@ -78,7 +78,7 @@
   ],
   "verification": {
     "target_counterparts_verified": "passed: 39 source paths have byte-identical English mirrors and Chinese counterparts",
-    "locale_markdown_and_logs": "passed: 39 mapped Markdown files and 2 logs per locale",
+    "locale_markdown_and_logs": "passed: 39 mapped Markdown files; local operational logs are excluded from publication",
     "chinese_structure": "passed: CHANGELOG.md has 5164 lines, 854 headings, 266 releases, and 28 fences; docs/extensions.md has 2961 lines",
     "navigation_and_assets": "passed: docs.json parses in both locales, route sequences and redirects match, all 28 routes resolve, and image inventory matches",
     "publication_safety": "passed: no session identifiers, absolute local project paths, or high-confidence credential patterns found in the public documentation set; generated operational logs remain local",
