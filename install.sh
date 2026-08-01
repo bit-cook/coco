@@ -219,6 +219,7 @@ validate_agent_path() {
   if [ -e "$COCO_AGENT_DIR" ] && [ ! -d "$COCO_AGENT_DIR" ]; then die "Refusing non-directory agent path: ${COCO_AGENT_DIR}"; fi
   validate_regular_path "$COCO_AGENT_DIR/models.json" "models configuration"
   validate_regular_path "$COCO_AGENT_DIR/auth.json" "auth configuration"
+  validate_regular_path "$COCO_AGENT_DIR/settings.json" "settings configuration"
 }
 
 fail_at_test_seam() {
@@ -267,6 +268,7 @@ write_config() {
   chmod 700 "$COCO_AGENT_DIR"
   validate_regular_path "$COCO_AGENT_DIR/models.json" "models configuration"
   validate_regular_path "$COCO_AGENT_DIR/auth.json" "auth configuration"
+  validate_regular_path "$COCO_AGENT_DIR/settings.json" "settings configuration"
   if [ ! -e "$COCO_AGENT_DIR/models.json" ]; then
     "$NODE_BIN" -e '
       const fs = require("fs"); const registry = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); const providers = {};

@@ -31,6 +31,20 @@ async function runInstaller(script, environment) {
   });
 }
 
+async function runInstallerBounded(script, environment, timeoutMs = 2_000) {
+  return await new Promise((resolve) => {
+    const child = spawn("bash", [script], { env: environment, stdio: "ignore" });
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      resolve({ code: null, timedOut: true });
+    }, timeoutMs);
+    child.once("close", (code) => {
+      clearTimeout(timer);
+      resolve({ code: code ?? 1, timedOut: false });
+    });
+  });
+}
+
 async function writeChecksum(tarball) {
   const digest = createHash("sha256").update(await readFile(tarball)).digest("hex");
   await writeFile(`${tarball}.sha256`, `${digest}  coco-0.1.3.tgz\n`);
@@ -280,6 +294,45 @@ for (const installer of installers) {
       assert.notEqual(await runInstaller(installer, setup.environment), 0);
       assert.deepEqual(await readFile(externalModels), models);
       assert.equal((await lstat(join(setup.agent, "models.json"))).isSymbolicLink(), true);
+    } finally {
+      await rm(setup.root, { force: true, recursive: true });
+    }
+  });
+
+  test(`Given a symlinked settings store, when ${installer} runs, then it rejects the unsafe config path without changing its target`, async () => {
+    const setup = await fixture();
+    const externalSettings = join(setup.root, "external-settings.json");
+    const settings = Buffer.from('{"outside":true}\n');
+    try {
+      await mkdir(setup.agent, { recursive: true });
+      await writeFile(externalSettings, settings);
+      await symlink(externalSettings, join(setup.agent, "settings.json"));
+      assert.notEqual(await runInstaller(installer, setup.environment), 0);
+      assert.deepEqual(await readFile(externalSettings), settings);
+      assert.equal((await lstat(join(setup.agent, "settings.json"))).isSymbolicLink(), true);
+    } finally {
+      await rm(setup.root, { force: true, recursive: true });
+    }
+  });
+
+  test(`Given a FIFO settings path and an existing install, when ${installer} runs, then it rejects without hanging or changing prior state`, async () => {
+    const setup = await fixture();
+    const settingsPath = join(setup.agent, "settings.json");
+    try {
+      assert.equal(await runInstaller(installer, setup.environment), 0);
+      const priorModels = await readFile(join(setup.agent, "models.json"));
+      const priorAuth = await readFile(join(setup.agent, "auth.json"));
+      await writeFile(settingsPath, '{"preserve":true}\n');
+      await writeFile(join(setup.install, "runtime-before-settings-fifo"), "preserve\n");
+      await rm(settingsPath);
+      await exec("mkfifo", [settingsPath]);
+      const result = await runInstallerBounded(installer, setup.environment);
+      assert.equal(result.timedOut, false);
+      assert.notEqual(result.code, 0);
+      assert.equal(await readFile(join(setup.install, "runtime-before-settings-fifo"), "utf8"), "preserve\n");
+      assert.deepEqual(await readFile(join(setup.agent, "models.json")), priorModels);
+      assert.deepEqual(await readFile(join(setup.agent, "auth.json")), priorAuth);
+      assert.equal((await lstat(settingsPath)).isFIFO(), true);
     } finally {
       await rm(setup.root, { force: true, recursive: true });
     }
