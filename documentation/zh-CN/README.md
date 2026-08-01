@@ -20,11 +20,11 @@ curl -fsSL https://aithernexus.github.io/coco/install.sh | bash
 或者安装经过明确审阅的固定版本：
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.2/install.sh
-COCO_VERSION=0.1.2 bash install.sh
+curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.3/install.sh
+COCO_VERSION=0.1.3 bash install.sh
 ```
 
-安装程序会根据固定标签发布的 SHA-256 校验文件验证发行包，安全解压，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。全新安装默认使用 Agnes max，并包含 Agnes、IDEPub、StepFun 和 Achai 的公开元数据。Coco 不捆绑凭据；请显式提供 `AGNES_API_KEY`，或在安装后配置提供商。
+安装程序会根据固定 SHA-256 值验证固定标签发行包和公开 Agnes 凭据，安全解压 Coco，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。全新安装可立即使用 Agnes max，并包含 Agnes、IDEPub、StepFun 和 Achai 的公开元数据。设置 `AGNES_API_KEY` 可覆盖默认凭据，也可以在安装后配置其他提供商。
 
 ## 启动网络策略
 

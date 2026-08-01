@@ -26,7 +26,7 @@ test("Given the coco package root, when runtime identity is resolved, then it pi
   assert.equal(runtime.identity.configDir, ".coco");
   assert.equal(runtime.identity.agentEnv, "COCO_CODING_AGENT_DIR");
   assert.equal(runtime.identity.sessionEnv, "COCO_CODING_AGENT_SESSION_DIR");
-  assert.equal(runtime.identity.version, "0.1.2");
+  assert.equal(runtime.identity.version, "0.1.3");
   assert.equal(runtime.piVersion, "0.82.1");
   assert.equal(runtime.root, resolve(root));
 });
