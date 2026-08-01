@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rename, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -242,6 +242,47 @@ test("Given direct CJS bootstrap runs, when fast and full verification complete,
   }
 });
 
+test("Given a warm CJS integrity cache, when dependencies are unchanged, then bootstrap reads no dependency content", async () => {
+  const packageRoot = await fixture();
+  try {
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const agentDir = join(packageRoot, "agent");
+    const probe = join(packageRoot, "dependency-read-probe.cjs");
+    await writeFile(probe, `const fs = require("node:fs");
+const promises = require("node:fs/promises");
+const root = ${JSON.stringify(packageRoot)};
+const rejectsDependencyRead = (path) => typeof path === "string" && path.startsWith(root + "/node_modules/");
+const readFileSync = fs.readFileSync;
+const readFile = promises.readFile;
+fs.readFileSync = (path, ...arguments_) => {
+  if (rejectsDependencyRead(path)) throw new Error("DEPENDENCY_CONTENT_READ");
+  return readFileSync(path, ...arguments_);
+};
+promises.readFile = async (path, ...arguments_) => {
+  if (rejectsDependencyRead(path)) throw new Error("DEPENDENCY_CONTENT_READ");
+  return readFile(path, ...arguments_);
+};
+`);
+    await rm(agentDir, { force: true, recursive: true });
+    const environment = { ...process.env, COCO_CODING_AGENT_DIR: agentDir };
+    const initial = await runBootstrap(packageRoot, ["--version"], environment);
+    assert.equal(initial.code, 0, initial.stderr);
+    const manifest = JSON.parse(await readFile(join(packageRoot, "resources", "runtime-integrity-manifest.v1.json"), "utf8"));
+    const cache = JSON.parse(await readFile(join(agentDir, ".runtime-integrity-cache.json"), "utf8"));
+    assert.equal(cache.schemaVersion, 1);
+    assert.equal((await stat(join(agentDir, ".runtime-integrity-cache.json"))).mode & 0o777, 0o600);
+    assert.deepEqual(Object.keys(cache.entries).sort(), manifest.entries.map((entry) => entry.path).sort());
+    for (const snapshot of Object.values(cache.entries)) assert.deepEqual(Object.keys(snapshot).sort(), ["ctimeMs", "dev", "ino", "mode", "mtimeMs", "size"]);
+    const warm = await runBootstrap(packageRoot, ["--version"], { ...environment, NODE_OPTIONS: `--require=${probe}` });
+    assert.equal(warm.code, 0, warm.stderr);
+    const full = await runBootstrap(packageRoot, ["--version"], { ...environment, COCO_INTEGRITY_FULL: "1", NODE_OPTIONS: `--require=${probe}` });
+    assert.notEqual(full.code, 0, full.stderr);
+    assert.match(full.stderr, /DEPENDENCY_CONTENT_READ/);
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
 test("Given a warm CJS integrity cache, when a dependency changes, then bootstrap rejects before startup", async () => {
   const packageRoot = await fixture();
   try {
@@ -254,8 +295,76 @@ test("Given a warm CJS integrity cache, when a dependency changes, then bootstra
     const metadata = await stat(dependency);
     await writeFile(dependency, `${source.slice(0, -1)}${source.endsWith("\n") ? "x" : "\n"}`);
     await utimes(dependency, metadata.atime, metadata.mtime);
+    const changed = await stat(dependency);
+    assert.equal(changed.size, metadata.size);
+    assert.notEqual(changed.ctimeMs, metadata.ctimeMs);
+    const cachePath = join(packageRoot, "agent", ".runtime-integrity-cache.json");
+    const cache = JSON.parse(await readFile(cachePath, "utf8"));
+    cache.entries["node_modules/@earendil-works/pi-coding-agent/dist/config.js"].mtimeMs = changed.mtimeMs;
+    await writeFile(cachePath, JSON.stringify(cache));
     const warm = await runBootstrap(packageRoot, ["--version"], environment);
     assert.notEqual(warm.code, 0, warm.stderr);
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
+test("Given a warm CJS integrity cache, when a dependency inode changes with preserved content metadata, then bootstrap falls back to full verification", async () => {
+  const packageRoot = await fixture();
+  try {
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const agentDir = join(packageRoot, "agent");
+    const environment = { ...process.env, COCO_CODING_AGENT_DIR: agentDir };
+    const initial = await runBootstrap(packageRoot, ["--version"], environment);
+    assert.equal(initial.code, 0, initial.stderr);
+    const dependency = join(packageRoot, "node_modules", "@earendil-works", "pi-coding-agent", "dist", "config.js");
+    const source = await readFile(dependency);
+    const metadata = await stat(dependency);
+    await rename(dependency, `${dependency}.original`);
+    await writeFile(dependency, source);
+    await rm(`${dependency}.original`);
+    await utimes(dependency, metadata.atime, metadata.mtime);
+    const replacement = await stat(dependency);
+    assert.equal(replacement.size, metadata.size);
+    assert.notEqual(replacement.ino, metadata.ino);
+    const cachePath = join(agentDir, ".runtime-integrity-cache.json");
+    const initialCache = JSON.parse(await readFile(cachePath, "utf8"));
+    const snapshot = initialCache.entries["node_modules/@earendil-works/pi-coding-agent/dist/config.js"];
+    snapshot.mtimeMs = replacement.mtimeMs;
+    snapshot.ctimeMs = replacement.ctimeMs;
+    await writeFile(cachePath, JSON.stringify(initialCache));
+    const full = await runBootstrap(packageRoot, ["--version"], environment);
+    assert.equal(full.code, 0, full.stderr);
+    const cache = JSON.parse(await readFile(cachePath, "utf8"));
+    assert.equal(cache.entries["node_modules/@earendil-works/pi-coding-agent/dist/config.js"].ino, replacement.ino);
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
+test("Given an invalid warm CJS integrity cache, when content is unchanged, then bootstrap fully verifies and rewrites it", async () => {
+  const packageRoot = await fixture();
+  try {
+    await writeFile(join(packageRoot, "scripts", "coco-launcher.mjs"), 'process.stdout.write(JSON.stringify({ integrityMode: process.env.COCO_INTEGRITY_MODE ?? null }) + "\\n");\n');
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const agentDir = join(packageRoot, "agent");
+    const cachePath = join(agentDir, ".runtime-integrity-cache.json");
+    const environment = { ...process.env, COCO_CODING_AGENT_DIR: agentDir };
+    const initial = await runBootstrap(packageRoot, [], environment);
+    assert.equal(initial.code, 0, initial.stderr);
+    const cache = JSON.parse(await readFile(cachePath, "utf8"));
+    cache.entries.unexpected = { size: 0, mtimeMs: 0, ctimeMs: 0, mode: 0o644, dev: 0, ino: 0 };
+    await writeFile(cachePath, JSON.stringify(cache));
+    const fallback = await runBootstrap(packageRoot, [], environment);
+    assert.equal(fallback.code, 0, fallback.stderr);
+    assert.deepEqual(JSON.parse(fallback.stdout), { integrityMode: "full" });
+    assert.equal(Object.hasOwn(JSON.parse(await readFile(cachePath, "utf8")).entries, "unexpected"), false);
+    const malformed = JSON.parse(await readFile(cachePath, "utf8"));
+    delete malformed.entries["package.json"].ctimeMs;
+    await writeFile(cachePath, JSON.stringify(malformed));
+    const malformedFallback = await runBootstrap(packageRoot, [], environment);
+    assert.equal(malformedFallback.code, 0, malformedFallback.stderr);
+    assert.deepEqual(JSON.parse(malformedFallback.stdout), { integrityMode: "full" });
   } finally {
     await rm(join(packageRoot, ".."), { force: true, recursive: true });
   }

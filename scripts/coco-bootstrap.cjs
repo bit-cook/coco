@@ -1,5 +1,5 @@
 const { createHash } = require("node:crypto");
-const { closeSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, writeFileSync } = require("node:fs");
+const { chmodSync, closeSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, writeFileSync } = require("node:fs");
 const { homedir } = require("node:os");
 const { dirname, join, relative, resolve, sep } = require("node:path");
 const { pathToFileURL } = require("node:url");
@@ -24,6 +24,7 @@ const ROOTS = ["bin", "dist", "docs", "examples", "resources", "scripts", "CHANG
 
 const MANIFEST_ENTRY = "resources/runtime-integrity-manifest.v1.json";
 const SIDECAR_ENTRY = "resources/runtime-integrity-manifest.v1.json.sha256";
+const CACHE_SCHEMA_VERSION = 1;
 
 function hash(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function canonical(value) { if (Array.isArray(value)) return value.map(canonical); if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])); return value; }
@@ -32,11 +33,28 @@ function regular(path) { const info = lstatSync(path); return info.isFile() && !
 function identity(descriptor) { const info = fstatSync(descriptor); return `${info.dev}:${info.ino}`; }
 function mode(info) { return (info.mode & 0o111) === 0 ? 0o644 : 0o755; }
 function pathOf(absolute) { return relative(root, absolute).split(sep).join("/"); }
+function snapshot(info) { return { size: info.size, mtimeMs: info.mtimeMs, ctimeMs: info.ctimeMs, mode: mode(info), dev: info.dev, ino: info.ino }; }
+function safeInteger(value) { return typeof value === "number" && Number.isSafeInteger(value); }
+function snapshotValid(value) {
+  if (!value || typeof value !== "object") return false;
+  const fields = Object.keys(value);
+  return fields.length === 6 && fields.every((field) => ["size", "mtimeMs", "ctimeMs", "mode", "dev", "ino"].includes(field))
+    && safeInteger(value.size) && value.size >= 0 && Number.isFinite(value.mtimeMs) && Number.isFinite(value.ctimeMs)
+    && safeInteger(value.mode) && (value.mode === 0o644 || value.mode === 0o755) && safeInteger(value.dev) && safeInteger(value.ino);
+}
+
+function cacheValid(cached) {
+  if (!cached || typeof cached !== "object" || Array.isArray(cached)) return false;
+  const fields = Object.keys(cached);
+  return fields.length === 3 && fields.every((field) => ["schemaVersion", "manifestHash", "entries"].includes(field))
+    && cached.schemaVersion === CACHE_SCHEMA_VERSION && typeof cached.manifestHash === "string" && /^[a-f0-9]{64}$/.test(cached.manifestHash)
+    && cached.entries && typeof cached.entries === "object" && !Array.isArray(cached.entries);
+}
 
 function readCache() {
   try {
     const parsed = JSON.parse(readFileSync(cachePath, "utf8"));
-    if (parsed && typeof parsed.manifestHash === "string" && parsed.entries && typeof parsed.entries === "object") return parsed;
+    if (cacheValid(parsed)) return parsed;
   } catch { /* cache absent or corrupt - fall through to full verification */ }
   return undefined;
 }
@@ -45,14 +63,15 @@ function writeCache(manifestHash, entries) {
   try {
     const snapshots = {};
     for (const entry of entries) {
-      if (entry.path.startsWith("node_modules/")) continue; // dependencies are hashed directly on warm checks
-      try {
-        const info = lstatSync(join(root, entry.path));
-        snapshots[entry.path] = { size: info.size, mtimeMs: info.mtimeMs, mode: mode(info) };
-      } catch { /* skip unreadable entries */ }
+      const info = lstatSync(join(root, entry.path));
+      if (!info.isFile() || info.isSymbolicLink()) return;
+      const value = snapshot(info);
+      if (!snapshotValid(value)) return;
+      snapshots[entry.path] = value;
     }
     mkdirSync(dirname(cachePath), { recursive: true });
-    writeFileSync(cachePath, JSON.stringify({ manifestHash, entries: snapshots }), { encoding: "utf8", mode: 0o600 });
+    writeFileSync(cachePath, JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, manifestHash, entries: snapshots }), { encoding: "utf8", mode: 0o600 });
+    chmodSync(cachePath, 0o600);
   } catch { /* cache write is best-effort */ }
 }
 
@@ -122,27 +141,19 @@ async function main() {
     const expected = new Set(manifest.entries.map((entry) => entry.path));
     const runtimeRoots = [...ROOTS, "node_modules"];
 
-    // Fast path: readdir-only structural check + stat snapshot comparison for
-    // package files. Dependencies retain authoritative content hashing.
+    // Fast path: readdir-only structural check + trusted-local metadata cache.
     // Set COCO_INTEGRITY_FULL=1 (or delete the cache) to force full hashing.
     let verified = false;
     if (process.env.COCO_INTEGRITY_FULL !== "1") {
       const cached = readCache();
       if (cached?.manifestHash === manifestHash && structureCheck(expected, runtimeRoots)) {
-        verified = manifest.entries.every((entry) => {
-          if (entry.path.startsWith("node_modules/")) {
-            try {
-              const path = join(root, entry.path);
-              return regular(path) && hash(readFileSync(path)) === entry.sha256;
-            } catch {
-              return false;
-            }
-          }
+        const cachedPaths = Object.keys(cached.entries);
+        verified = cachedPaths.length === expected.size && cachedPaths.every((path) => expected.has(path)) && manifest.entries.every((entry) => {
           const snapshot = cached.entries?.[entry.path];
-          if (!snapshot || typeof snapshot.size !== "number" || typeof snapshot.mtimeMs !== "number" || typeof snapshot.mode !== "number") return false;
+          if (!snapshotValid(snapshot)) return false;
           try {
             const info = lstatSync(join(root, entry.path));
-            return info.isFile() && !info.isSymbolicLink() && info.size === snapshot.size && info.mtimeMs === snapshot.mtimeMs && mode(info) === snapshot.mode && mode(info) === entry.mode;
+            return info.isFile() && !info.isSymbolicLink() && info.size === snapshot.size && info.mtimeMs === snapshot.mtimeMs && info.ctimeMs === snapshot.ctimeMs && mode(info) === snapshot.mode && info.dev === snapshot.dev && info.ino === snapshot.ino && mode(info) === entry.mode;
           } catch {
             return false;
           }
