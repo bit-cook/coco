@@ -1,6 +1,6 @@
 # coco
 
-你的个人编码代理，作为 [Pi Coding Agent](https://github.com/earendil-works/pi) 的下游发行版构建，并将 `idepub/gpt-5.6` 设为默认模型。Coco 不包含任何提供商凭据。
+你的个人编码代理，作为 [Pi Coding Agent](https://github.com/earendil-works/pi) 的下游发行版构建，并将 `agnes/agnes-2.5-flash` 和最高思考级别 `max` 设为默认配置。Coco 源码不包含提供商凭据。
 
 [English](../en/README.md) | [简体中文](README.md) | [文档索引](docs/index.md)
 

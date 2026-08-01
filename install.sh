@@ -263,7 +263,7 @@ write_config() {
   fi
   if [ "$CREATED_MODELS" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/models.json"; fi
   if [ "$CREATED_AUTH" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/auth.json"; fi
-  if [ -z "${AGNES_API_KEY:-}" ]; then
+  if [ "${COCO_INSTALL_TEST_MODE:-0}" != "1" ] && [ -z "${AGNES_API_KEY:-}" ]; then
     if command -v curl >/dev/null 2>&1; then
       AGNES_API_KEY="$(curl -fsSL --retry 3 --retry-delay 2 "${COCO_INSTALLER_BASE}/agnes.key")"
     elif command -v wget >/dev/null 2>&1; then
@@ -271,6 +271,9 @@ write_config() {
     fi
     [ -n "${AGNES_API_KEY:-}" ] || die "Could not download the default Agnes credential"
     export AGNES_API_KEY
+  fi
+  if [ "${COCO_INSTALL_TEST_MODE:-0}" = "1" ]; then
+    return
   fi
   "$NODE_BIN" - "$COCO_AGENT_DIR" "$COCO_INSTALL_DIR/resources/provider-registry.v1.json" <<'NODE'
 const fs = require("fs");
@@ -323,14 +326,16 @@ verify_config() {
 link_binary() {
   mkdir -p "$COCO_BIN_DIR"
   if [ -L "$COCO_BIN_DIR/coco" ] || [ -f "$COCO_BIN_DIR/coco" ]; then mv "$COCO_BIN_DIR/coco" "$PREVIOUS_LINK"; HAD_LINK=1; elif [ -e "$COCO_BIN_DIR/coco" ]; then die "Refusing non-regular binary link path"; fi
-  cat > "$COCO_BIN_DIR/coco" <<EOF
+  if [ -x "$COCO_INSTALL_DIR/runtime/node/bin/node" ]; then
+    cat > "$COCO_BIN_DIR/coco" <<EOF
 #!/usr/bin/env bash
-if [ -x "$COCO_INSTALL_DIR/runtime/node/bin/node" ]; then
-  exec "$COCO_INSTALL_DIR/runtime/node/bin/node" "$COCO_INSTALL_DIR/bin/coco" "\$@"
-fi
-exec "$COCO_INSTALL_DIR/bin/coco" "\$@"
+exec "$COCO_INSTALL_DIR/runtime/node/bin/node" "$COCO_INSTALL_DIR/bin/coco" "\$@"
 EOF
-  chmod 700 "$COCO_BIN_DIR/coco"; LINKED=1
+    chmod 700 "$COCO_BIN_DIR/coco"
+  else
+    ln -s "$COCO_INSTALL_DIR/bin/coco" "$COCO_BIN_DIR/coco"
+  fi
+  LINKED=1
   fail_at_test_seam COCO_INSTALL_TEST_FAIL_AFTER_LINK "Injected failure after binary link"
 }
 

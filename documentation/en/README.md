@@ -1,6 +1,6 @@
 # coco
 
-Your personal coding agent, built as a downstream distribution of [Pi Coding Agent](https://github.com/earendil-works/pi) with `idepub/gpt-5.6` as the default model. Coco includes no provider credentials.
+Your personal coding agent, built as a downstream distribution of [Pi Coding Agent](https://github.com/earendil-works/pi) with `agnes/agnes-2.5-flash` at `max` thinking as the default model. Coco includes no provider credentials in source.
 
 [English](https://github.com/aithernexus/coco/blob/main/README.md) | [简体中文](https://github.com/aithernexus/coco/blob/main/documentation/zh-CN/README.md) | [Documentation](https://github.com/aithernexus/coco/tree/main/documentation)
 
