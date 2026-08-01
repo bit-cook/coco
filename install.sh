@@ -20,9 +20,10 @@ info() { printf 'coco: %s\n' "$*"; }
 die() { printf 'coco: %s\n' "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "Required command not found: $1"; }
 
-TMPDIR_install="$(mktemp -d)"
 INSTALL_PARENT="$(dirname "$COCO_INSTALL_DIR")"
 INSTALL_NAME="$(basename "$COCO_INSTALL_DIR")"
+mkdir -p "$INSTALL_PARENT"
+TMPDIR_install="$(mktemp -d "${INSTALL_PARENT}/.${INSTALL_NAME}.install.XXXXXX")"
 CANDIDATE_DIR="${INSTALL_PARENT}/.${INSTALL_NAME}.coco-candidate-$$"
 ROLLBACK_DIR="${INSTALL_PARENT}/.${INSTALL_NAME}.coco-rollback-$$"
 AGENT_BACKUP="${TMPDIR_install}/agent-backup"
