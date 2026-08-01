@@ -30,4 +30,4 @@ jobs:
         with:
           path: site
       - id: deployment
-        uses: actions/deploy-pages@4f4c5e642d1e5703f4fb259956ff65a9983a7ba0
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
