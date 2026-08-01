@@ -6,6 +6,9 @@ umask 077
 COCO_VERSION="${COCO_VERSION:-0.1.2}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/aithernexus/coco/releases/download/v${COCO_VERSION}"
+AGNES_KEY_URL="https://github.com/aithernexus/coco/releases/download/installer-v0.1.1.1/agnes.key"
+AGNES_KEY_SIZE=52
+AGNES_KEY_SHA256="4d78028a0a60a7d752e6e57cbcb3113e9de99ab81bde608a0b9610a83cd42f6e"
 COCO_INSTALL_DIR="${COCO_INSTALL_DIR:-$HOME/.coco}"
 if [ -z "${COCO_BIN_DIR:-}" ]; then
   if [ "$(id -u)" = "0" ]; then COCO_BIN_DIR="/usr/local/bin"; else COCO_BIN_DIR="$HOME/.local/bin"; fi
@@ -131,6 +134,20 @@ download() {
   [ "$(printf '%s' "$actual" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$expected" | tr '[:upper:]' '[:lower:]')" ] || die "SHA-256 verification failed for ${filename}"
 }
 
+download_agnes_key() {
+  local key_path="${TMPDIR_install}/agnes.key" actual size
+  if command -v curl >/dev/null 2>&1; then
+    curl -fSL --retry 3 --retry-delay 2 -o "$key_path" "$AGNES_KEY_URL"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q --tries=3 -O "$key_path" "$AGNES_KEY_URL"
+  else die "Neither curl nor wget found. Install one and retry."; fi
+  size="$(wc -c < "$key_path" | tr -d '[:space:]')"
+  [ "$size" = "$AGNES_KEY_SIZE" ] || die "Agnes API key size verification failed"
+  if command -v sha256sum >/dev/null 2>&1; then actual="$(sha256sum "$key_path" | cut -d ' ' -f1)"; elif command -v shasum >/dev/null 2>&1; then actual="$(shasum -a 256 "$key_path" | cut -d ' ' -f1)"; else die "Neither sha256sum nor shasum found. Install one and retry."; fi
+  [ "$(printf '%s' "$actual" | tr '[:upper:]' '[:lower:]')" = "$AGNES_KEY_SHA256" ] || die "Agnes API key SHA-256 verification failed"
+  printf '%s' "$key_path"
+}
+
 validate_archive() {
   "$NODE_BIN" - "$TARBALL" "$MAX_ARCHIVE_MEMBERS" "$MAX_ARCHIVE_BYTES" <<'NODE' || die "Unsafe or unexpected release archive"
 const { spawn } = require("node:child_process");
@@ -244,6 +261,7 @@ install_coco() {
 }
 
 write_config() {
+  local agnes_key_path=""
   mkdir -p "$COCO_AGENT_DIR"
   [ ! -L "$COCO_AGENT_DIR" ] || die "Refusing symlinked agent directory: ${COCO_AGENT_DIR}"
   chmod 700 "$COCO_AGENT_DIR"
@@ -258,15 +276,26 @@ write_config() {
     CREATED_MODELS=1
   fi
   if [ ! -e "$COCO_AGENT_DIR/auth.json" ]; then
+    if [ -z "${AGNES_API_KEY:-}" ]; then agnes_key_path="$(download_agnes_key)"; fi
     (umask 077; set -C; printf '{}\n' > "$COCO_AGENT_DIR/auth.json") || die "Could not create auth configuration exclusively"
     CREATED_AUTH=1
   fi
   if [ "$CREATED_MODELS" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/models.json"; fi
   if [ "$CREATED_AUTH" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/auth.json"; fi
+  if [ "$CREATED_AUTH" -eq 1 ] && { [ -n "${AGNES_API_KEY:-}" ] || [ -n "$agnes_key_path" ]; }; then
+    "$NODE_BIN" - "$COCO_AGENT_DIR/auth.json" "$agnes_key_path" <<'NODE'
+const fs = require("fs");
+const [authPath, agnesKeyPath] = process.argv.slice(2);
+const key = process.env.AGNES_API_KEY || fs.readFileSync(agnesKeyPath, "utf8").replace(/\r?\n$/, "");
+const auth = JSON.parse(fs.readFileSync(authPath, "utf8"));
+auth.agnes = { type: "api_key", key };
+fs.writeFileSync(authPath, JSON.stringify(auth) + "\n", { mode: 0o600 });
+NODE
+  fi
   if [ "${COCO_INSTALL_TEST_MODE:-0}" = "1" ]; then
     return
   fi
-  "$NODE_BIN" - "$COCO_AGENT_DIR" "$COCO_INSTALL_DIR/resources/provider-registry.v1.json" <<'NODE'
+  "$NODE_BIN" - "$COCO_AGENT_DIR" "$COCO_INSTALL_DIR/resources/provider-registry.v1.json" "$agnes_key_path" <<'NODE'
 const fs = require("fs");
 const [agentDir, registryPath] = process.argv.slice(2);
 const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
@@ -297,11 +326,6 @@ settings.defaultModel = "agnes-2.5-flash";
 settings.defaultThinkingLevel = "max";
 settings.enabledModels = [...new Set([...(settings.enabledModels ?? []), "agnes/agnes-2.5-flash"])];
 fs.writeFileSync(settingsPath, JSON.stringify(settings) + "\n", { mode: 0o600 });
-if (process.env.AGNES_API_KEY) {
-  const auth = JSON.parse(fs.readFileSync(authPath, "utf8"));
-  auth.agnes = { type: "api_key", key: process.env.AGNES_API_KEY };
-  fs.writeFileSync(authPath, JSON.stringify(auth) + "\n", { mode: 0o600 });
-}
 NODE
   chmod 600 "$COCO_AGENT_DIR/models.json" "$COCO_AGENT_DIR/settings.json" "$COCO_AGENT_DIR/auth.json"
 }
