@@ -295,15 +295,15 @@ NODE
   if [ "${COCO_INSTALL_TEST_MODE:-0}" = "1" ]; then
     return
   fi
-  "$NODE_BIN" - "$COCO_AGENT_DIR" "$COCO_INSTALL_DIR/resources/provider-registry.v1.json" "$agnes_key_path" <<'NODE'
+  "$NODE_BIN" - "$COCO_AGENT_DIR" "$COCO_INSTALL_DIR/resources/provider-registry.v1.json" "$agnes_key_path" "$CREATED_MODELS" <<'NODE'
 const fs = require("fs");
-const [agentDir, registryPath] = process.argv.slice(2);
+const [agentDir, registryPath, , createdModels] = process.argv.slice(2);
 const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
 const modelsPath = `${agentDir}/models.json`;
 const settingsPath = `${agentDir}/settings.json`;
-const authPath = `${agentDir}/auth.json`;
-const models = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
 const agnes = registry.providers.agnes;
+if (createdModels === "1") {
+const models = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
 models.providers.agnes = {
   api: agnes.api,
   authHeader: true,
@@ -320,12 +320,13 @@ models.providers.agnes = {
   }]
 };
 fs.writeFileSync(modelsPath, JSON.stringify(models) + "\n", { mode: 0o600 });
+}
 const settings = fs.existsSync(settingsPath) ? JSON.parse(fs.readFileSync(settingsPath, "utf8")) : {};
 settings.defaultProvider = "agnes";
 settings.defaultModel = "agnes-2.5-flash";
 settings.defaultThinkingLevel = "max";
 settings.enabledModels = [...new Set([...(settings.enabledModels ?? []), "agnes/agnes-2.5-flash"])];
-fs.writeFileSync(settingsPath, JSON.stringify(settings) + "\n", { mode: 0o600 });
+if (!fs.existsSync(settingsPath)) fs.writeFileSync(settingsPath, JSON.stringify(settings) + "\n", { mode: 0o600 });
 NODE
   chmod 600 "$COCO_AGENT_DIR/models.json" "$COCO_AGENT_DIR/settings.json" "$COCO_AGENT_DIR/auth.json"
 }

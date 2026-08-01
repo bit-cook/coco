@@ -160,9 +160,9 @@ for (const installer of installers) {
     const setup = await fixture();
     const settings = Buffer.from('{"theme":"user-owned","quietStartup":true}\n');
     try {
-      assert.equal(await runInstaller(installer, setup.environment), 0);
+      assert.equal(await runInstaller(installer, { ...setup.environment, COCO_INSTALL_TEST_MODE: "0" }), 0);
       await writeFile(join(setup.agent, "settings.json"), settings);
-      assert.equal(await runInstaller(installer, setup.environment), 0);
+      assert.equal(await runInstaller(installer, { ...setup.environment, COCO_INSTALL_TEST_MODE: "0" }), 0);
       assert.deepEqual(await readFile(join(setup.agent, "settings.json")), settings);
     } finally {
       await rm(setup.root, { force: true, recursive: true });
@@ -177,7 +177,7 @@ for (const installer of installers) {
       await mkdir(setup.agent, { recursive: true });
       await writeFile(join(setup.agent, "models.json"), models);
       await writeFile(join(setup.agent, "auth.json"), auth);
-      assert.equal(await runInstaller(installer, { ...setup.environment, AGNES_API_KEY: "must-not-replace-existing-auth" }), 0);
+      assert.equal(await runInstaller(installer, { ...setup.environment, AGNES_API_KEY: "must-not-replace-existing-auth", COCO_INSTALL_TEST_MODE: "0" }), 0);
       assert.deepEqual(await readFile(join(setup.agent, "models.json")), models);
       assert.deepEqual(await readFile(join(setup.agent, "auth.json")), auth);
       assert.equal((await readFile(setup.environment.COCO_TEST_DOWNLOAD_LOG).catch(() => "")).includes(agnesAssetUrl), false);
