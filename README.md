@@ -11,20 +11,20 @@ Your personal coding agent, built as a downstream distribution of [Pi Coding Age
 
 ## Install
 
-Install a reviewed, pinned release:
+Install the newest stable release through the stable Pages launcher:
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.1/install.sh
-COCO_VERSION=0.1.1 bash install.sh
+curl -fsSL https://aithernexus.github.io/coco/install.sh | bash
 ```
 
-Install the latest release published by the project:
+Or install an explicitly reviewed release:
 
 ```bash
-curl -fsSL https://github.com/aithernexus/coco/releases/latest/download/install.sh | bash
+curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.2/install.sh
+COCO_VERSION=0.1.2 bash install.sh
 ```
 
-The installer verifies the release tarball against its published SHA-256 sidecar, safely extracts it, and preserves existing `~/.coco/agent` configuration during updates and reinstalls. A checksum proves integrity only relative to the download location; it does not establish publisher identity. Review the release, its source, and the checksum through a trusted channel before installation.
+The installer verifies the exact-tag release tarball against its published SHA-256 sidecar, safely extracts it, and preserves existing `~/.coco/agent` configuration during updates and reinstalls. Fresh installs default to Agnes max and include public metadata for Agnes, IDEPub, StepFun, and Achai. Credentials are never bundled: provide `AGNES_API_KEY` explicitly or configure providers after installation.
 
 Run Coco after installation:
 

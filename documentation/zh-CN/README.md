@@ -11,20 +11,20 @@
 
 ## 安装
 
-安装经过审阅且固定版本的发布版：
+通过稳定的 Pages 启动器安装最新稳定版本：
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.1/install.sh
-COCO_VERSION=0.1.1 bash install.sh
+curl -fsSL https://aithernexus.github.io/coco/install.sh | bash
 ```
 
-安装项目发布的最新版本：
+或者安装经过明确审阅的固定版本：
 
 ```bash
-curl -fsSL https://github.com/aithernexus/coco/releases/latest/download/install.sh | bash
+curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.2/install.sh
+COCO_VERSION=0.1.2 bash install.sh
 ```
 
-安装程序会根据已发布的 SHA-256 校验文件验证发行包，安全解压，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。校验和只能证明相对于下载位置的完整性，不能证明发布者身份。安装前请通过可信渠道审阅发布版、源代码和校验和。
+安装程序会根据固定标签发布的 SHA-256 校验文件验证发行包，安全解压，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。全新安装默认使用 Agnes max，并包含 Agnes、IDEPub、StepFun 和 Achai 的公开元数据。Coco 不捆绑凭据；请显式提供 `AGNES_API_KEY`，或在安装后配置提供商。
 
 ## 启动网络策略
 
