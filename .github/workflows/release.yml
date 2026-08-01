@@ -28,6 +28,8 @@ jobs:
       - run: node scripts/publication-secret-scanner.mjs .
       - run: mkdir release
       - run: cp install.sh release/install.sh
+      - run: cp uninstall.sh release/uninstall.sh
+      - run: curl -fsSL --retry 3 https://github.com/aithernexus/coco/releases/latest/download/agnes.key -o /tmp/agnes.key
       - run: npm pack --json --pack-destination release
       - run: node scripts/publication-secret-scanner.mjs release
       - run: node -e "import('./scripts/verify-package-closure.mjs').then(async ({verifyTarballClosure}) => { const {readdir}=await import('node:fs/promises'); const tarball=(await readdir('release')).find((entry)=>entry.endsWith('.tgz')); const result=await verifyTarballClosure({root:process.cwd(),tarball:'release/'+tarball}); console.log(JSON.stringify(result)); process.exit(result.status==='approved'?0:1); })"
@@ -35,6 +37,9 @@ jobs:
       - working-directory: release
         run: sha256sum coco-*.tgz > coco-$(node -p "require('../package.json').version").tgz.sha256
       - run: node scripts/publication-secret-scanner.mjs release
-      - run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes release/install.sh release/coco-*.tgz release/coco-*.tgz.sha256
+      - run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes release/install.sh release/uninstall.sh release/coco-*.tgz release/coco-*.tgz.sha256 /tmp/agnes.key
         env:
           GH_TOKEN: ${{ github.token }}
+      - run: curl -fsSL --retry 5 --retry-delay 2 https://github.com/aithernexus/coco/releases/latest/download/install.sh >/dev/null
+      - run: curl -fsSL --retry 5 --retry-delay 2 https://github.com/aithernexus/coco/releases/latest/download/uninstall.sh >/dev/null
+      - run: curl -fsSL --retry 5 --retry-delay 2 https://github.com/aithernexus/coco/releases/latest/download/agnes.key >/dev/null
