@@ -30,7 +30,10 @@ async function bootstrapFixture() {
   await writeFile(join(scripts, "coco-launcher.mjs"), 'process.stdout.write(`${process.env.PI_OFFLINE ?? "unset"}\\n`);\n');
   const { createHash } = await import("node:crypto");
   const manifestPaths = ["CHANGELOG.md", "README.md", "package.json", "scripts/coco-launcher.mjs"];
-  const entries = await Promise.all(manifestPaths.map(async (path) => ({ path, sha256: createHash("sha256").update(await readFile(join(directory, path))).digest("hex") })));
+  const entries = await Promise.all(manifestPaths.map(async (path) => {
+    const info = await stat(join(directory, path));
+    return { mode: info.mode & 0o111 ? 0o755 : 0o644, path, sha256: createHash("sha256").update(await readFile(join(directory, path))).digest("hex") };
+  }));
   const manifest = { assetMapSha256: "0".repeat(64), entries };
   const bytes = `${JSON.stringify(manifest)}\n`;
   await writeFile(join(resources, "runtime-integrity-manifest.v1.json"), bytes);
