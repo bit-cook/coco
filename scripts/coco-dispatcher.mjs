@@ -3,12 +3,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { agentDirectory } from "./state-paths.mjs";
-import { migrateState } from "./migrate-state.mjs";
-import { bootstrapState } from "./bootstrap-state.mjs";
-import { confirmInteractiveRemove, getAuthStatus, readInteractiveKey, readStdinKey, removeAuthKey, setAuthKey } from "./auth-management.mjs";
-import { syncProviderModels } from "./provider-sync.mjs";
-import { coreCheck, coreStatus, doctor } from "./diagnostics.mjs";
 import { COCO_VERSION } from "./coco-runtime-identity.mjs";
 
 const MANAGED_PROVIDERS = new Set(["idepub", "achai", "agnes", "stepfun"]);
@@ -78,7 +72,7 @@ function userExtensions(argv) {
 }
 
 function promptWarnings() {
-  const agentDir = agentDirectory();
+  const agentDir = process.env.COCO_CODING_AGENT_DIR || join(process.env.HOME || homedir(), ".coco", "agent");
   if (existsSync(join(agentDir, "SYSTEM.md"))) return ["UNOWNED_SYSTEM_OVERRIDE"];
   const append = join(agentDir, "APPEND_SYSTEM.md");
   const ownership = join(agentDir, "ownership.json");
@@ -93,10 +87,12 @@ function diagnosticOutput(body, json) { process.stdout.write(json ? `${JSON.stri
 
 async function native(argv, root) {
   if (argv[0] === "doctor") {
+    const { doctor } = await import("./diagnostics.mjs");
     const flags = argv.slice(1);
     return hasOnlyFlags(flags, new Set(["--json", "--connectivity"])) ? diagnosticOutput(await doctor({ connectivity: flags.includes("--connectivity"), root }), flags.includes("--json")) : usage("NATIVE_USAGE");
   }
   if (argv[0] === "core") {
+    const { coreCheck, coreStatus } = await import("./diagnostics.mjs");
     const [action, ...flags] = argv.slice(1);
     if ((action !== "status" && action !== "check") || !hasOnlyFlags(flags, new Set(["--json"]))) return usage("NATIVE_USAGE");
     return diagnosticOutput(await (action === "status" ? coreStatus({ root }) : coreCheck({ root })), flags.includes("--json"));
@@ -109,8 +105,10 @@ async function native(argv, root) {
   const flags = argv.slice(2);
   if (!flags.includes("--dry-run") && !flags.includes("--yes") && !process.stdin.isTTY) return usage("CONFIRMATION_REQUIRED");
   try {
+    const { agentDirectory } = await import("./state-paths.mjs");
     const bootstrap = argv[1] === "bootstrap";
-    const state = bootstrap ? await bootstrapState({ agentDir: agentDirectory(), dryRun: flags.includes("--dry-run"), root }) : await migrateState({ agentDir: agentDirectory(), dryRun: flags.includes("--dry-run") });
+    const operation = bootstrap ? (await import("./bootstrap-state.mjs")).bootstrapState : (await import("./migrate-state.mjs")).migrateState;
+    const state = bootstrap ? await operation({ agentDir: agentDirectory(), dryRun: flags.includes("--dry-run"), root }) : await operation({ agentDir: agentDirectory(), dryRun: flags.includes("--dry-run") });
     const body = { ...state, schemaVersion: 1 };
     const changed = bootstrap ? state.created.length > 0 : state.changed.length > 0;
     process.stdout.write(flags.includes("--json") ? `${JSON.stringify(body)}\n` : `coco ${bootstrap ? "bootstrap" : "migrate"}: ${changed ? "applied" : "noop"}\n`);
@@ -121,6 +119,8 @@ async function native(argv, root) {
 }
 
 async function manageModels(argv, root) {
+  const { agentDirectory } = await import("./state-paths.mjs");
+  const { syncProviderModels } = await import("./provider-sync.mjs");
   const flags = argv.slice(1);
   const providerIndex = flags.indexOf("--provider");
   const provider = providerIndex === -1 ? undefined : flags[providerIndex + 1];
@@ -140,6 +140,8 @@ function authOutput(value, json, action) {
 }
 
 async function manageAuth(argv) {
+  const { agentDirectory } = await import("./state-paths.mjs");
+  const { confirmInteractiveRemove, getAuthStatus, readInteractiveKey, readStdinKey, removeAuthKey, setAuthKey } = await import("./auth-management.mjs");
   const [action, provider, ...flags] = argv;
   const json = flags.includes("--json") || provider === "--json";
   const agentDir = agentDirectory();
