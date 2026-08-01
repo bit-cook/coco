@@ -1,13 +1,13 @@
 {
   "schema": "coco-documentation-completeness-v1",
-  "generated": "2026-07-31",
+  "generated": "2026-08-01",
   "source_root": "..",
   "locales": ["en", "zh-CN"],
   "translation_status": "complete",
   "inventory": {
     "source_markdown_count": 39,
     "source_markdown": [
-      {"source":"README.md","lines":81,"sha256":"9d872bb709a7a9518ad551a26bebc9d12a752ed8d01f77504598e1ebfd6a3586","en":"en/README.md","zh-CN":"zh-CN/README.md"},
+      {"source":"README.md","lines":81,"sha256":"21ce51d0c647e059f0c8e0f3d632f91b84ce724f757061bdd917c88694d69ecf","en":"en/README.md","zh-CN":"zh-CN/README.md"},
       {"source":"CHANGELOG.md","lines":5164,"sha256":"69a534e21fcf6cab8c423844b9c4c4c20a22385b1c6e8e064ad766a3f8c50f12","en":"en/CHANGELOG.md","zh-CN":"zh-CN/CHANGELOG.md"},
       {"source":"DESIGN.md","lines":146,"sha256":"964fe20bc6e17cc39f3d1ba12ef16ee2936df94267348ae2d890b00314ae31b7","en":"en/DESIGN.md","zh-CN":"zh-CN/DESIGN.md"},
       {"source":"docs/compaction.md","lines":401,"sha256":"70b93bbae068b11213ce84d36b8189e2909141622f198d7b888559c64fcaa01a","en":"en/docs/compaction.md","zh-CN":"zh-CN/docs/compaction.md"},
