@@ -9,7 +9,7 @@
     "source_markdown": [
       {"source":"README.md","lines":81,"sha256":"21ce51d0c647e059f0c8e0f3d632f91b84ce724f757061bdd917c88694d69ecf","en":"en/README.md","zh-CN":"zh-CN/README.md"},
       {"source":"CHANGELOG.md","lines":5164,"sha256":"69a534e21fcf6cab8c423844b9c4c4c20a22385b1c6e8e064ad766a3f8c50f12","en":"en/CHANGELOG.md","zh-CN":"zh-CN/CHANGELOG.md"},
-      {"source":"DESIGN.md","lines":146,"sha256":"964fe20bc6e17cc39f3d1ba12ef16ee2936df94267348ae2d890b00314ae31b7","en":"en/DESIGN.md","zh-CN":"zh-CN/DESIGN.md"},
+      {"source":"DESIGN.md","lines":214,"sha256":"45fb6a93de357cb76d881708246c46fd1a21448227f8c7239756b6ee320e7e91","en":"en/DESIGN.md","zh-CN":"zh-CN/DESIGN.md"},
       {"source":"docs/compaction.md","lines":401,"sha256":"70b93bbae068b11213ce84d36b8189e2909141622f198d7b888559c64fcaa01a","en":"en/docs/compaction.md","zh-CN":"zh-CN/docs/compaction.md"},
       {"source":"docs/containerization.md","lines":111,"sha256":"29ac379f744052adf301e744559cb43d0e6e84d1b04f4757f1710680991be10b","en":"en/docs/containerization.md","zh-CN":"zh-CN/docs/containerization.md"},
       {"source":"docs/custom-provider.md","lines":766,"sha256":"f244742b52cc748a197d01c9ae592d741992527b981d6acd9170c52c6216f2ac","en":"en/docs/custom-provider.md","zh-CN":"zh-CN/docs/custom-provider.md"},
