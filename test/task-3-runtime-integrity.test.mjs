@@ -17,7 +17,15 @@ async function fixture() {
 }
 
 async function runBootstrap(packageRoot, args, environment) {
-  return await new Promise((finish) => { const child = spawn(process.execPath, [join(packageRoot, "scripts", "coco-bootstrap.cjs"), ...args], { env: environment, stdio: "pipe" }); let stdout = ""; let stderr = ""; child.stdout.on("data", (chunk) => { stdout += chunk; }); child.stderr.on("data", (chunk) => { stderr += chunk; }); child.once("close", (code) => finish({ code, stderr, stdout })); });
+  return await new Promise((finish) => {
+    const child = spawn(process.execPath, [join(packageRoot, "scripts", "coco-bootstrap.cjs"), ...args], { env: environment, stdio: "pipe" });
+    let stdout = "";
+    let stderr = "";
+    const timeout = setTimeout(() => child.kill(), 120_000);
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.once("close", (code) => { clearTimeout(timeout); finish({ code, stderr, stdout }); });
+  });
 }
 
 test("Given the coco package root, when runtime identity is resolved, then it pins coco paths and the exact bundled pi", async () => {
@@ -316,29 +324,167 @@ test("Given a replacement after bytes are hashed, when bootstrap creates a cache
     const original = await readFile(target, "utf8");
     const replacement = original.replace('"version": "0.1.3"', '"version": "9.9.9"');
     assert.notEqual(replacement, original);
+    const sibling = `${target}.replacement`;
+    await writeFile(sibling, replacement);
     const probe = join(packageRoot, "replace-after-hash-probe.cjs");
     await writeFile(probe, `const fs = require("node:fs");
+const Module = require("node:module");
+const crypto = require("node:crypto");
 const target = ${JSON.stringify(target)};
-const replacement = ${JSON.stringify(replacement)};
-const targetInfo = fs.statSync(target);
-const readFileSync = fs.readFileSync;
+const sibling = ${JSON.stringify(sibling)};
+const targetHash = crypto.createHash("sha256").update(fs.readFileSync(target)).digest("hex");
 let replaced = false;
-fs.readFileSync = (input, ...arguments_) => {
-  const bytes = readFileSync(input, ...arguments_);
-  const matchesTarget = input === target || (typeof input === "number" && (() => {
-    const info = fs.fstatSync(input);
-    return info.dev === targetInfo.dev && info.ino === targetInfo.ino;
-  })());
-  if (!replaced && matchesTarget) {
-    fs.writeFileSync(target, replacement);
-    replaced = true;
-  }
-  return bytes;
+const createHash = crypto.createHash;
+const guardedCreateHash = (...arguments_) => {
+  const digest = createHash(...arguments_);
+  const originalDigest = digest.digest.bind(digest);
+  digest.digest = (...digestArguments) => {
+    const value = originalDigest(...digestArguments);
+    if (!replaced && value === targetHash) {
+      fs.renameSync(sibling, target);
+      replaced = true;
+    }
+    return value;
+  };
+  return digest;
 };
+const load = Module._load;
+Module._load = (request, parent, isMain) => request === "node:crypto" ? { ...crypto, createHash: guardedCreateHash } : load(request, parent, isMain);
 process.on("exit", () => { if (!replaced) process.exitCode = 97; });
 `);
     const environment = { ...process.env, COCO_CODING_AGENT_DIR: join(packageRoot, "agent"), NODE_OPTIONS: `--require=${probe}` };
     const result = await runBootstrap(packageRoot, [], environment);
+    assert.notEqual(result.code, 0, result.stderr);
+    assert.match(result.stderr, /RUNTIME_INTEGRITY_REVALIDATION_FAILED/);
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
+test("Given a governed symlink, when bootstrap verifies runtime content, then it rejects before reading the target", async () => {
+  const packageRoot = await fixture();
+  try {
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const target = join(packageRoot, "package.json");
+    await rename(target, `${target}.original`);
+    await symlink(`${target}.original`, target);
+    const probe = join(packageRoot, "governed-content-read-probe.cjs");
+    await writeFile(probe, `const fs = require("node:fs");
+const target = ${JSON.stringify(target)};
+const readFileSync = fs.readFileSync;
+fs.readFileSync = (input, ...arguments_) => {
+  if (input === target || (typeof input === "number" && fs.readlinkSync("/proc/self/fd/" + input) === target + ".original")) throw new Error("GOVERNED_CONTENT_READ");
+  return readFileSync(input, ...arguments_);
+};
+`);
+    const result = await runBootstrap(packageRoot, ["--version"], { ...process.env, COCO_CODING_AGENT_DIR: join(packageRoot, "agent"), NODE_OPTIONS: `--require=${probe}` });
+    assert.notEqual(result.code, 0, result.stderr);
+    assert.doesNotMatch(result.stderr, /GOVERNED_CONTENT_READ/);
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
+test("Given a governed FIFO, when bootstrap verifies runtime content, then it rejects without opening it", async () => {
+  const packageRoot = await fixture();
+  try {
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const target = join(packageRoot, "package.json");
+    await rename(target, `${target}.original`);
+    await new Promise((finish, fail) => {
+      const child = spawn("mkfifo", [target]);
+      child.once("error", fail);
+      child.once("close", (code) => code === 0 ? finish() : fail(new Error(`mkfifo exited ${code}`)));
+    });
+    const result = await runBootstrap(packageRoot, ["--version"], { ...process.env, COCO_CODING_AGENT_DIR: join(packageRoot, "agent") });
+    assert.notEqual(result.code, 0, result.stderr);
+    assert.match(result.stderr, /RUNTIME_INTEGRITY/);
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
+test("Given a manifest path replacement during verification, when bootstrap accepts its descriptor bytes, then it rejects the replaced path", async () => {
+  const packageRoot = await fixture();
+  try {
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const manifest = join(packageRoot, "resources", "runtime-integrity-manifest.v1.json");
+    const sidecar = `${manifest}.sha256`;
+    const sibling = `${manifest}.replacement`;
+    await cp(manifest, sibling);
+    const probe = join(packageRoot, "manifest-replacement-probe.cjs");
+    await writeFile(probe, `const fs = require("node:fs");
+const manifest = ${JSON.stringify(manifest)};
+const sidecar = ${JSON.stringify(sidecar)};
+const sibling = ${JSON.stringify(sibling)};
+const readFileSync = fs.readFileSync;
+let replaced = false;
+fs.readFileSync = (input, ...arguments_) => {
+  const bytes = readFileSync(input, ...arguments_);
+  if (!replaced && (input === sidecar || (typeof input === "number" && fs.readlinkSync("/proc/self/fd/" + input) === sidecar))) { fs.renameSync(sibling, manifest); replaced = true; }
+  return bytes;
+};
+process.on("exit", () => { if (!replaced) process.exitCode = 97; });
+`);
+    const result = await runBootstrap(packageRoot, ["--version"], { ...process.env, COCO_CODING_AGENT_DIR: join(packageRoot, "agent"), NODE_OPTIONS: `--require=${probe}` });
+    assert.notEqual(result.code, 0, result.stderr);
+    assert.match(result.stderr, /RUNTIME_INTEGRITY_REVALIDATION_FAILED/);
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
+test("Given a sidecar replacement after its bytes are read, when bootstrap verifies the manifest, then it rejects the replacement", async () => {
+  const packageRoot = await fixture();
+  try {
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const manifest = join(packageRoot, "resources", "runtime-integrity-manifest.v1.json");
+    const sidecar = `${manifest}.sha256`;
+    const sibling = `${sidecar}.replacement`;
+    await cp(sidecar, sibling);
+    const probe = join(packageRoot, "sidecar-replacement-probe.cjs");
+    await writeFile(probe, `const fs = require("node:fs");
+const sidecar = ${JSON.stringify(sidecar)};
+const sibling = ${JSON.stringify(sibling)};
+const readFileSync = fs.readFileSync;
+let replaced = false;
+fs.readFileSync = (input, ...arguments_) => {
+  const bytes = readFileSync(input, ...arguments_);
+  if (!replaced && (input === sidecar || (typeof input === "number" && fs.readlinkSync("/proc/self/fd/" + input) === sidecar))) { fs.renameSync(sibling, sidecar); replaced = true; }
+  return bytes;
+};
+process.on("exit", () => { if (!replaced) process.exitCode = 97; });
+`);
+    const result = await runBootstrap(packageRoot, ["--version"], { ...process.env, COCO_CODING_AGENT_DIR: join(packageRoot, "agent"), NODE_OPTIONS: `--require=${probe}` });
+    assert.notEqual(result.code, 0, result.stderr);
+    assert.match(result.stderr, /RUNTIME_INTEGRITY_REVALIDATION_FAILED/);
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
+test("Given a sidecar mutation after its bytes are read, when bootstrap verifies the manifest, then it rejects the mutation", async () => {
+  const packageRoot = await fixture();
+  try {
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const manifest = join(packageRoot, "resources", "runtime-integrity-manifest.v1.json");
+    const sidecar = `${manifest}.sha256`;
+    const probe = join(packageRoot, "sidecar-mutation-probe.cjs");
+    await writeFile(probe, `const fs = require("node:fs");
+const sidecar = ${JSON.stringify(sidecar)};
+const readFileSync = fs.readFileSync;
+let mutated = false;
+fs.readFileSync = (input, ...arguments_) => {
+  const bytes = readFileSync(input, ...arguments_);
+  if (!mutated && (input === sidecar || (typeof input === "number" && fs.readlinkSync("/proc/self/fd/" + input) === sidecar))) {
+    fs.writeFileSync(sidecar, "0".repeat(64) + "  runtime-integrity-manifest.v1.json\\n");
+    mutated = true;
+  }
+  return bytes;
+};
+process.on("exit", () => { if (!mutated) process.exitCode = 97; });
+`);
+    const result = await runBootstrap(packageRoot, ["--version"], { ...process.env, COCO_CODING_AGENT_DIR: join(packageRoot, "agent"), NODE_OPTIONS: `--require=${probe}` });
     assert.notEqual(result.code, 0, result.stderr);
     assert.match(result.stderr, /RUNTIME_INTEGRITY_REVALIDATION_FAILED/);
   } finally {
