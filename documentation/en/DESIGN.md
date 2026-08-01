@@ -144,3 +144,71 @@ title, and border color continue to express tool state.
   terminal-specific redraw quirks; it must only avoid defeating them.
 - No web-only design primitives, mouse-driven transcript controls, graphical
   scrollbars, or custom font assumptions belong in this TUI contract.
+
+---
+
+# Coco Web Site Design Contract Extension
+
+This extension governs the static GitHub Pages install site only. It preserves
+the TUI's quiet Solarized terminal character while adapting it for a responsive,
+keyboard-first document surface. It does not alter the TUI contract above.
+
+## W1. Site Intent And Composition
+
+- The page is an installation document first and a marketing surface second:
+  identity, install command, defaults, compatibility, and source link must be
+  visible without scrolling on a typical desktop viewport.
+- The hero is one dimensional terminal window, not a collection of SaaS cards.
+  Low-contrast Solarized field depth and an offset shadow establish atmosphere;
+  content remains sparse and functional.
+- The layout has one centered reading column, a terminal hero, an information
+  strip, and an uninstall disclosure. No testimonials, pricing, decorative
+  illustrations, or feature-card grid is permitted.
+
+## W2. Web Tokens
+
+Colors, spacing, typography, and reusable form values in site CSS must use named
+custom properties. Raw canonical Solarized values may appear only in root token
+definitions; one-off responsive geometry may remain local to its media rule.
+
+| Token group | Tokens | Contract |
+|---|---|---|
+| Color | `--color-base03`, `--color-base02`, `--color-base01`, `--color-base00`, `--color-base0`, `--color-base1`, `--color-base3`, `--color-cyan`, `--color-blue`, `--color-green`, `--color-yellow`, `--color-red` | Canonical Solarized values from section 2. |
+| Semantic color | `--page-bg`, `--surface`, `--surface-raised`, `--text`, `--muted`, `--line`, `--accent`, `--link`, `--success`, `--warning`, `--danger` | Site code consumes semantic aliases, not palette values. |
+| Space | `--space-1` through `--space-10` | Four-pixel baseline: 0.25rem, 0.5rem, 0.75rem, 1rem, 1.5rem, 2rem, 3rem, 4rem, 6rem, 8rem. |
+| Type | `--font-mono`, `--text-xs`, `--text-sm`, `--text-base`, `--text-lg`, `--text-xl`, `--text-2xl`, `--leading-tight`, `--leading-normal` | Inherited system monospace stack; a restrained, fluid scale using `clamp()` only in token definitions. |
+| Form | `--radius-sm`, `--radius-md`, `--border-width`, `--shadow-terminal`, `--shadow-atmosphere`, `--duration-fast`, `--duration-base`, `--focus-ring` | Square-leaning terminal geometry, layered depth, and short opacity/transform-only transitions. |
+
+## W3. Site Components And States
+
+- **Masthead:** compact wordmark and external repository link. The link has an
+  explicit accessible name and is never icon-only.
+- **Terminal hero:** a labelled `section` containing a title bar, output, and
+  command row. The install command is selectable text; the adjacent copy button
+  remains usable with keyboard or pointer.
+- **Copy button:** idle label is `Copy`; after a successful copy it becomes
+  `Copied` and exposes the state with a non-color label. Failure uses `Copy
+  failed`; each result is also announced through a polite live region. Focus,
+  hover, active, and disabled states must be visually distinct.
+- **Specification strip:** semantic definition list, with model, thinking mode,
+  and platform compatibility. It is a bordered continuation of the terminal
+  grammar, not a card grid.
+- **Uninstall disclosure:** a native `details` element. It exposes its summary
+  via keyboard and provides a second copy action for the uninstall command.
+
+## W4. Responsive, Motion, And Accessibility Constraints
+
+- Desktop uses a subtly offset terminal frame; narrow layouts remove only the
+  offset depth and retain every command and control. The layout is readable at
+  375px, two-column metadata begins at 768px, and the masthead/hero comfortably
+  occupy the centered frame at 1280px.
+- All interactive elements have a high-contrast `:focus-visible` ring using
+  `--focus-ring`; keyboard focus is never removed. Color is supplementary to
+  text labels and borders for state.
+- Use semantic landmarks, one `h1`, visible text for every command, meaningful
+  button labels, and a polite `aria-live` status. Copy behavior is progressive:
+  commands remain readable and selectable without JavaScript.
+- Motion is limited to button feedback using opacity and transform.
+  `prefers-reduced-motion: reduce` disables transition and animation.
+- No external fonts, images, analytics, dependencies, or network assets are
+  permitted. The page must remain complete with JavaScript unavailable.
