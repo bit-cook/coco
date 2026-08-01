@@ -10,8 +10,11 @@ COCO_BIN_DIR="${COCO_BIN_DIR:-$HOME/.local/bin}"
 COCO_AGENT_DIR="${COCO_AGENT_DIR:-${COCO_CODING_AGENT_DIR:-$HOME/.coco/agent}}"
 NODE_MIN_MAJOR=22
 NODE_MIN_MINOR=19
+NODE_VERSION="22.23.2"
 MAX_ARCHIVE_MEMBERS=100000
 MAX_ARCHIVE_BYTES=2147483648
+NODE_BIN=""
+NODE_RUNTIME_SOURCE=""
 
 info() { printf 'coco: %s\n' "$*"; }
 die() { printf 'coco: %s\n' "$*" >&2; exit 1; }
@@ -64,12 +67,48 @@ detect_platform() {
   case "$(uname -m)" in arm64|aarch64|x86_64|amd64) ;; *) die "Unsupported architecture: $(uname -m). coco supports arm64 and amd64." ;; esac
 }
 
-check_node() {
-  need node
+node_is_usable() {
+  command -v node >/dev/null 2>&1 || return 1
   local version major minor
-  version="$(node --version 2>/dev/null)" || die "Failed to run 'node --version'"
+  version="$(node --version 2>/dev/null)" || return 1
   version="${version#v}"; major="${version%%.*}"; minor="${version#*.}"; minor="${minor%%.*}"
-  if [ "$major" -lt "$NODE_MIN_MAJOR" ] || { [ "$major" -eq "$NODE_MIN_MAJOR" ] && [ "$minor" -lt "$NODE_MIN_MINOR" ]; }; then die "Node.js >= ${NODE_MIN_MAJOR}.${NODE_MIN_MINOR} required (found ${version})."; fi
+  [ "$major" -gt "$NODE_MIN_MAJOR" ] || { [ "$major" -eq "$NODE_MIN_MAJOR" ] && [ "$minor" -ge "$NODE_MIN_MINOR" ]; }
+}
+
+prepare_node() {
+  if node_is_usable; then
+    NODE_BIN="$(command -v node)"
+    return
+  fi
+
+  local os arch platform filename base archive checksums expected actual extract
+  case "$(uname -s)" in Linux*) os="linux" ;; Darwin*) os="darwin" ;; esac
+  case "$(uname -m)" in x86_64|amd64) arch="x64" ;; arm64|aarch64) arch="arm64" ;; esac
+  platform="${os}-${arch}"
+  filename="node-v${NODE_VERSION}-${platform}.tar.gz"
+  base="https://nodejs.org/dist/v${NODE_VERSION}"
+  archive="${TMPDIR_install}/${filename}"
+  checksums="${TMPDIR_install}/node-SHASUMS256.txt"
+  extract="${TMPDIR_install}/node-runtime"
+  info "Node.js >= ${NODE_MIN_MAJOR}.${NODE_MIN_MINOR} not found; installing private Node.js v${NODE_VERSION}"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fSL --retry 3 --retry-delay 2 -o "$archive" "${base}/${filename}"
+    curl -fSL --retry 3 --retry-delay 2 -o "$checksums" "${base}/SHASUMS256.txt"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q --tries=3 -O "$archive" "${base}/${filename}"
+    wget -q --tries=3 -O "$checksums" "${base}/SHASUMS256.txt"
+  else
+    die "Neither curl nor wget found. Install one and retry."
+  fi
+  expected="$(grep "  ${filename}$" "$checksums" | cut -d ' ' -f1)"
+  [ -n "$expected" ] || die "Node.js checksum not found for ${filename}"
+  if command -v sha256sum >/dev/null 2>&1; then actual="$(sha256sum "$archive" | cut -d ' ' -f1)"; elif command -v shasum >/dev/null 2>&1; then actual="$(shasum -a 256 "$archive" | cut -d ' ' -f1)"; else die "Neither sha256sum nor shasum found. Install one and retry."; fi
+  [ "$actual" = "$expected" ] || die "Node.js SHA-256 verification failed"
+  mkdir -p "$extract"
+  tar -xzf "$archive" -C "$extract" --strip-components=1
+  NODE_RUNTIME_SOURCE="$extract"
+  NODE_BIN="$extract/bin/node"
+  [ -x "$NODE_BIN" ] || die "Private Node.js installation failed"
 }
 
 download() {
@@ -89,7 +128,7 @@ download() {
 }
 
 validate_archive() {
-  node - "$TARBALL" "$MAX_ARCHIVE_MEMBERS" "$MAX_ARCHIVE_BYTES" <<'NODE' || die "Unsafe or unexpected release archive"
+  "$NODE_BIN" - "$TARBALL" "$MAX_ARCHIVE_MEMBERS" "$MAX_ARCHIVE_BYTES" <<'NODE' || die "Unsafe or unexpected release archive"
 const { spawn } = require("node:child_process");
 const [archive, maxMembersArgument, maxBytesArgument] = process.argv.slice(2);
 const MAX_LIST_LINE_BYTES = 4096; // Bounds streamed tar metadata per member.
@@ -134,7 +173,7 @@ validate_candidate() {
   [ -x "$CANDIDATE_DIR/bin/coco" ] || die "Candidate binary not found or not executable"
   [ -f "$CANDIDATE_DIR/resources/provider-registry.v1.json" ] || die "Candidate is missing provider registry"
   [ -d "$CANDIDATE_DIR/node_modules" ] || die "Candidate is missing bundled node_modules"
-  "$CANDIDATE_DIR/bin/coco" --version >/dev/null 2>&1 || die "Candidate did not pass its version check"
+  PATH="$(dirname "$NODE_BIN"):$PATH" "$CANDIDATE_DIR/bin/coco" --version >/dev/null 2>&1 || die "Candidate did not pass its version check"
 }
 
 validate_regular_path() {
@@ -182,11 +221,17 @@ install_coco() {
   mkdir -p "$extract" "$INSTALL_PARENT"
   tar --no-same-owner --no-same-permissions -xzf "$TARBALL" -C "$extract"
   mv "$extract/package" "$CANDIDATE_DIR"
+  if [ -n "$NODE_RUNTIME_SOURCE" ]; then
+    mkdir -p "$CANDIDATE_DIR/runtime"
+    mv "$NODE_RUNTIME_SOURCE" "$CANDIDATE_DIR/runtime/node"
+    NODE_BIN="$CANDIDATE_DIR/runtime/node/bin/node"
+  fi
   validate_candidate
   validate_agent_path
   prepare_agent_backup
   if [ -e "$COCO_INSTALL_DIR" ]; then mv "$COCO_INSTALL_DIR" "$ROLLBACK_DIR"; HAD_INSTALL=1; fi
   mv "$CANDIDATE_DIR" "$COCO_INSTALL_DIR"; SWAPPED=1
+  if [ -x "$COCO_INSTALL_DIR/runtime/node/bin/node" ]; then NODE_BIN="$COCO_INSTALL_DIR/runtime/node/bin/node"; fi
   if [ "$HAD_AGENT" -eq 1 ]; then
     mkdir -p "$(dirname "$COCO_AGENT_DIR")"
     mv "$AGENT_BACKUP" "$COCO_AGENT_DIR"
@@ -201,7 +246,7 @@ write_config() {
   validate_regular_path "$COCO_AGENT_DIR/models.json" "models configuration"
   validate_regular_path "$COCO_AGENT_DIR/auth.json" "auth configuration"
   if [ ! -e "$COCO_AGENT_DIR/models.json" ]; then
-    node -e '
+    "$NODE_BIN" -e '
       const fs = require("fs"); const registry = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); const providers = {};
       for (const [id, entry] of Object.entries(registry.providers)) providers[id] = { api: entry.api, authHeader: entry.authHeader, baseUrl: entry.baseUrl, compat: entry.compat, models: [] };
       const target = process.argv[2]; const handle = fs.openSync(target, "wx", 0o600); fs.writeFileSync(handle, JSON.stringify({ providers }) + "\n"); fs.closeSync(handle);
@@ -217,7 +262,7 @@ write_config() {
 }
 
 verify_config() {
-  node -e '
+  "$NODE_BIN" -e '
     const fs = require("fs"); const dir = process.argv[1];
     const models = JSON.parse(fs.readFileSync(dir + "/models.json", "utf8")); const auth = JSON.parse(fs.readFileSync(dir + "/auth.json", "utf8"));
     if (models === null || typeof models !== "object" || Array.isArray(models) || models.providers === null || typeof models.providers !== "object" || Array.isArray(models.providers) || auth === null || typeof auth !== "object" || Array.isArray(auth)) process.exit(1);
@@ -227,12 +272,19 @@ verify_config() {
 link_binary() {
   mkdir -p "$COCO_BIN_DIR"
   if [ -L "$COCO_BIN_DIR/coco" ] || [ -f "$COCO_BIN_DIR/coco" ]; then mv "$COCO_BIN_DIR/coco" "$PREVIOUS_LINK"; HAD_LINK=1; elif [ -e "$COCO_BIN_DIR/coco" ]; then die "Refusing non-regular binary link path"; fi
-  ln -s "$COCO_INSTALL_DIR/bin/coco" "$COCO_BIN_DIR/coco"; LINKED=1
+  cat > "$COCO_BIN_DIR/coco" <<EOF
+#!/usr/bin/env bash
+if [ -x "$COCO_INSTALL_DIR/runtime/node/bin/node" ]; then
+  exec "$COCO_INSTALL_DIR/runtime/node/bin/node" "$COCO_INSTALL_DIR/bin/coco" "\$@"
+fi
+exec "$COCO_INSTALL_DIR/bin/coco" "\$@"
+EOF
+  chmod 700 "$COCO_BIN_DIR/coco"; LINKED=1
   fail_at_test_seam COCO_INSTALL_TEST_FAIL_AFTER_LINK "Injected failure after binary link"
 }
 
 main() {
-  detect_platform; check_node; download; install_coco; write_config; verify_config; link_binary
+  detect_platform; prepare_node; download; install_coco; write_config; verify_config; link_binary
   COMMITTED=1
   rm -rf "$ROLLBACK_DIR"
   info "Installed coco v${COCO_VERSION}"
