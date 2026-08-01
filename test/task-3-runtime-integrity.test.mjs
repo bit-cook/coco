@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, rename, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdtemp, readFile, rename, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -251,7 +251,10 @@ test("Given a warm CJS integrity cache, when dependencies are unchanged, then bo
     await writeFile(probe, `const fs = require("node:fs");
 const promises = require("node:fs/promises");
 const root = ${JSON.stringify(packageRoot)};
-const rejectsDependencyRead = (path) => typeof path === "string" && path.startsWith(root + "/node_modules/");
+const rejectsDependencyRead = (path) => {
+  if (typeof path === "string") return path.startsWith(root + "/node_modules/");
+  try { return typeof path === "number" && fs.readlinkSync("/proc/self/fd/" + path).startsWith(root + "/node_modules/"); } catch { return false; }
+};
 const readFileSync = fs.readFileSync;
 const readFile = promises.readFile;
 fs.readFileSync = (path, ...arguments_) => {
@@ -278,6 +281,66 @@ promises.readFile = async (path, ...arguments_) => {
     const full = await runBootstrap(packageRoot, ["--version"], { ...environment, COCO_INTEGRITY_FULL: "1", NODE_OPTIONS: `--require=${probe}` });
     assert.notEqual(full.code, 0, full.stderr);
     assert.match(full.stderr, /DEPENDENCY_CONTENT_READ/);
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
+test("Given a warm CJS integrity cache, when only raw permission bits change, then bootstrap fully verifies", async () => {
+  const packageRoot = await fixture();
+  try {
+    await writeFile(join(packageRoot, "scripts", "coco-launcher.mjs"), 'process.stdout.write(JSON.stringify({ integrityMode: process.env.COCO_INTEGRITY_MODE ?? null }) + "\\n");\n');
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const agentDir = join(packageRoot, "agent");
+    const environment = { ...process.env, COCO_CODING_AGENT_DIR: agentDir };
+    const initial = await runBootstrap(packageRoot, [], environment);
+    assert.equal(initial.code, 0, initial.stderr);
+    const governed = join(packageRoot, "package.json");
+    await chmod(governed, 0o600);
+    const fallback = await runBootstrap(packageRoot, [], environment);
+    assert.equal(fallback.code, 0, fallback.stderr);
+    assert.deepEqual(JSON.parse(fallback.stdout), { integrityMode: "full" });
+    const cache = JSON.parse(await readFile(join(agentDir, ".runtime-integrity-cache.json"), "utf8"));
+    assert.equal(cache.entries["package.json"].mode, 0o600);
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
+test("Given a replacement after bytes are hashed, when bootstrap creates a cache, then it rejects instead of caching the replacement", async () => {
+  const packageRoot = await fixture();
+  try {
+    await writeFile(join(packageRoot, "scripts", "coco-launcher.mjs"), 'process.stdout.write(JSON.stringify({ integrityMode: process.env.COCO_INTEGRITY_MODE ?? null }) + "\\n");\n');
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const target = join(packageRoot, "package.json");
+    const original = await readFile(target, "utf8");
+    const replacement = original.replace('"version": "0.1.3"', '"version": "9.9.9"');
+    assert.notEqual(replacement, original);
+    const probe = join(packageRoot, "replace-after-hash-probe.cjs");
+    await writeFile(probe, `const fs = require("node:fs");
+const target = ${JSON.stringify(target)};
+const replacement = ${JSON.stringify(replacement)};
+const targetInfo = fs.statSync(target);
+const readFileSync = fs.readFileSync;
+let replaced = false;
+fs.readFileSync = (input, ...arguments_) => {
+  const bytes = readFileSync(input, ...arguments_);
+  const matchesTarget = input === target || (typeof input === "number" && (() => {
+    const info = fs.fstatSync(input);
+    return info.dev === targetInfo.dev && info.ino === targetInfo.ino;
+  })());
+  if (!replaced && matchesTarget) {
+    fs.writeFileSync(target, replacement);
+    replaced = true;
+  }
+  return bytes;
+};
+process.on("exit", () => { if (!replaced) process.exitCode = 97; });
+`);
+    const environment = { ...process.env, COCO_CODING_AGENT_DIR: join(packageRoot, "agent"), NODE_OPTIONS: `--require=${probe}` };
+    const result = await runBootstrap(packageRoot, [], environment);
+    assert.notEqual(result.code, 0, result.stderr);
+    assert.match(result.stderr, /RUNTIME_INTEGRITY_REVALIDATION_FAILED/);
   } finally {
     await rm(join(packageRoot, ".."), { force: true, recursive: true });
   }

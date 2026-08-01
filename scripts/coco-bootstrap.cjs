@@ -33,14 +33,15 @@ function regular(path) { const info = lstatSync(path); return info.isFile() && !
 function identity(descriptor) { const info = fstatSync(descriptor); return `${info.dev}:${info.ino}`; }
 function mode(info) { return (info.mode & 0o111) === 0 ? 0o644 : 0o755; }
 function pathOf(absolute) { return relative(root, absolute).split(sep).join("/"); }
-function snapshot(info) { return { size: info.size, mtimeMs: info.mtimeMs, ctimeMs: info.ctimeMs, mode: mode(info), dev: info.dev, ino: info.ino }; }
+function snapshot(info) { return { size: info.size, mtimeMs: info.mtimeMs, ctimeMs: info.ctimeMs, mode: info.mode & 0o7777, dev: info.dev, ino: info.ino }; }
+function sameSnapshot(left, right) { return left.size === right.size && left.mtimeMs === right.mtimeMs && left.ctimeMs === right.ctimeMs && left.mode === right.mode && left.dev === right.dev && left.ino === right.ino; }
 function safeInteger(value) { return typeof value === "number" && Number.isSafeInteger(value); }
 function snapshotValid(value) {
   if (!value || typeof value !== "object") return false;
   const fields = Object.keys(value);
   return fields.length === 6 && fields.every((field) => ["size", "mtimeMs", "ctimeMs", "mode", "dev", "ino"].includes(field))
     && safeInteger(value.size) && value.size >= 0 && Number.isFinite(value.mtimeMs) && Number.isFinite(value.ctimeMs)
-    && safeInteger(value.mode) && (value.mode === 0o644 || value.mode === 0o755) && safeInteger(value.dev) && safeInteger(value.ino);
+    && safeInteger(value.mode) && value.mode >= 0 && value.mode <= 0o7777 && safeInteger(value.dev) && safeInteger(value.ino);
 }
 
 function cacheValid(cached) {
@@ -59,15 +60,10 @@ function readCache() {
   return undefined;
 }
 
-function writeCache(manifestHash, entries) {
+function writeCache(manifestHash, snapshots) {
   try {
-    const snapshots = {};
-    for (const entry of entries) {
-      const info = lstatSync(join(root, entry.path));
-      if (!info.isFile() || info.isSymbolicLink()) return;
-      const value = snapshot(info);
+    for (const [path, value] of Object.entries(snapshots)) {
       if (!snapshotValid(value)) return;
-      snapshots[entry.path] = value;
     }
     mkdirSync(dirname(cachePath), { recursive: true });
     writeFileSync(cachePath, JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, manifestHash, entries: snapshots }), { encoding: "utf8", mode: 0o600 });
@@ -115,11 +111,13 @@ function structureCheck(expected, runtimeRoots) {
 }
 
 async function main() {
+  let rootDescriptor;
+  let descriptor;
   try {
     if (!regular(manifestPath) || !regular(sidecarPath)) return reject("RUNTIME_INTEGRITY_MANIFEST_MISSING");
-    const rootDescriptor = openSync(root, "r");
+    rootDescriptor = openSync(root, "r");
     const rootIdentity = identity(rootDescriptor);
-    const descriptor = openSync(manifestPath, "r");
+    descriptor = openSync(manifestPath, "r");
     const manifestIdentity = identity(descriptor);
     const bytes = readFileSync(descriptor);
     const manifest = JSON.parse(bytes.toString("utf8"));
@@ -149,11 +147,11 @@ async function main() {
       if (cached?.manifestHash === manifestHash && structureCheck(expected, runtimeRoots)) {
         const cachedPaths = Object.keys(cached.entries);
         verified = cachedPaths.length === expected.size && cachedPaths.every((path) => expected.has(path)) && manifest.entries.every((entry) => {
-          const snapshot = cached.entries?.[entry.path];
-          if (!snapshotValid(snapshot)) return false;
+          const cachedSnapshot = cached.entries?.[entry.path];
+          if (!snapshotValid(cachedSnapshot)) return false;
           try {
             const info = lstatSync(join(root, entry.path));
-            return info.isFile() && !info.isSymbolicLink() && info.size === snapshot.size && info.mtimeMs === snapshot.mtimeMs && info.ctimeMs === snapshot.ctimeMs && mode(info) === snapshot.mode && info.dev === snapshot.dev && info.ino === snapshot.ino && mode(info) === entry.mode;
+            return info.isFile() && !info.isSymbolicLink() && sameSnapshot(snapshot(info), cachedSnapshot) && mode(info) === entry.mode;
           } catch {
             return false;
           }
@@ -163,15 +161,31 @@ async function main() {
 
     if (!verified) {
       let entryIndex = 0;
+      const verifiedSnapshots = {};
       for (const entry of manifest.entries) {
         const path = join(root, entry.path);
-        if (!regular(path)) {
-          console.error("ENTRY_MISSING", entryIndex, entry.path);
-          return reject(`RUNTIME_INTEGRITY_MISMATCH_${entry.path}`);
-        }
-        if (hash(readFileSync(path)) !== entry.sha256) {
-          console.error("ENTRY_HASH_MISMATCH", entryIndex, entry.path, entry.sha256, hash(readFileSync(path)));
-          return reject(`RUNTIME_INTEGRITY_MISMATCH_${entry.path}`);
+        let entryDescriptor;
+        try {
+          entryDescriptor = openSync(path, "r");
+          const before = snapshot(fstatSync(entryDescriptor));
+          if (!snapshotValid(before) || mode(before) !== entry.mode) {
+            console.error("ENTRY_MISSING", entryIndex, entry.path);
+            return reject(`RUNTIME_INTEGRITY_MISMATCH_${entry.path}`);
+          }
+          const bytes = readFileSync(entryDescriptor);
+          const after = snapshot(fstatSync(entryDescriptor));
+          const current = snapshot(lstatSync(path));
+          if (!sameSnapshot(before, after) || !sameSnapshot(after, current)) {
+            console.error("ENTRY_RACE", entryIndex, entry.path);
+            return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
+          }
+          if (hash(bytes) !== entry.sha256) {
+            console.error("ENTRY_HASH_MISMATCH", entryIndex, entry.path, entry.sha256, hash(bytes));
+            return reject(`RUNTIME_INTEGRITY_MISMATCH_${entry.path}`);
+          }
+          verifiedSnapshots[entry.path] = after;
+        } finally {
+          if (entryDescriptor !== undefined) closeSync(entryDescriptor);
         }
         entryIndex++;
       }
@@ -191,7 +205,7 @@ async function main() {
           return reject("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY");
         }
       }
-      writeCache(manifestHash, manifest.entries);
+      writeCache(manifestHash, verifiedSnapshots);
     }
     if (identity(rootDescriptor) !== rootIdentity) {
       console.error("ROOT_RACE");
@@ -201,7 +215,8 @@ async function main() {
       console.error("MANIFEST_RACE");
       return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
     }
-    closeSync(descriptor); closeSync(rootDescriptor);
+    closeSync(descriptor); descriptor = undefined;
+    closeSync(rootDescriptor); rootDescriptor = undefined;
     process.env.COCO_INTEGRITY_VERIFIED = "1";
     process.env.COCO_INTEGRITY_MODE = verified ? "fast" : "full";
     if (process.env.PI_OFFLINE === undefined) process.env.PI_OFFLINE = "1";
@@ -213,6 +228,9 @@ async function main() {
   } catch (error) {
     console.error("BOOTSTRAP_ERROR", error);
     reject("RUNTIME_INTEGRITY_INVALID");
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+    if (rootDescriptor !== undefined) closeSync(rootDescriptor);
   }
 }
 void main();
