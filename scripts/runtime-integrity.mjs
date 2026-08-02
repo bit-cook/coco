@@ -1,5 +1,5 @@
 import { lstat, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 
 import { canonicalJson, readCanonicalJson, sha256 } from "./canonical-json.mjs";
 
@@ -15,6 +15,9 @@ const PACKAGE_EXCLUDED = new Set([
   "scripts/run-egress-allowlist.mjs", "scripts/run-final-f3.mjs", "scripts/run-tests-preserving-receipts.mjs",
   "scripts/run-with-timeout.mjs", "scripts/validate-protected-baseline.mjs", "scripts/verify-baseline-authorization.mjs", "scripts/verify-final-verifier-manifest.mjs",
   "scripts/verify-plan-evidence.mjs", "scripts/verify-protected-baseline.mjs",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/proper-lockfile/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/which/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/.runtime-integrity-cache.json",
 ]);
 for (let task = 1; task <= 16; task += 1) PACKAGE_EXCLUDED.add(`scripts/qa-task-${task}.mjs`);
 const METADATA = new Set(["license", "package.json", "npm-shrinkwrap.json"]);
