@@ -54,6 +54,95 @@ const patchedAnthropicWarning = `        if (this.options.verbose && modelFallba
         if (this.options.verbose) void this.maybeWarnAboutAnthropicSubscriptionAuth();`;
 const scrollbackAnchor = `                buffer += "\\x1b[2J\\x1b[H\\x1b[3J"; // Clear screen, home, then clear scrollback`;
 const patchedScrollback = `                buffer += "\\x1b[2J\\x1b[H"; // Clear screen and home without erasing terminal scrollback`;
+const modelRuntimeVisibleAnchor = `    getAvailableSnapshot() {
+        return this.snapshot.available;
+    }`;
+const patchedModelRuntimeVisible = `    getAvailableSnapshot() {
+        return this.snapshot.available;
+    }
+    getVisible() {
+        return this.snapshot.all.filter((model) => this.snapshot.configuredProviders.has(model.provider) ||
+            this.config.getProvider(model.provider)?.models?.some((declared) => declared.id === model.id));
+    }
+    getVisibleSnapshot() {
+        return this.getVisible();
+    }`;
+const modelRuntimeDeclarationAnchor = `    getAvailableSnapshot(): readonly Model<Api>[];`;
+const patchedModelRuntimeDeclaration = `    getAvailableSnapshot(): readonly Model<Api>[];
+    getVisible(): readonly Model<Api>[];
+    getVisibleSnapshot(): readonly Model<Api>[];`;
+const listModelsVisibleAnchor = `    const models = [...(await modelRuntime.getAvailable())];`;
+const patchedListModelsVisible = `    const models = [...modelRuntime.getVisible()];`;
+const listModelsRowsAnchor = `        images: m.input.includes("image") ? "yes" : "no",
+    }));`;
+const patchedListModelsRows = `        images: m.input.includes("image") ? "yes" : "no",
+        status: modelRuntime.hasConfiguredAuth(m.provider) ? "ready" : "login-required",
+    }));`;
+const listModelsHeadersAnchor = `        images: "images",
+    };`;
+const patchedListModelsHeaders = `        images: "images",
+        status: "status",
+    };`;
+const listModelsWidthsAnchor = `        images: Math.max(headers.images.length, ...rows.map((r) => r.images.length)),
+    };`;
+const patchedListModelsWidths = `        images: Math.max(headers.images.length, ...rows.map((r) => r.images.length)),
+        status: Math.max(headers.status.length, ...rows.map((r) => r.status.length)),
+    };`;
+const listModelsHeaderLineAnchor = `        headers.images.padEnd(widths.images),
+    ].join("  ");`;
+const patchedListModelsHeaderLine = `        headers.images.padEnd(widths.images),
+        headers.status.padEnd(widths.status),
+    ].join("  ");`;
+const listModelsLineAnchor = `            row.images.padEnd(widths.images),
+        ].join("  ");`;
+const patchedListModelsLine = `            row.images.padEnd(widths.images),
+            row.status.padEnd(widths.status),
+        ].join("  ");`;
+const selectorVisibleAnchor = `        const models = this.modelRuntime.getAvailableSnapshot().map((model) => ({
+            provider: model.provider,
+            id: model.id,
+            model,
+        }));`;
+const patchedSelectorVisible = `        const models = this.modelRuntime.getVisibleSnapshot().map((model) => ({
+            provider: model.provider,
+            id: model.id,
+            loginRequired: !this.modelRuntime.hasConfiguredAuth(model.provider),
+            model,
+        }));`;
+const selectorLoginMarkerAnchor = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
+                line = \`${"${prefix + theme.fg(\"accent\", modelText)}"} ${"${providerBadge}"}${"${checkmark}"}\`;`;
+const patchedSelectorLoginMarker = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
+                const loginRequired = item.loginRequired ? theme.fg("warning", " login-required") : "";
+                line = \`${"${prefix + theme.fg(\"accent\", modelText)}"} ${"${providerBadge}"}${"${checkmark}"}${"${loginRequired}"}\`;`;
+const selectorLoginMarkerElseAnchor = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
+                line = \`${"${modelText}"} ${"${providerBadge}"}${"${checkmark}"}\`;`;
+const patchedSelectorLoginMarkerElse = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
+                const loginRequired = item.loginRequired ? theme.fg("warning", " login-required") : "";
+                line = \`${"${modelText}"} ${"${providerBadge}"}${"${checkmark}"}${"${loginRequired}"}\`;`;
+const selectorHandleSelectAnchor = `    handleSelect(model) {
+        this.close();
+        // Save as new default
+        this.settingsManager.setDefaultModelAndProvider(model.provider, model.id);
+        this.onSelectCallback(model);
+    }`;
+const patchedSelectorHandleSelect = `    handleSelect(model) {
+        this.close();
+        const loginRequired = !this.modelRuntime.hasConfiguredAuth(model.provider);
+        if (!loginRequired)
+            this.settingsManager.setDefaultModelAndProvider(model.provider, model.id);
+        this.onSelectCallback(model, loginRequired);
+    }`;
+const selectorDeclarationAnchor = `    constructor(tui: TUI, currentModel: Model<any> | undefined, settingsManager: SettingsManager, modelRuntime: ModelRuntime, scopedModels: ReadonlyArray<ScopedModelItem>, onSelect: (model: Model<any>) => void, onCancel: () => void, initialSearchInput?: string);`;
+const patchedSelectorDeclaration = `    constructor(tui: TUI, currentModel: Model<any> | undefined, settingsManager: SettingsManager, modelRuntime: ModelRuntime, scopedModels: ReadonlyArray<ScopedModelItem>, onSelect: (model: Model<any>, loginRequired: boolean) => void, onCancel: () => void, initialSearchInput?: string);`;
+const interactiveModelSelectorAnchor = `            const selector = new ModelSelectorComponent(this.ui, this.session.model, this.settingsManager, this.session.modelRuntime, this.session.scopedModels, async (model) => {
+                try {`;
+const patchedInteractiveModelSelector = `            const selector = new ModelSelectorComponent(this.ui, this.session.model, this.settingsManager, this.session.modelRuntime, this.session.scopedModels, async (model, loginRequired) => {
+                if (loginRequired) {
+                    done();
+                    await this.handleLoginCommand(model.provider);
+                    return;
+                }
+                try {`;
 
 function patchError(code) {
   return new Error(code);
@@ -64,15 +153,32 @@ function count(source, anchor) {
 }
 
 function replaceExact(source, anchor, replacement) {
+  if (!replacement) {
+    const matches = count(source, anchor);
+    if (matches === 1) {
+      return source.replace(anchor, replacement);
+    }
+    if (matches > 1) {
+      throw patchError("COCO_PATCH_DUPLICATE_ANCHOR");
+    }
+    return source;
+  }
+  const replacements = count(source, replacement);
   const matches = count(source, anchor);
+  if (replacements > 1) {
+    throw patchError("COCO_PATCH_DUPLICATE_ANCHOR");
+  }
+  if (replacements === 1) {
+    if (matches > 1) {
+      throw patchError("COCO_PATCH_DUPLICATE_ANCHOR");
+    }
+    return source;
+  }
   if (matches === 1) {
     return source.replace(anchor, replacement);
   }
   if (matches > 1) {
     throw patchError("COCO_PATCH_DUPLICATE_ANCHOR");
-  }
-  if (source.includes(replacement)) {
-    return source;
   }
   throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
 }
@@ -98,6 +204,11 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   await Promise.all([ensureVersion(join(agent, "package.json")), ensureVersion(join(tui, "package.json"))]);
   const targets = [
     "dist/cli/args.js",
+    "dist/cli/list-models.js",
+    "dist/core/model-runtime.js",
+    "dist/core/model-runtime.d.ts",
+    "dist/modes/interactive/components/model-selector.js",
+    "dist/modes/interactive/components/model-selector.d.ts",
     "dist/core/system-prompt.js",
     "dist/modes/interactive/interactive-mode.js",
     "dist/utils/version-check.js",
@@ -105,18 +216,32 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   const tuiPath = join(tui, "dist/tui.js");
   const originals = await Promise.all([...targets, tuiPath].map((path) => readFile(path, "utf8")));
   const patched = originals.slice(0, -1).map(applyIdentityReplacements);
-  patched[2] = replaceExact(patched[2], headerAnchor, patchedHeader);
-  patched[2] = replaceExact(patched[2], startupExpansionAnchor, patchedStartupExpansion);
-  patched[2] = replaceExact(patched[2], resourceListingAnchor, patchedResourceListing);
-  patched[2] = replaceExact(patched[2], compactExpansionHintAnchor, "");
-  patched[2] = replaceExact(patched[2], scopedModelsAnchor, patchedScopedModels);
-  patched[2] = replaceExact(patched[2], changelogAnchor, patchedChangelog);
-  patched[2] = replaceExact(patched[2], headerGuardAnchor, patchedHeaderGuard);
-  patched[2] = replaceExact(patched[2], versionCheckAnchor, patchedVersionCheck);
-  patched[2] = replaceExact(patched[2], packageCheckAnchor, patchedPackageCheck);
-  patched[2] = replaceExact(patched[2], tmuxCheckAnchor, patchedTmuxCheck);
-  patched[2] = replaceExact(patched[2], migratedProvidersAnchor, patchedMigratedProviders);
-  patched[2] = replaceExact(patched[2], anthropicWarningAnchor, patchedAnthropicWarning);
+  patched[1] = replaceExact(patched[1], listModelsVisibleAnchor, patchedListModelsVisible);
+  patched[1] = replaceExact(patched[1], listModelsRowsAnchor, patchedListModelsRows);
+  patched[1] = replaceExact(patched[1], listModelsHeadersAnchor, patchedListModelsHeaders);
+  patched[1] = replaceExact(patched[1], listModelsWidthsAnchor, patchedListModelsWidths);
+  patched[1] = replaceExact(patched[1], listModelsHeaderLineAnchor, patchedListModelsHeaderLine);
+  patched[1] = replaceExact(patched[1], listModelsLineAnchor, patchedListModelsLine);
+  patched[2] = replaceExact(patched[2], modelRuntimeVisibleAnchor, patchedModelRuntimeVisible);
+  patched[3] = replaceExact(patched[3], modelRuntimeDeclarationAnchor, patchedModelRuntimeDeclaration);
+  patched[4] = replaceExact(patched[4], selectorVisibleAnchor, patchedSelectorVisible);
+  patched[4] = replaceExact(patched[4], selectorLoginMarkerAnchor, patchedSelectorLoginMarker);
+  patched[4] = replaceExact(patched[4], selectorLoginMarkerElseAnchor, patchedSelectorLoginMarkerElse);
+  patched[4] = replaceExact(patched[4], selectorHandleSelectAnchor, patchedSelectorHandleSelect);
+  patched[5] = replaceExact(patched[5], selectorDeclarationAnchor, patchedSelectorDeclaration);
+  patched[7] = replaceExact(patched[7], headerAnchor, patchedHeader);
+  patched[7] = replaceExact(patched[7], startupExpansionAnchor, patchedStartupExpansion);
+  patched[7] = replaceExact(patched[7], resourceListingAnchor, patchedResourceListing);
+  patched[7] = replaceExact(patched[7], compactExpansionHintAnchor, "");
+  patched[7] = replaceExact(patched[7], scopedModelsAnchor, patchedScopedModels);
+  patched[7] = replaceExact(patched[7], changelogAnchor, patchedChangelog);
+  patched[7] = replaceExact(patched[7], headerGuardAnchor, patchedHeaderGuard);
+  patched[7] = replaceExact(patched[7], versionCheckAnchor, patchedVersionCheck);
+  patched[7] = replaceExact(patched[7], packageCheckAnchor, patchedPackageCheck);
+  patched[7] = replaceExact(patched[7], tmuxCheckAnchor, patchedTmuxCheck);
+  patched[7] = replaceExact(patched[7], migratedProvidersAnchor, patchedMigratedProviders);
+  patched[7] = replaceExact(patched[7], anthropicWarningAnchor, patchedAnthropicWarning);
+  patched[7] = replaceExact(patched[7], interactiveModelSelectorAnchor, patchedInteractiveModelSelector);
   patched.push(replaceExact(originals.at(-1), scrollbackAnchor, patchedScrollback));
   await Promise.all(patched.map((source, index) => source === originals[index] ? undefined : writeFile([...targets, tuiPath][index], source, "utf8")));
 }

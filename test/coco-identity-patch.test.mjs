@@ -40,6 +40,40 @@ const tuiSource = `const fullRender = (clear) => {
                 buffer += "\\x1b[2J\\x1b[H\\x1b[3J"; // Clear screen, home, then clear scrollback
     }
 };`;
+const interactiveModelSelectionSource = `    showModelSelector(initialSearchInput) {
+        this.showSelector((done) => {
+            const selector = new ModelSelectorComponent(this.ui, this.session.model, this.settingsManager, this.session.modelRuntime, this.session.scopedModels, async (model) => {
+                try {
+                    await this.session.setModel(model);
+                    this.footer.invalidate();
+                    done();
+                }
+                catch (error) {
+                    done();
+                    this.showError(error instanceof Error ? error.message : String(error));
+                }
+            }, () => {
+                done();
+            }, initialSearchInput);
+            return { component: selector, focus: selector };
+        });
+    }
+    async handleLoginCommand(providerRef) {
+        await this.session.modelRuntime.getAvailable();
+    }`;
+const repositoryRoot = new URL("..", import.meta.url).pathname;
+const patchTargets = [
+  "dist/cli/args.js",
+  "dist/cli/list-models.js",
+  "dist/core/model-runtime.js",
+  "dist/core/model-runtime.d.ts",
+  "dist/modes/interactive/components/model-selector.js",
+  "dist/modes/interactive/components/model-selector.d.ts",
+  "dist/core/system-prompt.js",
+  "dist/modes/interactive/interactive-mode.js",
+  "dist/utils/version-check.js",
+  "node_modules/@earendil-works/pi-tui/dist/tui.js",
+];
 
 async function createFixture() {
   const root = await mkdtemp(join(tmpdir(), "coco-identity-patch-"));
@@ -47,6 +81,7 @@ async function createFixture() {
   const tui = join(agent, "node_modules", "@earendil-works", "pi-tui");
   await mkdir(join(agent, "dist", "cli"), { recursive: true });
   await mkdir(join(agent, "dist", "core"), { recursive: true });
+  await mkdir(join(agent, "dist", "modes", "interactive", "components"), { recursive: true });
   await mkdir(join(agent, "dist", "modes", "interactive"), { recursive: true });
   await mkdir(join(agent, "dist", "utils"), { recursive: true });
   await mkdir(join(tui, "dist"), { recursive: true });
@@ -56,6 +91,12 @@ async function createFixture() {
     await writeFile(join(agent, path), identitySource);
   }
   await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `${identitySource}\n${headerSource}\n${quietHeaderSource}\n${startupExpansionSource}\n${resourceListingSource}\n${compactExpansionHintSource}\n${startupPolicySource}`);
+  await writeFile(join(agent, "dist/core/model-runtime.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.js"), "utf8"));
+  await writeFile(join(agent, "dist/core/model-runtime.d.ts"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.d.ts"), "utf8"));
+  await writeFile(join(agent, "dist/cli/list-models.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/cli/list-models.js"), "utf8"));
+  await writeFile(join(agent, "dist/modes/interactive/components/model-selector.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/model-selector.js"), "utf8"));
+  await writeFile(join(agent, "dist/modes/interactive/components/model-selector.d.ts"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/model-selector.d.ts"), "utf8"));
+  await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `${await readFile(join(agent, "dist/modes/interactive/interactive-mode.js"), "utf8")}\n${interactiveModelSelectionSource}`);
   await writeFile(join(tui, "dist/tui.js"), tuiSource);
   return root;
 }
@@ -96,9 +137,37 @@ test("Given supported upstream artifacts, when patched twice, then the second ap
   const root = await createFixture();
   try {
     await applyCocoIdentityPatch({ root });
-    const once = await readPatched(root, "dist/modes/interactive/interactive-mode.js");
+    const once = await Promise.all(patchTargets.map((path) => readPatched(root, path)));
     await applyCocoIdentityPatch({ root });
-    assert.equal(await readPatched(root, "dist/modes/interactive/interactive-mode.js"), once);
+    assert.deepEqual(await Promise.all(patchTargets.map((path) => readPatched(root, path))), once);
+    assert.equal((await readPatched(root, "dist/core/model-runtime.js")).match(/^    getVisible\(\) \{/gm)?.length, 1);
+    assert.equal((await readPatched(root, "dist/core/model-runtime.js")).match(/^    getVisibleSnapshot\(\) \{/gm)?.length, 1);
+    assert.equal((await readPatched(root, "dist/core/model-runtime.d.ts")).match(/getVisible\(\): readonly Model<Api>\[\];/g)?.length, 1);
+    assert.equal((await readPatched(root, "dist/core/model-runtime.d.ts")).match(/getVisibleSnapshot\(\): readonly Model<Api>\[\];/g)?.length, 1);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("Given supported model artifacts, when patched, then declared models are visible while authentication remains required for selection", async () => {
+  const root = await createFixture();
+  try {
+    await applyCocoIdentityPatch({ root });
+    const runtime = await readPatched(root, "dist/core/model-runtime.js");
+    const declaration = await readPatched(root, "dist/core/model-runtime.d.ts");
+    const list = await readPatched(root, "dist/cli/list-models.js");
+    const selector = await readPatched(root, "dist/modes/interactive/components/model-selector.js");
+    const interactive = await readPatched(root, "dist/modes/interactive/interactive-mode.js");
+    assert.match(runtime, /getVisible\(\)/);
+    assert.match(runtime, /this\.config\.getProvider\(model\.provider\)\?\.models\?\.some/);
+    assert.match(declaration, /getVisible\(\): readonly Model<Api>\[\]/);
+    assert.match(list, /modelRuntime\.getVisible\(\)/);
+    assert.match(list, /login-required/);
+    assert.match(selector, /getVisibleSnapshot\(\)/);
+    assert.match(selector, /login-required/);
+    assert.match(selector, /const loginRequired = !this\.modelRuntime\.hasConfiguredAuth\(model\.provider\);/);
+    assert.match(selector, /onSelectCallback\(model, loginRequired\)/);
+    assert.match(interactive, /if \(loginRequired\) \{\s*done\(\);\s*await this\.handleLoginCommand\(model\.provider\);/);
   } finally {
     await rm(root, { force: true, recursive: true });
   }
