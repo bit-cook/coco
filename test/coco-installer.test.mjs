@@ -133,6 +133,7 @@ for (const installer of installers) {
       const auth = JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8"));
       assert.deepEqual(Object.keys(models.providers).sort(), ["achai", "agnes", "idepub", "stepfun"]);
       assert.deepEqual(Object.fromEntries(Object.entries(models.providers).map(([provider, model]) => [provider, model.baseUrl])), publicBaseUrls);
+      assert.deepEqual(models.providers.achai.models.map(({ id }) => id), ["deepseek-v4-flash", "grok-4.20-0309", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309", "grok-4.3", "grok-4.5", "grok-build-0.1", "grok-chat-fast", "mimo-v2.5", "nemotron-3-ultra", "north-mini-code"]);
       assert.deepEqual(models.providers.idepub.models.map(({ id }) => id), ["gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]);
       assert.deepEqual(models.providers.stepfun.models.map(({ id }) => id), ["step-3.7-flash", "step-3.5-flash-2603", "step-3.5-flash"]);
       assert.equal(JSON.stringify(models).includes("apiKey"), false);
@@ -156,6 +157,31 @@ for (const installer of installers) {
       assert.equal(await runInstaller(installer, { ...setup.environment, AGNES_API_KEY: explicitKey, COCO_INSTALL_TEST_MODE: "0" }), 0);
       assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8")), { agnes: { type: "api_key", key: explicitKey } });
       assert.equal((await readFile(setup.environment.COCO_TEST_DOWNLOAD_LOG, "utf8")).includes(agnesAssetUrl), false);
+    } finally {
+      await rm(setup.root, { force: true, recursive: true });
+    }
+  });
+
+  test(`Given an explicit Achai key, when ${installer} installs, then Achai is immediately authenticated`, async () => {
+    const setup = await fixture();
+    try {
+      assert.equal(await runInstaller(installer, { ...setup.environment, ACHAI_API_KEY: "test-achai-key", COCO_INSTALL_TEST_MODE: "0" }), 0);
+      const auth = JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8"));
+      assert.deepEqual(auth.achai, { type: "api_key", key: "test-achai-key" });
+    } finally {
+      await rm(setup.root, { force: true, recursive: true });
+    }
+  });
+
+  test(`Given an existing OpenCode Achai secret, when ${installer} installs, then Coco imports it without user configuration`, async () => {
+    const setup = await fixture();
+    const secret = join(setup.root, ".config", "opencode", "secrets", "achai-api-key");
+    try {
+      await mkdir(join(secret, ".."), { recursive: true });
+      await writeFile(secret, "test-opencode-achai-key\n", { mode: 0o600 });
+      assert.equal(await runInstaller(installer, { ...setup.environment, COCO_INSTALL_TEST_MODE: "0" }), 0);
+      const auth = JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8"));
+      assert.deepEqual(auth.achai, { type: "api_key", key: "test-opencode-achai-key" });
     } finally {
       await rm(setup.root, { force: true, recursive: true });
     }

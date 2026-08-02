@@ -262,7 +262,7 @@ install_coco() {
 }
 
 write_config() {
-  local agnes_key_path=""
+  local achai_key_path="" agnes_key_path=""
   mkdir -p "$COCO_AGENT_DIR"
   [ ! -L "$COCO_AGENT_DIR" ] || die "Refusing symlinked agent directory: ${COCO_AGENT_DIR}"
   chmod 700 "$COCO_AGENT_DIR"
@@ -279,18 +279,23 @@ write_config() {
   fi
   if [ ! -e "$COCO_AGENT_DIR/auth.json" ]; then
     if [ -z "${AGNES_API_KEY:-}" ]; then agnes_key_path="$(download_agnes_key)"; fi
+    if [ -z "${ACHAI_API_KEY:-}" ] && [ -f "$HOME/.config/opencode/secrets/achai-api-key" ] && [ ! -L "$HOME/.config/opencode/secrets/achai-api-key" ]; then
+      achai_key_path="$HOME/.config/opencode/secrets/achai-api-key"
+    fi
     (umask 077; set -C; printf '{}\n' > "$COCO_AGENT_DIR/auth.json") || die "Could not create auth configuration exclusively"
     CREATED_AUTH=1
   fi
   if [ "$CREATED_MODELS" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/models.json"; fi
   if [ "$CREATED_AUTH" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/auth.json"; fi
-  if [ "$CREATED_AUTH" -eq 1 ] && { [ -n "${AGNES_API_KEY:-}" ] || [ -n "$agnes_key_path" ]; }; then
-    "$NODE_BIN" - "$COCO_AGENT_DIR/auth.json" "$agnes_key_path" <<'NODE'
+  if [ "$CREATED_AUTH" -eq 1 ] && { [ -n "${AGNES_API_KEY:-}" ] || [ -n "$agnes_key_path" ] || [ -n "${ACHAI_API_KEY:-}" ] || [ -n "$achai_key_path" ]; }; then
+    "$NODE_BIN" - "$COCO_AGENT_DIR/auth.json" "$agnes_key_path" "$achai_key_path" <<'NODE'
 const fs = require("fs");
-const [authPath, agnesKeyPath] = process.argv.slice(2);
+const [authPath, agnesKeyPath, achaiKeyPath] = process.argv.slice(2);
 const key = process.env.AGNES_API_KEY || fs.readFileSync(agnesKeyPath, "utf8").replace(/\r?\n$/, "");
 const auth = JSON.parse(fs.readFileSync(authPath, "utf8"));
 auth.agnes = { type: "api_key", key };
+const achaiKey = process.env.ACHAI_API_KEY || (achaiKeyPath ? fs.readFileSync(achaiKeyPath, "utf8").replace(/\r?\n$/, "") : "");
+if (achaiKey) auth.achai = { type: "api_key", key: achaiKey };
 fs.writeFileSync(authPath, JSON.stringify(auth) + "\n", { mode: 0o600 });
 NODE
   fi
@@ -306,8 +311,29 @@ const settingsPath = `${agentDir}/settings.json`;
 const agnes = registry.providers.agnes;
 if (createdModels === "1") {
 const models = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
+const achai = registry.providers.achai;
 const idepub = registry.providers.idepub;
 const stepfun = registry.providers.stepfun;
+const standard = (id, name, reasoning = false) => ({ id, name, reasoning, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 });
+models.providers.achai = {
+  api: achai.api,
+  authHeader: achai.authHeader,
+  baseUrl: achai.baseUrl,
+  compat: achai.compat,
+  models: [
+    standard("deepseek-v4-flash", "DeepSeek V4 Flash"),
+    standard("grok-4.20-0309", "Grok 4.20"),
+    standard("grok-4.20-0309-reasoning", "Grok 4.20 Reasoning", true),
+    standard("grok-4.20-multi-agent-0309", "Grok 4.20 Multi-Agent"),
+    standard("grok-4.3", "Grok 4.3", true),
+    standard("grok-4.5", "Grok 4.5", true),
+    standard("grok-build-0.1", "Grok Build 0.1"),
+    standard("grok-chat-fast", "Grok Chat Fast"),
+    standard("mimo-v2.5", "Mimo v2.5"),
+    standard("nemotron-3-ultra", "Nemotron 3 Ultra"),
+    standard("north-mini-code", "North Mini Code")
+  ]
+};
 models.providers.agnes = {
   api: agnes.api,
   authHeader: true,
