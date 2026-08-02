@@ -45,6 +45,10 @@ async function main() {
     const unavailable = await removeAuthKey({ agentDir: agent, provider: "achai" });
     cases.push(result("remove-without-environment-unavailable", true, !unavailable.available && unavailable.source === "none"));
     cases.push(result("invalid-keys-rejected", true, await rejects(() => Promise.resolve(parseStdinKey(Buffer.from("\n"))), "AUTH_KEY_INVALID") && await rejects(() => Promise.resolve(parseStdinKey(Buffer.from(" key"))), "AUTH_KEY_INVALID")));
+    await setAuthKey({ agentDir: agent, key: "deepseek-stored", provider: "deepseek" });
+    const [deepseek] = await getAuthStatus({ agentDir: agent, environment: { DEEPSEEK_API_KEY: "environment" }, provider: "deepseek" });
+    const deepseekRemoved = await removeAuthKey({ agentDir: agent, environment: { DEEPSEEK_API_KEY: "environment" }, provider: "deepseek" });
+    cases.push(result("deepseek-native-auth-and-environment", true, deepseek.source === "auth" && deepseekRemoved.source === "environment"));
     cases.push(result("unknown-provider-rejected", true, await rejects(() => setAuthKey({ agentDir: agent, key: "safe", provider: "unknown" }), "AUTH_PROVIDER_INVALID")));
     const savedArgv = process.argv.slice();
     const savedWrite = process.stderr.write;

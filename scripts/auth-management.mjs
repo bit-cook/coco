@@ -5,7 +5,7 @@ import { StateError, parseStrictJson, resolveCredential, validateAuth } from "./
 import { inspectRegular, statePaths } from "./state-paths.mjs";
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
 
-const MANAGED_PROVIDERS = new Set(["idepub", "achai", "agnes", "stepfun"]);
+const MANAGED_PROVIDERS = new Set(["idepub", "achai", "agnes", "deepseek", "stepfun"]);
 const MAX_KEY_BYTES = 16 * 1024;
 
 function fail(code) { throw new StateError(code); }
