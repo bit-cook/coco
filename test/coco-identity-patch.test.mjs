@@ -7,11 +7,68 @@ import test from "node:test";
 import { applyCocoIdentityPatch } from "../scripts/apply-coco-identity-patch.mjs";
 
 const identitySource = "Pi documentation https://pi.dev inside pi extend Pi";
-const headerSource = `            const compactOnboarding = theme.fg("dim", \`Press \${keyText("app.tools.expand")} to show full startup help and loaded resources.\`);
-            const onboarding = theme.fg("dim", \`Pi can explain its own features and look up its docs. Ask it how to use or extend Coco.\`);
-            this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\\n\${compactOnboarding}\\n\\n\${onboarding}\`, () => \`\${logo}\\n\${expandedInstructions}\\n\\n\${onboarding}\`, this.getStartupExpansionState(), 1, 0);`;
+const systemPromptSource = `let prompt = \`You are an expert coding assistant operating inside pi, a coding agent harness. You help users by reading files, executing commands, editing code, and writing new files.
+
+Available tools:\n\`;`;
+const helpSource = "console.log(`${chalk.bold(APP_NAME)} - AI coding assistant with read, bash, edit, write tools\n\n${chalk.bold(\"Usage:\")}\n  --system-prompt <text>         System prompt (default: coding assistant prompt)`);";
+const firstTimeSetupSource = `this.addChild(new Text(theme.fg("accent", theme.bold(\`Welcome to \${APP_NAME}, the minimal coding agent.\`)), 1, 0));`;
+const expandableTextSource = `class ExpandableText extends Text {
+    getCollapsedText;
+    getExpandedText;
+    constructor(getCollapsedText, getExpandedText, expanded = false, paddingX = 0, paddingY = 0) {
+        super(expanded ? getExpandedText() : getCollapsedText(), paddingX, paddingY);
+        this.getCollapsedText = getCollapsedText;
+        this.getExpandedText = getExpandedText;
+    }
+    setExpanded(expanded) {
+        this.setText(expanded ? this.getExpandedText() : this.getCollapsedText());
+    }
+}`;
+const headerSource = `            this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\`, () => \`\${logo}\\n\${expandedInstructions}\`, this.getStartupExpansionState(), 1, 0);`;
 const quietHeaderSource = `else {
     this.builtInHeader = new Text("", 0, 0);
+    }`;
+const responsiveWordmarkSource = `class ResponsiveStartupWordmark {
+    render(width) {
+        return [truncateToWidth(theme.bold(theme.fg("accent", "CoCo")), width, "")];
+    }
+    invalidate() {
+    }
+    setExpanded(expanded) {
+    }
+}`;
+const olderResponsiveWordmarkSource = `class ResponsiveStartupWordmark {
+    expanded;
+    version;
+    compactInstructions;
+    instructions;
+    cachedWidth;
+    cachedLines;
+    constructor(expanded, version = "", compactInstructions = "", instructions = "") {
+        this.expanded = expanded;
+        this.version = version;
+        this.compactInstructions = compactInstructions;
+        this.instructions = instructions;
+    }
+    setExpanded(expanded) {
+        this.expanded = expanded;
+        this.invalidate();
+    }
+    invalidate() {
+        this.cachedWidth = undefined;
+        this.cachedLines = undefined;
+    }
+    render(width) {
+        if (this.cachedLines && this.cachedWidth === width) {
+            return this.cachedLines;
+        }
+        const contentWidth = Math.max(0, width - 2);
+        const compact = "CoCo";
+        const lines = [" " + truncateToWidth(theme.bold(theme.fg("accent", compact)), contentWidth, "") + " "];
+        this.cachedWidth = width;
+        this.cachedLines = lines;
+        return lines;
+    }
 }`;
 const startupExpansionSource = `    getStartupExpansionState() {
         return this.options.verbose || this.toolOutputExpanded;
@@ -70,7 +127,9 @@ const patchTargets = [
   "dist/modes/interactive/components/model-selector.js",
   "dist/modes/interactive/components/model-selector.d.ts",
   "dist/core/system-prompt.js",
+  "dist/modes/interactive/components/first-time-setup.js",
   "dist/modes/interactive/interactive-mode.js",
+  "dist/utils/tools-manager.js",
   "dist/utils/version-check.js",
   "node_modules/@earendil-works/pi-tui/dist/tui.js",
 ];
@@ -87,10 +146,12 @@ async function createFixture() {
   await mkdir(join(tui, "dist"), { recursive: true });
   await writeFile(join(agent, "package.json"), JSON.stringify({ version: "0.82.1" }));
   await writeFile(join(tui, "package.json"), JSON.stringify({ version: "0.82.1" }));
-  for (const path of ["dist/cli/args.js", "dist/core/system-prompt.js", "dist/utils/version-check.js"]) {
-    await writeFile(join(agent, path), identitySource);
-  }
-  await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `${identitySource}\n${headerSource}\n${quietHeaderSource}\n${startupExpansionSource}\n${resourceListingSource}\n${compactExpansionHintSource}\n${startupPolicySource}`);
+  await writeFile(join(agent, "dist/cli/args.js"), `${identitySource}\n${helpSource}`);
+  await writeFile(join(agent, "dist/core/system-prompt.js"), `${identitySource}\n${systemPromptSource}`);
+  await writeFile(join(agent, "dist/utils/version-check.js"), identitySource);
+  await writeFile(join(agent, "dist/modes/interactive/components/first-time-setup.js"), firstTimeSetupSource);
+  await writeFile(join(agent, "dist/utils/tools-manager.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/utils/tools-manager.js"), "utf8"));
+  await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, ProcessTerminal, Spacer, setKeybindings, Text, TruncatedText, TUI, visibleWidth, } from "@earendil-works/pi-tui";\n${expandableTextSource}\n${identitySource}\n${headerSource}\n${quietHeaderSource}\n${startupExpansionSource}\n${resourceListingSource}\n${compactExpansionHintSource}\n${startupPolicySource}`);
   await writeFile(join(agent, "dist/core/model-runtime.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.js"), "utf8"));
   await writeFile(join(agent, "dist/core/model-runtime.d.ts"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.d.ts"), "utf8"));
   await writeFile(join(agent, "dist/cli/list-models.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/cli/list-models.js"), "utf8"));
@@ -105,16 +166,44 @@ async function readPatched(root, path) {
   return readFile(join(root, "node_modules", "@earendil-works", "pi-coding-agent", path), "utf8");
 }
 
+function visibleWidth(line) {
+  return line.replace(/\x1b\[[0-9;]*m/g, "").length;
+}
+
+function truncateToWidth(line, width) {
+  const visible = visibleWidth(line);
+  return visible <= width ? line : line.replace(/\x1b\[[0-9;]*m/g, "").slice(0, width);
+}
+
+function wordmarkFrom(interactive) {
+  const match = interactive.match(/class ResponsiveStartupWordmark \{[\s\S]*?\n\}/);
+  assert.ok(match);
+  const theme = {
+    bold: (text) => `\x1b[1m${text}\x1b[0m`,
+    fg: (_token, text) => `\x1b[36m${text}\x1b[0m`,
+  };
+  return new Function("theme", "truncateToWidth", "visibleWidth", `${match[0]}\nreturn ResponsiveStartupWordmark;`)(theme, truncateToWidth, visibleWidth);
+}
+
 test("Given supported upstream artifacts, when patched, then the identity, compact header, and preserved-scrollback contracts are applied", async () => {
   const root = await createFixture();
   try {
     await applyCocoIdentityPatch({ root });
     const interactive = await readPatched(root, "dist/modes/interactive/interactive-mode.js");
+    const args = await readPatched(root, "dist/cli/args.js");
+    const systemPrompt = await readPatched(root, "dist/core/system-prompt.js");
+    const firstTimeSetup = await readPatched(root, "dist/modes/interactive/components/first-time-setup.js");
+    const toolsManager = await readPatched(root, "dist/utils/tools-manager.js");
     const tui = await readPatched(root, "node_modules/@earendil-works/pi-tui/dist/tui.js");
-    assert.match(interactive, /\(\) => `\$\{logo\}\\n\$\{compactInstructions\}`/);
-    assert.match(interactive, /\(\) => `\$\{logo\}\\n\$\{expandedInstructions\}`/);
-    assert.doesNotMatch(interactive, /compactOnboarding|const onboarding/);
-    assert.match(interactive, /new Text\("", 0, 0\)/);
+    assert.match(interactive, /new ResponsiveStartupWordmark\(this\.getStartupExpansionState\(\), this\.version, compactInstructions, expandedInstructions\)/);
+    assert.match(interactive, /class ResponsiveStartupWordmark/);
+    assert.match(interactive, /render\(width\)/);
+    assert.match(interactive, /truncateToWidth/);
+    assert.match(interactive, /theme\.bold\(theme\.fg\("accent"/);
+    assert.match(interactive, /theme\.fg\("dim"/);
+    assert.match(interactive, /invalidate\(\)/);
+    assert.match(interactive, /setExpanded\(expanded\)/);
+    assert.match(interactive, /new ResponsiveStartupWordmark\(false/);
     assert.match(interactive, /getStartupExpansionState\(\) \{\s*return this\.options\.verbose;\s*\}/);
     assert.match(interactive, /const showListing = options\?\.force \|\| this\.options\.verbose;/);
     assert.doesNotMatch(interactive, /hint\("app\.tools\.expand", "more"\)/);
@@ -128,6 +217,82 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.match(tui, /"\\x1b\[2J\\x1b\[H"/);
     assert.doesNotMatch(tui, /\\x1b\[3J/);
     assert.doesNotMatch(interactive, /https:\/\/pi\.dev|Pi documentation|inside pi|extend Pi/);
+    assert.match(systemPrompt, /general AI assistant/);
+    assert.match(systemPrompt, /reading files, executing commands, editing code, and writing new files/);
+    assert.match(args, /General AI assistant with read, bash, edit, write tools/);
+    assert.match(args, /default: general AI assistant prompt/);
+    assert.match(firstTimeSetup, /Welcome to \$\{APP_NAME\}, your general AI assistant\./);
+    assert.doesNotMatch(toolsManager, /Offline mode enabled, skipping download/);
+    assert.match(toolsManager, /not found\. Downloading/);
+    assert.match(toolsManager, /Failed to download/);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("Given the patched startup wordmark, when rendered at responsive widths, then each row is bounded and the compact fallback is intentional", async () => {
+  const root = await createFixture();
+  try {
+    await applyCocoIdentityPatch({ root });
+    const ResponsiveStartupWordmark = wordmarkFrom(await readPatched(root, "dist/modes/interactive/interactive-mode.js"));
+
+    const wideArtThreshold = 25;
+    const wide = new ResponsiveStartupWordmark(false, "0.82.1").render(40);
+    assert.equal(wide.length, 4);
+    assert.match(wide.join("\n"), /CCCC/);
+    assert.match(wide.join("\n"), /v0\.82\.1/);
+    assert.ok(wide.every((line) => visibleWidth(line) <= 40));
+
+    const beforeWide = new ResponsiveStartupWordmark(false).render(wideArtThreshold - 1);
+    assert.equal(beforeWide.length, 1);
+    assert.match(beforeWide[0], /CoCo/);
+
+    const atWide = new ResponsiveStartupWordmark(false).render(wideArtThreshold);
+    assert.equal(atWide.length, 4);
+    assert.match(atWide.join("\n"), /CCCC/);
+
+    const narrow = new ResponsiveStartupWordmark(false).render(20);
+    assert.equal(narrow.length, 1);
+    assert.match(narrow[0], /CoCo/);
+    assert.ok(narrow.every((line) => visibleWidth(line) <= 20));
+
+    assert.deepEqual(new ResponsiveStartupWordmark(false).render(0), []);
+    for (const width of [1, 2, 3]) {
+      const tiny = new ResponsiveStartupWordmark(false).render(width);
+      assert.ok(tiny.every((line) => visibleWidth(line) <= width));
+    }
+
+    const versionWithoutRoom = new ResponsiveStartupWordmark(false, "0.82.1").render(wideArtThreshold);
+    assert.doesNotMatch(versionWithoutRoom.join("\n"), /v0\.82\.1/);
+    const versionWithRoom = new ResponsiveStartupWordmark(false, "0.82.1").render(40);
+    assert.match(versionWithRoom.join("\n"), /v0\.82\.1/);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("Given the patched startup wordmark, when startup state changes, then quiet startup stays mark-only and cached instructions recompute", async () => {
+  const root = await createFixture();
+  try {
+    await applyCocoIdentityPatch({ root });
+    const ResponsiveStartupWordmark = wordmarkFrom(await readPatched(root, "dist/modes/interactive/interactive-mode.js"));
+
+    const quiet = new ResponsiveStartupWordmark(false, "0.82.1");
+    assert.equal(quiet.render(40).length, 4);
+
+    const wordmark = new ResponsiveStartupWordmark(false, "", "compact", "expanded\ninstructions");
+    const compact = wordmark.render(40);
+    assert.match(compact.join("\n"), /compact/);
+    assert.doesNotMatch(compact.join("\n"), /expanded/);
+
+    wordmark.setExpanded(true);
+    const expanded = wordmark.render(40);
+    assert.match(expanded.join("\n"), /expanded/);
+    assert.match(expanded.join("\n"), /instructions/);
+    assert.doesNotMatch(expanded.join("\n"), /compact/);
+
+    wordmark.invalidate();
+    assert.notStrictEqual(wordmark.render(40), expanded);
   } finally {
     await rm(root, { force: true, recursive: true });
   }
@@ -144,6 +309,31 @@ test("Given supported upstream artifacts, when patched twice, then the second ap
     assert.equal((await readPatched(root, "dist/core/model-runtime.js")).match(/^    getVisibleSnapshot\(\) \{/gm)?.length, 1);
     assert.equal((await readPatched(root, "dist/core/model-runtime.d.ts")).match(/getVisible\(\): readonly Model<Api>\[\];/g)?.length, 1);
     assert.equal((await readPatched(root, "dist/core/model-runtime.d.ts")).match(/getVisibleSnapshot\(\): readonly Model<Api>\[\];/g)?.length, 1);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("Given an older or duplicated Coco wordmark block, when patched, then it fails closed", async () => {
+  const root = await createFixture();
+  try {
+    const interactivePath = join(root, "node_modules", "@earendil-works", "pi-coding-agent", "dist", "modes", "interactive", "interactive-mode.js");
+    await applyCocoIdentityPatch({ root });
+    const current = await readFile(interactivePath, "utf8");
+    const currentWordmark = current.match(/class ResponsiveStartupWordmark \{[\s\S]*?\n\}/)?.[0];
+    assert.ok(currentWordmark);
+
+    await writeFile(interactivePath, current.replace(currentWordmark, olderResponsiveWordmarkSource));
+    await assert.rejects(applyCocoIdentityPatch({ root }), { message: /COCO_PATCH_UNKNOWN_ANCHOR/ });
+
+    await writeFile(interactivePath, current.replace(currentWordmark, `${currentWordmark}\n${currentWordmark}`));
+    await assert.rejects(applyCocoIdentityPatch({ root }), { message: /COCO_PATCH_DUPLICATE_ANCHOR/ });
+
+    await writeFile(interactivePath, current.replace(currentWordmark, `${currentWordmark}\nconst wordmarkSeparator = true;\n${currentWordmark}`));
+    await assert.rejects(applyCocoIdentityPatch({ root }), { message: /COCO_PATCH_DUPLICATE_ANCHOR/ });
+
+    await writeFile(interactivePath, `${currentWordmark}\n${current}`);
+    await assert.rejects(applyCocoIdentityPatch({ root }), { message: /COCO_PATCH_DUPLICATE_ANCHOR/ });
   } finally {
     await rm(root, { force: true, recursive: true });
   }
@@ -182,6 +372,26 @@ test("Given an invalid target after valid targets, when preflight fails, then no
     await writeFile(tui, "const fullRender = () => {};\n");
     await assert.rejects(applyCocoIdentityPatch({ root }), { message: /COCO_PATCH_UNKNOWN_ANCHOR/ });
     assert.equal(await readFile(interactive, "utf8"), original);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("Given the offline tool notice anchor drifts, when patch preflight runs, then it fails without partial writes", async () => {
+  const root = await createFixture();
+  try {
+    const agent = join(root, "node_modules", "@earendil-works", "pi-coding-agent");
+    const tools = join(agent, "dist", "utils", "tools-manager.js");
+    const interactive = join(agent, "dist", "modes", "interactive", "interactive-mode.js");
+    const originalInteractive = await readFile(interactive, "utf8");
+    const originalTools = await readFile(tools, "utf8");
+    const driftedTools = originalTools
+      .replace("        if (!silent) {\n\n        }", "        if (!silent) {\n            console.log(\"offline notice drifted\");\n        }")
+      .replace("        // Coco keeps optional-tool discovery silent while startup is offline.", "        console.log(\"offline notice drifted\");");
+    assert.notEqual(driftedTools, originalTools);
+    await writeFile(tools, driftedTools);
+    await assert.rejects(applyCocoIdentityPatch({ root }), { message: /COCO_PATCH_UNKNOWN_ANCHOR/ });
+    assert.equal(await readFile(interactive, "utf8"), originalInteractive);
   } finally {
     await rm(root, { force: true, recursive: true });
   }

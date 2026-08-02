@@ -13,10 +13,76 @@ const identityReplacements = [
   ["extend Pi", "extend Coco"],
 ];
 
-const headerAnchor = `            const compactOnboarding = theme.fg("dim", \`Press \${keyText("app.tools.expand")} to show full startup help and loaded resources.\`);
-            const onboarding = theme.fg("dim", \`Pi can explain its own features and look up its docs. Ask it how to use or extend Coco.\`);
-            this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\\n\${compactOnboarding}\\n\\n\${onboarding}\`, () => \`\${logo}\\n\${expandedInstructions}\\n\\n\${onboarding}\`, this.getStartupExpansionState(), 1, 0);`;
-const patchedHeader = `            this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\`, () => \`\${logo}\\n\${expandedInstructions}\`, this.getStartupExpansionState(), 1, 0);`;
+const tuiImportAnchor = `import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, ProcessTerminal, Spacer, setKeybindings, Text, TruncatedText, TUI, visibleWidth, } from "@earendil-works/pi-tui";`;
+const patchedTuiImport = `import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, ProcessTerminal, Spacer, setKeybindings, Text, TruncatedText, TUI, truncateToWidth, visibleWidth, } from "@earendil-works/pi-tui";`;
+const expandableTextAnchor = `class ExpandableText extends Text {
+    getCollapsedText;
+    getExpandedText;
+    constructor(getCollapsedText, getExpandedText, expanded = false, paddingX = 0, paddingY = 0) {
+        super(expanded ? getExpandedText() : getCollapsedText(), paddingX, paddingY);
+        this.getCollapsedText = getCollapsedText;
+        this.getExpandedText = getExpandedText;
+    }
+    setExpanded(expanded) {
+        this.setText(expanded ? this.getExpandedText() : this.getCollapsedText());
+    }
+}`;
+const responsiveStartupWordmark = `class ResponsiveStartupWordmark {
+    expanded;
+    version;
+    compactInstructions;
+    instructions;
+    cachedWidth;
+    cachedLines;
+    constructor(expanded, version = "", compactInstructions = "", instructions = "") {
+        this.expanded = expanded;
+        this.version = version;
+        this.compactInstructions = compactInstructions;
+        this.instructions = instructions;
+    }
+    setExpanded(expanded) {
+        this.expanded = expanded;
+        this.invalidate();
+    }
+    invalidate() {
+        this.cachedWidth = undefined;
+        this.cachedLines = undefined;
+    }
+    render(width) {
+        if (this.cachedLines && this.cachedWidth === width) {
+            return this.cachedLines;
+        }
+        if (width <= 0) {
+            this.cachedWidth = width;
+            this.cachedLines = [];
+            return this.cachedLines;
+        }
+        const padding = width >= 3 ? " " : "";
+        const contentWidth = width - visibleWidth(padding) * 2;
+        const art = [" CCCC  ooo  CCCC  ooo", "C     o   o C     o   o", "C     o   o C     o   o", " CCCC  ooo  CCCC  ooo"];
+        const compact = "CoCo";
+        const artWidth = Math.max(...art.map((line) => visibleWidth(line)));
+        const mark = contentWidth >= artWidth ? art : [compact];
+        const lines = mark.map((line) => padding + truncateToWidth(theme.bold(theme.fg("accent", line)), contentWidth, "") + padding);
+        const version = this.version ? theme.fg("dim", "  v" + this.version) : "";
+        if (version && visibleWidth(mark[mark.length - 1]) + visibleWidth(version) <= contentWidth) {
+            lines[lines.length - 1] = padding + truncateToWidth(theme.bold(theme.fg("accent", mark[mark.length - 1])) + version, contentWidth, "") + padding;
+        }
+        const instructions = this.expanded ? this.instructions : this.compactInstructions;
+        if (instructions) {
+            lines.push(...instructions.split("\\n").map((line) => padding + truncateToWidth(line, contentWidth, "") + padding));
+        }
+        this.cachedWidth = width;
+        this.cachedLines = lines;
+        return lines;
+    }
+}`;
+const patchedExpandableText = `${expandableTextAnchor}
+${responsiveStartupWordmark}`;
+const headerAnchor = `this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\`, () => \`\${logo}\\n\${expandedInstructions}\`, this.getStartupExpansionState(), 1, 0);`;
+const patchedHeader = `this.builtInHeader = new ResponsiveStartupWordmark(this.getStartupExpansionState(), this.version, compactInstructions, expandedInstructions);`;
+const quietHeaderAnchor = `this.builtInHeader = new Text("", 0, 0);`;
+const patchedQuietHeader = `this.builtInHeader = new ResponsiveStartupWordmark(false, this.version);`;
 const startupExpansionAnchor = `    getStartupExpansionState() {
         return this.options.verbose || this.toolOutputExpanded;
     }`;
@@ -52,6 +118,30 @@ const patchedAnthropicWarning = `        if (this.options.verbose && modelFallba
             this.showWarning(modelFallbackMessage);
         }
         if (this.options.verbose) void this.maybeWarnAboutAnthropicSubscriptionAuth();`;
+const systemPromptIdentityAnchor = `You are an expert coding assistant operating inside coco, a coding agent harness. You help users by reading files, executing commands, editing code, and writing new files.`;
+const patchedSystemPromptIdentity = `You are Coco, a general AI assistant with strong coding and terminal capabilities. You help users with general questions and tasks, including reading files, executing commands, editing code, and writing new files.`;
+const helpIdentityAnchor = `${"${chalk.bold(APP_NAME)}"} - AI coding assistant with read, bash, edit, write tools`;
+const patchedHelpIdentity = `${"${chalk.bold(APP_NAME)}"} - General AI assistant with read, bash, edit, write tools`;
+const helpPromptAnchor = `System prompt (default: coding assistant prompt)`;
+const patchedHelpPrompt = `System prompt (default: general AI assistant prompt)`;
+const firstTimeSetupAnchor = `Welcome to ${"${APP_NAME}"}, the minimal coding agent.`;
+const patchedFirstTimeSetup = `Welcome to ${"${APP_NAME}"}, your general AI assistant.`;
+const toolsManagerOfflineAnchor = `    if (isOfflineModeEnabled()) {
+        if (!silent) {
+            console.log(chalk.yellow(\`${"${config.name}"} not found. Offline mode enabled, skipping download.\`));
+        }
+        return undefined;
+    }`;
+const legacyPatchedToolsManagerOffline = `    if (isOfflineModeEnabled()) {
+        if (!silent) {
+
+        }
+        return undefined;
+    }`;
+const patchedToolsManagerOffline = `    if (isOfflineModeEnabled()) {
+        // Coco keeps optional-tool discovery silent while startup is offline.
+        return undefined;
+    }`;
 const scrollbackAnchor = `                buffer += "\\x1b[2J\\x1b[H\\x1b[3J"; // Clear screen, home, then clear scrollback`;
 const patchedScrollback = `                buffer += "\\x1b[2J\\x1b[H"; // Clear screen and home without erasing terminal scrollback`;
 const modelRuntimeVisibleAnchor = `    getAvailableSnapshot() {
@@ -183,6 +273,46 @@ function replaceExact(source, anchor, replacement) {
   throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
 }
 
+function replaceOwnedResponsiveStartupWordmark(source) {
+  const matches = count(source, expandableTextAnchor);
+  if (matches > 1) {
+    throw patchError("COCO_PATCH_DUPLICATE_ANCHOR");
+  }
+  if (matches === 0) {
+    throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+  }
+  const anchorEnd = source.indexOf(expandableTextAnchor) + expandableTextAnchor.length;
+  const suffix = source.slice(anchorEnd);
+  const currentBlock = `\n${responsiveStartupWordmark}`;
+  const declarations = count(source, "class ResponsiveStartupWordmark {");
+  if (declarations > 1) {
+    throw patchError("COCO_PATCH_DUPLICATE_ANCHOR");
+  }
+  if (declarations === 1 && suffix.startsWith(currentBlock)) {
+    return source;
+  }
+  if (declarations === 1) {
+    throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+  }
+  return source.slice(0, anchorEnd) + currentBlock + suffix;
+}
+
+function replaceOfflineToolNotice(source) {
+  const variants = [toolsManagerOfflineAnchor, legacyPatchedToolsManagerOffline, patchedToolsManagerOffline];
+  const counts = variants.map((variant) => count(source, variant));
+  const matches = counts.reduce((total, value) => total + value, 0);
+  if (matches > 1) {
+    throw patchError("COCO_PATCH_DUPLICATE_ANCHOR");
+  }
+  if (counts[2] === 1) {
+    return source;
+  }
+  if (matches === 0) {
+    throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+  }
+  return source.replace(counts[0] === 1 ? toolsManagerOfflineAnchor : legacyPatchedToolsManagerOffline, patchedToolsManagerOffline);
+}
+
 function applyIdentityReplacements(source) {
   return identityReplacements.reduce((patched, [from, to]) => patched.replaceAll(from, to), source);
 }
@@ -212,10 +342,14 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
     "dist/core/system-prompt.js",
     "dist/modes/interactive/interactive-mode.js",
     "dist/utils/version-check.js",
+    "dist/modes/interactive/components/first-time-setup.js",
+    "dist/utils/tools-manager.js",
   ].map((path) => join(agent, path));
   const tuiPath = join(tui, "dist/tui.js");
   const originals = await Promise.all([...targets, tuiPath].map((path) => readFile(path, "utf8")));
   const patched = originals.slice(0, -1).map(applyIdentityReplacements);
+  patched[7] = replaceExact(patched[7], tuiImportAnchor, patchedTuiImport);
+  patched[7] = replaceOwnedResponsiveStartupWordmark(patched[7]);
   patched[1] = replaceExact(patched[1], listModelsVisibleAnchor, patchedListModelsVisible);
   patched[1] = replaceExact(patched[1], listModelsRowsAnchor, patchedListModelsRows);
   patched[1] = replaceExact(patched[1], listModelsHeadersAnchor, patchedListModelsHeaders);
@@ -230,6 +364,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[4] = replaceExact(patched[4], selectorHandleSelectAnchor, patchedSelectorHandleSelect);
   patched[5] = replaceExact(patched[5], selectorDeclarationAnchor, patchedSelectorDeclaration);
   patched[7] = replaceExact(patched[7], headerAnchor, patchedHeader);
+  patched[7] = replaceExact(patched[7], quietHeaderAnchor, patchedQuietHeader);
   patched[7] = replaceExact(patched[7], startupExpansionAnchor, patchedStartupExpansion);
   patched[7] = replaceExact(patched[7], resourceListingAnchor, patchedResourceListing);
   patched[7] = replaceExact(patched[7], compactExpansionHintAnchor, "");
@@ -242,6 +377,11 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[7] = replaceExact(patched[7], migratedProvidersAnchor, patchedMigratedProviders);
   patched[7] = replaceExact(patched[7], anthropicWarningAnchor, patchedAnthropicWarning);
   patched[7] = replaceExact(patched[7], interactiveModelSelectorAnchor, patchedInteractiveModelSelector);
+  patched[0] = replaceExact(patched[0], helpIdentityAnchor, patchedHelpIdentity);
+  patched[0] = replaceExact(patched[0], helpPromptAnchor, patchedHelpPrompt);
+  patched[6] = replaceExact(patched[6], systemPromptIdentityAnchor, patchedSystemPromptIdentity);
+  patched[9] = replaceExact(patched[9], firstTimeSetupAnchor, patchedFirstTimeSetup);
+  patched[10] = replaceOfflineToolNotice(patched[10]);
   patched.push(replaceExact(originals.at(-1), scrollbackAnchor, patchedScrollback));
   await Promise.all(patched.map((source, index) => source === originals[index] ? undefined : writeFile([...targets, tuiPath][index], source, "utf8")));
 }
