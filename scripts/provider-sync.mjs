@@ -9,9 +9,9 @@ import { StateError, ownedProviderPointers, parseStrictJson, resolveCredential, 
 import { inspectRegular, statePaths } from "./state-paths.mjs";
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
 
-export const PROVIDER_REGISTRY_SHA256 = "70d4950b991a0891a5fd1d96a88def4c3c65b6192dc0c96c079ba92fda4f0467";
-export const PROVIDER_TRANSFORMATIONS_SHA256 = "39c834dbadf987506ca74b75c9ebc4e36b37734ac7c4be6f996f63b3f924ad70";
-const PROVIDERS = ["achai", "agnes", "idepub", "stepfun"];
+export const PROVIDER_REGISTRY_SHA256 = "6da33abba5fe501f2e92b2c2621f3c14c49cbe95300a7cc97ab8afc1396b42c1";
+export const PROVIDER_TRANSFORMATIONS_SHA256 = "f79110eab47af63e59309af68a9bc28a8b6ba24f2cabb32b0e6a44f3d968014c";
+const PROVIDERS = ["achai", "agnes", "deepseek", "idepub", "stepfun"];
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
 

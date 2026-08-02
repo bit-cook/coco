@@ -11,7 +11,7 @@ import { inspectRegular, statePaths } from "./state-paths.mjs";
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
 
 const capabilities = new WeakMap();
-const PROVIDERS = ["achai", "agnes", "idepub", "stepfun"];
+const PROVIDERS = ["achai", "agnes", "deepseek", "idepub", "stepfun"];
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
 

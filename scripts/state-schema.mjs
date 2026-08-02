@@ -4,8 +4,8 @@ export class StateError extends Error {
   constructor(code) { super(code); this.code = code; this.name = "StateError"; }
 }
 
-const managedProviders = new Set(["idepub", "achai", "agnes", "stepfun"]);
-const providerEnvironment = Object.freeze({ achai: "ACHAI_API_KEY", agnes: "AGNES_API_KEY", idepub: "IDEPUB_API_KEY", stepfun: "STEPFUN_API_KEY" });
+const managedProviders = new Set(["idepub", "achai", "agnes", "deepseek", "stepfun"]);
+const providerEnvironment = Object.freeze({ achai: "ACHAI_API_KEY", agnes: "AGNES_API_KEY", deepseek: "DEEPSEEK_API_KEY", idepub: "IDEPUB_API_KEY", stepfun: "STEPFUN_API_KEY" });
 const envKey = /^[A-Z][A-Z0-9_]*$/;
 const pointerToken = /^(?:[^~/]|~0|~1)*$/;
 
