@@ -26,7 +26,7 @@ async function fixture(agent, legacy, sentinel) {
   await writeFile(join(agent, "sessions", "session.jsonl"), "session-bytes\n", { mode: 0o600 });
   await writeFile(join(agent, "skills", "user.md"), "user-bytes\n", { mode: 0o600 });
   await writeFile(join(agent, "SYSTEM.md"), legacy, { mode: 0o600 });
-  await writeFile(join(agent, "models.json"), JSON.stringify({ providers: { idepub: { apiKey: sentinel, custom: { preserved: true } }, manual: { apiKey: "manual-key", untouched: true } } }, null, 2), { mode: 0o600 });
+  await writeFile(join(agent, "models.json"), JSON.stringify({ providers: { deepseek: { apiKey: sentinel, custom: { preserved: true } }, idepub: { apiKey: sentinel }, manual: { apiKey: "manual-key", untouched: true } } }, null, 2), { mode: 0o600 });
   await writeFile(join(agent, "auth.json"), canonicalJson({ unknown: { preserve: true } }), { mode: 0o600 });
 }
 
@@ -53,8 +53,8 @@ async function main() {
     const migration = JSON.parse(await readFile(join(agent, "migration.json"), "utf8"));
     const backupFiles = await readdir(join(agent, "backups"));
     const backup = await readFile(join(agent, "backups", backupFiles[0]));
-    cases.push(result("credentials-extracted-and-rotation-marked", true, !("apiKey" in models.providers.idepub) && auth.idepub.key === sentinel && migration.rotationRequired.includes("idepub") && applied.rotationRequired.includes("idepub")));
-    cases.push(result("unknown-data-and-sessions-preserved", true, models.providers.idepub.custom.preserved === true && models.providers.manual.apiKey === "manual-key" && auth.unknown.preserve === true && digest(session) === digest(await readFile(join(agent, "sessions", "session.jsonl"))) && digest(skill) === digest(await readFile(join(agent, "skills", "user.md")))));
+    cases.push(result("credentials-extracted-and-rotation-marked", true, !("apiKey" in models.providers.deepseek) && auth.deepseek.key === sentinel && migration.rotationRequired.includes("deepseek") && applied.rotationRequired.includes("deepseek") && auth.idepub.key === sentinel));
+    cases.push(result("unknown-data-and-sessions-preserved", true, models.providers.deepseek.custom.preserved === true && models.providers.manual.apiKey === "manual-key" && auth.unknown.preserve === true && digest(session) === digest(await readFile(join(agent, "sessions", "session.jsonl"))) && digest(skill) === digest(await readFile(join(agent, "skills", "user.md")))));
     cases.push(result("ownership-and-redacted-backup", true, ownership.managedFiles["models.json"].ownedJsonPointers.includes("/providers/idepub/models") && ownership.managedFiles["APPEND_SYSTEM.md"].sourceSha256 === LEGACY_SYSTEM_SHA256 && !backup.includes(sentinel)));
     cases.push(result("owned-system-renamed-byte-exact", true, await regular(join(agent, "SYSTEM.md")) === null && digest(legacy) === digest(await readFile(join(agent, "APPEND_SYSTEM.md"), "utf8"))));
     cases.push(result("auth-mode-0600", 0, (await lstat(join(agent, "auth.json"))).mode & 0o077));

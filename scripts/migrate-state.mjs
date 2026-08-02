@@ -8,7 +8,7 @@ import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
 
 export const LEGACY_SYSTEM_SHA256 = "96132c8e262880d041b57891a69a4a6efc40a60864d64cbc5021af9427d67e5e";
-const MANAGED_PROVIDERS = ["idepub", "achai", "agnes", "stepfun"];
+const MANAGED_PROVIDERS = ["idepub", "achai", "agnes", "deepseek", "stepfun"];
 
 function hash(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
