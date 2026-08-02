@@ -7,9 +7,9 @@ import test from "node:test";
 
 const root = new URL("..", import.meta.url).pathname;
 
-async function run(command, args, environment) {
+async function run(command, args, environment, cwd) {
   return await new Promise((finish) => {
-    const child = spawn(command, args, { env: environment, stdio: "pipe" });
+    const child = spawn(command, args, { cwd, env: environment, stdio: "pipe" });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => { stdout += chunk; });
@@ -81,6 +81,7 @@ test("Given PI_OFFLINE is unset, when Coco enters its trusted bootstrap, then it
 test("Given a bare installed Coco PTY with missing fd and rg, when startup begins without PI_OFFLINE, then it neither downloads tools nor invokes fetch", async () => {
   const fixture = await installedStartupFixture();
   try {
+    const toolsManager = await readFile(join(root, "dist", "utils", "tools-manager.js"), "utf8");
     const environment = {
       ...process.env,
       COCO_CODING_AGENT_DIR: join(fixture.home, ".coco", "agent"),
@@ -90,9 +91,23 @@ test("Given a bare installed Coco PTY with missing fd and rg, when startup begin
       TERM: "xterm-256color",
     };
     delete environment.PI_OFFLINE;
-    const result = await run("/usr/bin/timeout", ["15", "/usr/bin/script", "-qfec", `${process.execPath} ${join(root, "bin", "coco")}`, "/dev/null"], environment);
-    assert.match(`${result.stdout}${result.stderr}`, /Offline mode enabled, skipping download/);
-    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /Downloading|installed to|NETWORK_ATTEMPT/);
+    const startupOutputs = [];
+    for (const width of [80, 20]) {
+      const result = await run("/usr/bin/timeout", ["15", "/usr/bin/script", "-qfec", `/usr/bin/stty cols ${width} rows 24; ${process.execPath} ${join(root, "bin", "coco")}`, "/dev/null"], environment, fixture.directory);
+      assert.equal(result.code, 124);
+      startupOutputs.push(`${result.stdout}${result.stderr}`);
+    }
+    const [wideStartup, narrowStartup] = startupOutputs;
+    assert.match(wideStartup, /CCCC/);
+    assert.match(narrowStartup, /CoCo/);
+    for (const startup of startupOutputs) {
+      assert.doesNotMatch(startup, /fd not found\. Offline mode enabled, skipping download\.|ripgrep not found\. Offline mode enabled, skipping download\./);
+      assert.doesNotMatch(startup, /Downloading|installed to|NETWORK_ATTEMPT/);
+      assert.doesNotMatch(startup, /Welcome to|Usage:|Changelog|Update available/);
+    }
+    assert.doesNotMatch(toolsManager, /Offline mode enabled, skipping download/);
+    assert.match(toolsManager, /not found\. Downloading/);
+    assert.match(toolsManager, /Failed to download/);
     await assert.rejects(stat(join(fixture.home, ".coco", "agent", "bin", "fd")));
     await assert.rejects(stat(join(fixture.home, ".coco", "agent", "bin", "rg")));
   } finally {

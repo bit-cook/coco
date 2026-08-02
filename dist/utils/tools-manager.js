@@ -293,9 +293,6 @@ export async function ensureTool(tool, silent = false) {
     if (!config)
         return undefined;
     if (isOfflineModeEnabled()) {
-        if (!silent) {
-            console.log(chalk.yellow(`${config.name} not found. Offline mode enabled, skipping download.`));
-        }
         return undefined;
     }
     // On Android/Termux, Linux binaries don't work due to Bionic libc incompatibility.
