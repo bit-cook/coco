@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.1.5}"
+COCO_VERSION="${COCO_VERSION:-0.1.6}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/aithernexus/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/aithernexus/coco/releases/download/installer-v0.1.1.1/agnes.key"
@@ -287,7 +287,7 @@ write_config() {
   fi
   if [ "$CREATED_MODELS" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/models.json"; fi
   if [ "$CREATED_AUTH" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/auth.json"; fi
-  if [ "$CREATED_AUTH" -eq 1 ] && { [ -n "${AGNES_API_KEY:-}" ] || [ -n "$agnes_key_path" ] || [ -n "${ACHAI_API_KEY:-}" ] || [ -n "$achai_key_path" ]; }; then
+  if [ "$CREATED_AUTH" -eq 1 ] && { [ -n "${AGNES_API_KEY:-}" ] || [ -n "$agnes_key_path" ] || [ -n "${ACHAI_API_KEY:-}" ] || [ -n "$achai_key_path" ] || [ -n "${DEEPSEEK_API_KEY:-}" ]; }; then
     "$NODE_BIN" - "$COCO_AGENT_DIR/auth.json" "$agnes_key_path" "$achai_key_path" <<'NODE'
 const fs = require("fs");
 const [authPath, agnesKeyPath, achaiKeyPath] = process.argv.slice(2);
@@ -296,6 +296,7 @@ const auth = JSON.parse(fs.readFileSync(authPath, "utf8"));
 auth.agnes = { type: "api_key", key };
 const achaiKey = process.env.ACHAI_API_KEY || (achaiKeyPath ? fs.readFileSync(achaiKeyPath, "utf8").replace(/\r?\n$/, "") : "");
 if (achaiKey) auth.achai = { type: "api_key", key: achaiKey };
+if (process.env.DEEPSEEK_API_KEY) auth.deepseek = { type: "api_key", key: process.env.DEEPSEEK_API_KEY };
 fs.writeFileSync(authPath, JSON.stringify(auth) + "\n", { mode: 0o600 });
 NODE
   fi
@@ -312,6 +313,7 @@ const agnes = registry.providers.agnes;
 if (createdModels === "1") {
 const models = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
 const achai = registry.providers.achai;
+const deepseek = registry.providers.deepseek;
 const idepub = registry.providers.idepub;
 const stepfun = registry.providers.stepfun;
 const standard = (id, name, reasoning = false) => ({ id, name, reasoning, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 });
@@ -348,6 +350,16 @@ models.providers.agnes = {
     contextWindow: 128000,
     maxTokens: 16384
   }]
+};
+models.providers.deepseek = {
+  api: deepseek.api,
+  authHeader: deepseek.authHeader,
+  baseUrl: deepseek.baseUrl,
+  compat: deepseek.compat,
+  models: [
+    { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", reasoning: true, input: ["text"], cost: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 }, contextWindow: 1000000, maxTokens: 384000, compat: { supportsStore: false, supportsDeveloperRole: false, requiresReasoningContentOnAssistantMessages: true, thinkingFormat: "deepseek" }, thinkingLevelMap: { minimal: null, low: null, medium: null, high: "high", max: "max" } },
+    { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", reasoning: true, input: ["text"], cost: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 }, contextWindow: 1000000, maxTokens: 384000, compat: { supportsStore: false, supportsDeveloperRole: false, requiresReasoningContentOnAssistantMessages: true, thinkingFormat: "deepseek" }, thinkingLevelMap: { minimal: null, low: null, medium: null, high: "high", max: "max" } }
+  ]
 };
 models.providers.idepub = {
   api: idepub.api,

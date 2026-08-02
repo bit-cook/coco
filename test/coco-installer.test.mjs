@@ -11,6 +11,7 @@ const installers = [join(cocoRoot, "install.sh")];
 const publicBaseUrls = {
   achai: "https://www.achai.cc/v1",
   agnes: "https://apihub.agnes-ai.com/v1",
+  deepseek: "https://api.deepseek.com",
   idepub: "https://ai.ide.pub/v1",
   stepfun: "https://api.stepfun.com/step_plan/v1",
 };
@@ -47,7 +48,7 @@ async function runInstallerBounded(script, environment, timeoutMs = 2_000) {
 
 async function writeChecksum(tarball) {
   const digest = createHash("sha256").update(await readFile(tarball)).digest("hex");
-  await writeFile(`${tarball}.sha256`, `${digest}  coco-0.1.5.tgz\n`);
+  await writeFile(`${tarball}.sha256`, `${digest}  coco-0.1.6.tgz\n`);
 }
 
 async function fixture() {
@@ -56,7 +57,7 @@ async function fixture() {
   const install = join(root, "install");
   const agent = join(install, "agent");
   const bin = join(root, "bin");
-  const tarball = join(server, "coco-0.1.5.tgz");
+  const tarball = join(server, "coco-0.1.6.tgz");
   const agnesAsset = join(server, "agnes.key");
   const packageRoot = join(root, "package");
   await mkdir(join(packageRoot, "bin"), { recursive: true });
@@ -65,7 +66,7 @@ async function fixture() {
   await mkdir(bin);
   await mkdir(server);
   await writeFile(join(packageRoot, "bin", "coco"), "#!/usr/bin/env bash\nif [ \"$1\" = \"--version\" ]; then exit 0; fi\n");
-  await writeFile(join(packageRoot, "resources", "provider-registry.v1.json"), JSON.stringify({ providers: Object.fromEntries(Object.entries(publicBaseUrls).map(([provider, baseUrl]) => [provider, { api: "openai-completions", authHeader: true, baseUrl, compat: {} }])), schemaVersion: 1 }));
+  await writeFile(join(packageRoot, "resources", "provider-registry.v1.json"), JSON.stringify({ providers: Object.fromEntries(Object.entries(publicBaseUrls).map(([provider, baseUrl]) => [provider, { api: "openai-completions", authHeader: true, baseUrl, compat: provider === "deepseek" ? { supportsDeveloperRole: false, supportsReasoningEffort: true } : {} }])), schemaVersion: 1 }));
   await chmod(join(packageRoot, "bin", "coco"), 0o755);
   await exec("tar", ["-czf", tarball, "package"], { cwd: root });
   await writeChecksum(tarball);
@@ -89,7 +90,7 @@ async function fixture() {
       COCO_INSTALL_TEST_MODE: "1",
       COCO_TEST_AGNES_ASSET: agnesAsset,
       COCO_TEST_DOWNLOAD_LOG: join(root, "downloads.log"),
-      COCO_TEST_SIDECAR: join(server, "coco-0.1.5.tgz.sha256"),
+      COCO_TEST_SIDECAR: join(server, "coco-0.1.6.tgz.sha256"),
       COCO_TEST_TARBALL: tarball,
       HOME: root,
       PATH: `${bin}:${process.env.PATH}`,
@@ -131,9 +132,14 @@ for (const installer of installers) {
       await stat(join(setup.install, "node_modules"));
       const models = JSON.parse(await readFile(join(setup.agent, "models.json"), "utf8"));
       const auth = JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8"));
-      assert.deepEqual(Object.keys(models.providers).sort(), ["achai", "agnes", "idepub", "stepfun"]);
+      assert.deepEqual(Object.keys(models.providers).sort(), ["achai", "agnes", "deepseek", "idepub", "stepfun"]);
       assert.deepEqual(Object.fromEntries(Object.entries(models.providers).map(([provider, model]) => [provider, model.baseUrl])), publicBaseUrls);
       assert.deepEqual(models.providers.achai.models.map(({ id }) => id), ["deepseek-v4-flash", "grok-4.20-0309", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309", "grok-4.3", "grok-4.5", "grok-build-0.1", "grok-chat-fast", "mimo-v2.5", "nemotron-3-ultra", "north-mini-code"]);
+      assert.deepEqual(models.providers.deepseek.models, [
+        { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", reasoning: true, input: ["text"], cost: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 }, contextWindow: 1000000, maxTokens: 384000, compat: { supportsStore: false, supportsDeveloperRole: false, requiresReasoningContentOnAssistantMessages: true, thinkingFormat: "deepseek" }, thinkingLevelMap: { minimal: null, low: null, medium: null, high: "high", max: "max" } },
+        { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", reasoning: true, input: ["text"], cost: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 }, contextWindow: 1000000, maxTokens: 384000, compat: { supportsStore: false, supportsDeveloperRole: false, requiresReasoningContentOnAssistantMessages: true, thinkingFormat: "deepseek" }, thinkingLevelMap: { minimal: null, low: null, medium: null, high: "high", max: "max" } },
+      ]);
+      assert.deepEqual(models.providers.deepseek.compat, { supportsDeveloperRole: false, supportsReasoningEffort: true });
       assert.deepEqual(models.providers.idepub.models.map(({ id }) => id), ["gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]);
       assert.deepEqual(models.providers.stepfun.models.map(({ id }) => id), ["step-3.7-flash", "step-3.5-flash-2603", "step-3.5-flash"]);
       assert.equal(JSON.stringify(models).includes("apiKey"), false);
@@ -168,6 +174,20 @@ for (const installer of installers) {
       assert.equal(await runInstaller(installer, { ...setup.environment, ACHAI_API_KEY: "test-achai-key", COCO_INSTALL_TEST_MODE: "0" }), 0);
       const auth = JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8"));
       assert.deepEqual(auth.achai, { type: "api_key", key: "test-achai-key" });
+    } finally {
+      await rm(setup.root, { force: true, recursive: true });
+    }
+  });
+
+  test(`Given an explicit DeepSeek key, when ${installer} installs, then DeepSeek is immediately authenticated without a DeepSeek download`, async () => {
+    const setup = await fixture();
+    try {
+      assert.equal(await runInstaller(installer, { ...setup.environment, DEEPSEEK_API_KEY: "test-deepseek-key", COCO_INSTALL_TEST_MODE: "0" }), 0);
+      const auth = JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8"));
+      assert.deepEqual(auth.deepseek, { type: "api_key", key: "test-deepseek-key" });
+      const downloads = await readFile(setup.environment.COCO_TEST_DOWNLOAD_LOG, "utf8");
+      assert.equal(downloads.includes("deepseek"), false);
+      assert.equal((await stat(join(setup.agent, "auth.json"))).mode & 0o777, 0o600);
     } finally {
       await rm(setup.root, { force: true, recursive: true });
     }
@@ -228,6 +248,19 @@ for (const installer of installers) {
     }
   });
 
+  test(`Given an existing DeepSeek auth record, when ${installer} reinstalls with DEEPSEEK_API_KEY, then auth bytes remain unchanged`, async () => {
+    const setup = await fixture();
+    const auth = Buffer.from('{"deepseek":{"type":"api_key","key":"user-owned-deepseek-key"}}\n');
+    try {
+      await mkdir(setup.agent, { recursive: true });
+      await writeFile(join(setup.agent, "auth.json"), auth);
+      assert.equal(await runInstaller(installer, { ...setup.environment, DEEPSEEK_API_KEY: "must-not-replace-existing-auth", COCO_INSTALL_TEST_MODE: "0" }), 0);
+      assert.deepEqual(await readFile(join(setup.agent, "auth.json")), auth);
+    } finally {
+      await rm(setup.root, { force: true, recursive: true });
+    }
+  });
+
   for (const failureMode of ["COCO_TEST_FAIL_AGNES_DOWNLOAD", "COCO_TEST_BAD_AGNES_DIGEST"]) {
     test(`Given a fresh auth store and ${failureMode}, when ${installer} fails to retrieve verified Agnes auth, then it rolls back the installation`, async () => {
       const setup = await fixture();
@@ -251,7 +284,7 @@ for (const installer of installers) {
       assert.equal(await runInstaller(installer, setup.environment), 0);
       await writeFile(join(setup.agent, "settings.json"), settings);
       await writeFile(join(setup.install, "installed-before-checksum-failure"), "preserve\n");
-      await writeFile(join(setup.server, "coco-0.1.5.tgz.sha256"), `${"0".repeat(64)}  coco-0.1.5.tgz\n`);
+      await writeFile(join(setup.server, "coco-0.1.6.tgz.sha256"), `${"0".repeat(64)}  coco-0.1.6.tgz\n`);
       assert.notEqual(await runInstaller(installer, setup.environment), 0);
       assert.equal(await readFile(join(setup.install, "installed-before-checksum-failure"), "utf8"), "preserve\n");
       assert.deepEqual(await readFile(join(setup.agent, "settings.json")), settings);
