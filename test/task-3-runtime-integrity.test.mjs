@@ -282,7 +282,9 @@ promises.readFile = async (path, ...arguments_) => {
     const cache = JSON.parse(await readFile(join(agentDir, ".runtime-integrity-cache.json"), "utf8"));
     assert.equal(cache.schemaVersion, 1);
     assert.equal((await stat(join(agentDir, ".runtime-integrity-cache.json"))).mode & 0o777, 0o600);
-    assert.deepEqual(Object.keys(cache.entries).sort(), manifest.entries.map((entry) => entry.path).sort());
+    const fastRoots = ["bin", "dist", "resources", "scripts", "package.json", "node_modules/@earendil-works/pi-coding-agent/dist", "node_modules/@earendil-works/pi-coding-agent/package.json"];
+    const isFast = (path) => fastRoots.some((directory) => path === directory || path.startsWith(`${directory}/`));
+    assert.deepEqual(Object.keys(cache.entries).sort(), manifest.entries.filter((entry) => isFast(entry.path)).map((entry) => entry.path).sort());
     for (const snapshot of Object.values(cache.entries)) assert.deepEqual(Object.keys(snapshot).sort(), ["ctimeMs", "dev", "ino", "mode", "mtimeMs", "size"]);
     const warm = await runBootstrap(packageRoot, ["--version"], { ...environment, NODE_OPTIONS: `--require=${probe}` });
     assert.equal(warm.code, 0, warm.stderr);

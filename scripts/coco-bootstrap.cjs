@@ -21,6 +21,11 @@ const PACKAGE_EXCLUDED = new Set([
 for (let task = 1; task <= 16; task += 1) PACKAGE_EXCLUDED.add(`scripts/qa-task-${task}.mjs`);
 const TRUST_ANCHORS = new Set(["bin/coco", "scripts/coco-bootstrap.cjs"]);
 const ROOTS = ["bin", "dist", "docs", "examples", "resources", "scripts", "CHANGELOG.md", "README.md", "package.json"];
+const CORE_ROOT = "node_modules/@earendil-works/pi-coding-agent";
+// Warm verification is trusted-local change detection, not an adversarial
+// same-user sandbox. Installation and COCO_INTEGRITY_FULL retain full hashing;
+// startup checks Coco code plus the pinned Pi core to avoid scanning SDK trees.
+const FAST_ROOTS = ["bin", "dist", "resources", "scripts", "package.json", `${CORE_ROOT}/dist`, `${CORE_ROOT}/package.json`];
 
 const MANIFEST_ENTRY = "resources/runtime-integrity-manifest.v1.json";
 const SIDECAR_ENTRY = "resources/runtime-integrity-manifest.v1.json.sha256";
@@ -31,6 +36,8 @@ function canonical(value) { if (Array.isArray(value)) return value.map(canonical
 function reject(code) { process.stderr.write(`coco: ${code}\n`); process.exitCode = 1; }
 function mode(info) { return (info.mode & 0o111) === 0 ? 0o644 : 0o755; }
 function pathOf(absolute) { return relative(root, absolute).split(sep).join("/"); }
+function startsIn(path, directory) { return path === directory || path.startsWith(`${directory}/`); }
+function fastPath(path) { return FAST_ROOTS.some((directory) => startsIn(path, directory)); }
 function snapshot(info) { return { size: info.size, mtimeMs: info.mtimeMs, ctimeMs: info.ctimeMs, mode: info.mode & 0o7777, dev: info.dev, ino: info.ino }; }
 function sameSnapshot(left, right) { return left.size === right.size && left.mtimeMs === right.mtimeMs && left.ctimeMs === right.ctimeMs && left.mode === right.mode && left.dev === right.dev && left.ino === right.ino; }
 const noFollow = typeof constants.O_NOFOLLOW === "number" ? constants.O_NOFOLLOW : 0;
@@ -181,9 +188,10 @@ async function main() {
     let verified = false;
     if (process.env.COCO_INTEGRITY_FULL !== "1") {
       const cached = readCache();
-      if (cached?.manifestHash === manifestHash && structureCheck(expected, runtimeRoots)) {
+      if (cached?.manifestHash === manifestHash && structureCheck(expected, FAST_ROOTS)) {
         const cachedPaths = Object.keys(cached.entries);
-        verified = cachedPaths.length === expected.size && cachedPaths.every((path) => expected.has(path)) && manifest.entries.every((entry) => {
+        const fastEntries = manifest.entries.filter((entry) => fastPath(entry.path));
+        verified = cachedPaths.length === fastEntries.length && cachedPaths.every((path) => expected.has(path) && fastPath(path)) && fastEntries.every((entry) => {
           const cachedSnapshot = cached.entries?.[entry.path];
           if (!snapshotValid(cachedSnapshot)) return false;
           try {
@@ -231,7 +239,7 @@ async function main() {
             console.error("ENTRY_RACE", entryIndex, entry.path);
             return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
           }
-          verifiedSnapshots[entry.path] = after;
+          if (fastPath(entry.path)) verifiedSnapshots[entry.path] = after;
         } finally {
           closeQuietly(entryDescriptor);
         }
