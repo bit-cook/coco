@@ -33,8 +33,9 @@ if (integrity.status !== "approved") {
       process.exitCode = 1;
     } else {
       let preflight;
+      const { ProjectResourcePreflightError } = await import("./project-resource-preflight.mjs");
       try {
-        const { preflightProjectResources, ProjectResourcePreflightError } = await import("./project-resource-preflight.mjs");
+        const { preflightProjectResources } = await import("./project-resource-preflight.mjs");
         preflight = await preflightProjectResources({ root: runtime.root });
         const { dispatchCoco } = await import("./coco-dispatcher.mjs");
         const dispatch = await dispatchCoco({ root: runtime.root });
