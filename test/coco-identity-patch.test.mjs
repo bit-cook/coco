@@ -25,6 +25,9 @@ const expandableTextSource = `class ExpandableText extends Text {
     }
 }`;
 const headerSource = `            this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\`, () => \`\${logo}\\n\${expandedInstructions}\`, this.getStartupExpansionState(), 1, 0);`;
+const cleanInstallOnboardingSource = `            const compactOnboarding = theme.fg("dim", \`Press \${keyText("app.tools.expand")} to show full startup help and loaded resources.\`);
+            const onboarding = theme.fg("dim", \`Pi can explain its own features and look up its docs. Ask it how to use or extend Pi.\`);`;
+const cleanInstallHeaderSource = `            this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\\n\${compactOnboarding}\\n\\n\${onboarding}\`, () => \`\${logo}\\n\${expandedInstructions}\\n\\n\${onboarding}\`, this.getStartupExpansionState(), 1, 0);`;
 const quietHeaderSource = `else {
     this.builtInHeader = new Text("", 0, 0);
     }`;
@@ -74,6 +77,7 @@ const startupExpansionSource = `    getStartupExpansionState() {
         return this.options.verbose || this.toolOutputExpanded;
     }`;
 const resourceListingSource = `        const showListing = options?.force || this.options.verbose || !this.settingsManager.getQuietStartup();`;
+const toolBootstrapSource = `        const [fdPath] = await Promise.all([ensureTool("fd", true), ensureTool("rg", true)]);`;
 const compactExpansionHintSource = `                hint("app.tools.expand", "more"),`;
 const startupPolicySource = `        if (this.session.scopedModels.length > 0 && (this.options.verbose || !this.settingsManager.getQuietStartup())) {
         }
@@ -151,7 +155,7 @@ async function createFixture() {
   await writeFile(join(agent, "dist/utils/version-check.js"), identitySource);
   await writeFile(join(agent, "dist/modes/interactive/components/first-time-setup.js"), firstTimeSetupSource);
   await writeFile(join(agent, "dist/utils/tools-manager.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/utils/tools-manager.js"), "utf8"));
-  await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, ProcessTerminal, Spacer, setKeybindings, Text, TruncatedText, TUI, visibleWidth, } from "@earendil-works/pi-tui";\n${expandableTextSource}\n${identitySource}\n${headerSource}\n${quietHeaderSource}\n${startupExpansionSource}\n${resourceListingSource}\n${compactExpansionHintSource}\n${startupPolicySource}`);
+  await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, ProcessTerminal, Spacer, setKeybindings, Text, TruncatedText, TUI, visibleWidth, } from "@earendil-works/pi-tui";\n${expandableTextSource}\n${identitySource}\n${headerSource}\n${quietHeaderSource}\n${startupExpansionSource}\n${resourceListingSource}\n${toolBootstrapSource}\n${compactExpansionHintSource}\n${startupPolicySource}`);
   await writeFile(join(agent, "dist/core/model-runtime.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.js"), "utf8"));
   await writeFile(join(agent, "dist/core/model-runtime.d.ts"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.d.ts"), "utf8"));
   await writeFile(join(agent, "dist/cli/list-models.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/cli/list-models.js"), "utf8"));
@@ -206,6 +210,8 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.match(interactive, /new ResponsiveStartupWordmark\(false/);
     assert.match(interactive, /getStartupExpansionState\(\) \{\s*return this\.options\.verbose;\s*\}/);
     assert.match(interactive, /const showListing = options\?\.force \|\| this\.options\.verbose;/);
+    assert.match(interactive, /ensureTool\("fd"\), ensureTool\("rg"\)/);
+    assert.doesNotMatch(interactive, /ensureTool\("fd", true\)|ensureTool\("rg", true\)/);
     assert.doesNotMatch(interactive, /hint\("app\.tools\.expand", "more"\)/);
     assert.match(interactive, /if \(this\.session\.scopedModels\.length > 0 && this\.options\.verbose\)/);
     assert.match(interactive, /this\.changelogMarkdown = this\.options\.verbose \? this\.getChangelogForDisplay\(\) : undefined/);
@@ -225,6 +231,21 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.doesNotMatch(toolsManager, /Offline mode enabled, skipping download/);
     assert.match(toolsManager, /not found\. Downloading/);
     assert.match(toolsManager, /Failed to download/);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("Given a clean npm install header, when patched, then the responsive wordmark replaces the upstream onboarding header", async () => {
+  const root = await createFixture();
+  try {
+    const interactivePath = join(root, "node_modules", "@earendil-works", "pi-coding-agent", "dist", "modes", "interactive", "interactive-mode.js");
+    const interactive = await readFile(interactivePath, "utf8");
+    await writeFile(interactivePath, interactive.replace(headerSource, `${cleanInstallOnboardingSource}\n${cleanInstallHeaderSource}`));
+    await applyCocoIdentityPatch({ root });
+    const patched = await readFile(interactivePath, "utf8");
+    assert.match(patched, /new ResponsiveStartupWordmark\(this\.getStartupExpansionState\(\), this\.version, compactInstructions, expandedInstructions\)/);
+    assert.doesNotMatch(patched, /const compactOnboarding|const onboarding/);
   } finally {
     await rm(root, { force: true, recursive: true });
   }

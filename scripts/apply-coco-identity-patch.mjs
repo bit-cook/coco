@@ -80,6 +80,9 @@ const responsiveStartupWordmark = `class ResponsiveStartupWordmark {
 const patchedExpandableText = `${expandableTextAnchor}
 ${responsiveStartupWordmark}`;
 const headerAnchor = `this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\`, () => \`\${logo}\\n\${expandedInstructions}\`, this.getStartupExpansionState(), 1, 0);`;
+const compactOnboardingAnchor = `            const compactOnboarding = theme.fg("dim", \`Press \${keyText("app.tools.expand")} to show full startup help and loaded resources.\`);`;
+const onboardingAnchor = `            const onboarding = theme.fg("dim", \`Pi can explain its own features and look up its docs. Ask it how to use or extend Coco.\`);`;
+const cleanInstallHeaderAnchor = `this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\\n\${compactOnboarding}\\n\\n\${onboarding}\`, () => \`\${logo}\\n\${expandedInstructions}\\n\\n\${onboarding}\`, this.getStartupExpansionState(), 1, 0);`;
 const patchedHeader = `this.builtInHeader = new ResponsiveStartupWordmark(this.getStartupExpansionState(), this.version, compactInstructions, expandedInstructions);`;
 const quietHeaderAnchor = `this.builtInHeader = new Text("", 0, 0);`;
 const patchedQuietHeader = `this.builtInHeader = new ResponsiveStartupWordmark(false, this.version);`;
@@ -91,6 +94,8 @@ const patchedStartupExpansion = `    getStartupExpansionState() {
     }`;
 const resourceListingAnchor = `        const showListing = options?.force || this.options.verbose || !this.settingsManager.getQuietStartup();`;
 const patchedResourceListing = `        const showListing = options?.force || this.options.verbose;`;
+const toolBootstrapAnchor = `        const [fdPath] = await Promise.all([ensureTool("fd"), ensureTool("rg")]);`;
+const legacySilentToolBootstrap = `        const [fdPath] = await Promise.all([ensureTool("fd", true), ensureTool("rg", true)]);`;
 const compactExpansionHintAnchor = `                hint("app.tools.expand", "more"),`;
 const scopedModelsAnchor = `        if (this.session.scopedModels.length > 0 && (this.options.verbose || !this.settingsManager.getQuietStartup())) {`;
 const patchedScopedModels = `        if (this.session.scopedModels.length > 0 && this.options.verbose) {`;
@@ -313,6 +318,46 @@ function replaceOfflineToolNotice(source) {
   return source.replace(counts[0] === 1 ? toolsManagerOfflineAnchor : legacyPatchedToolsManagerOffline, patchedToolsManagerOffline);
 }
 
+function replaceOwnedHeader(source) {
+  const variants = [headerAnchor, cleanInstallHeaderAnchor, patchedHeader];
+  const counts = variants.map((variant) => count(source, variant));
+  const matches = counts.reduce((total, value) => total + value, 0);
+  if (matches > 1) {
+    throw patchError("COCO_PATCH_DUPLICATE_ANCHOR");
+  }
+  if (counts[2] === 1) {
+    return source;
+  }
+  if (matches === 0) {
+    throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+  }
+  return source.replace(counts[0] === 1 ? headerAnchor : cleanInstallHeaderAnchor, patchedHeader);
+}
+
+function removeOwnedOnboardingDeclarations(source) {
+  const compactMatches = count(source, compactOnboardingAnchor);
+  const onboardingMatches = count(source, onboardingAnchor);
+  if (compactMatches > 1 || onboardingMatches > 1) {
+    throw patchError("COCO_PATCH_DUPLICATE_ANCHOR");
+  }
+  if (compactMatches === 0 && onboardingMatches === 0) {
+    return source;
+  }
+  if (compactMatches !== 1 || onboardingMatches !== 1) {
+    throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+  }
+  return source.replace(`${compactOnboardingAnchor}\n${onboardingAnchor}\n`, "");
+}
+
+function normalizeToolBootstrap(source) {
+  const variants = [toolBootstrapAnchor, legacySilentToolBootstrap];
+  const counts = variants.map((variant) => count(source, variant));
+  if (counts[0] + counts[1] !== 1) {
+    throw patchError(counts[0] + counts[1] > 1 ? "COCO_PATCH_DUPLICATE_ANCHOR" : "COCO_PATCH_UNKNOWN_ANCHOR");
+  }
+  return counts[0] === 1 ? source : source.replace(legacySilentToolBootstrap, toolBootstrapAnchor);
+}
+
 function applyIdentityReplacements(source) {
   return identityReplacements.reduce((patched, [from, to]) => patched.replaceAll(from, to), source);
 }
@@ -363,10 +408,12 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[4] = replaceExact(patched[4], selectorLoginMarkerElseAnchor, patchedSelectorLoginMarkerElse);
   patched[4] = replaceExact(patched[4], selectorHandleSelectAnchor, patchedSelectorHandleSelect);
   patched[5] = replaceExact(patched[5], selectorDeclarationAnchor, patchedSelectorDeclaration);
-  patched[7] = replaceExact(patched[7], headerAnchor, patchedHeader);
+  patched[7] = replaceOwnedHeader(patched[7]);
+  patched[7] = removeOwnedOnboardingDeclarations(patched[7]);
   patched[7] = replaceExact(patched[7], quietHeaderAnchor, patchedQuietHeader);
   patched[7] = replaceExact(patched[7], startupExpansionAnchor, patchedStartupExpansion);
   patched[7] = replaceExact(patched[7], resourceListingAnchor, patchedResourceListing);
+  patched[7] = normalizeToolBootstrap(patched[7]);
   patched[7] = replaceExact(patched[7], compactExpansionHintAnchor, "");
   patched[7] = replaceExact(patched[7], scopedModelsAnchor, patchedScopedModels);
   patched[7] = replaceExact(patched[7], changelogAnchor, patchedChangelog);
@@ -377,6 +424,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[7] = replaceExact(patched[7], migratedProvidersAnchor, patchedMigratedProviders);
   patched[7] = replaceExact(patched[7], anthropicWarningAnchor, patchedAnthropicWarning);
   patched[7] = replaceExact(patched[7], interactiveModelSelectorAnchor, patchedInteractiveModelSelector);
+  if (!patched[7].endsWith("\n")) patched[7] += "\n";
   patched[0] = replaceExact(patched[0], helpIdentityAnchor, patchedHelpIdentity);
   patched[0] = replaceExact(patched[0], helpPromptAnchor, patchedHelpPrompt);
   patched[6] = replaceExact(patched[6], systemPromptIdentityAnchor, patchedSystemPromptIdentity);
