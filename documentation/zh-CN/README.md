@@ -1,6 +1,6 @@
 # coco
 
-你的个人编码代理，作为 [Pi Coding Agent](https://github.com/earendil-works/pi) 的下游发行版构建，并将 `agnes/agnes-2.5-flash` 和最高思考级别 `max` 设为默认配置。Coco 源码不包含提供商凭据。
+Coco 是通用 AI 助手，具备强大的编码和终端能力。它作为 [Pi Coding Agent](https://github.com/earendil-works/pi) 的下游发行版构建，并将 `agnes/agnes-2.5-flash` 和最高思考级别 `max` 设为默认配置。Coco 源码不包含提供商凭据。
 
 [English](../en/README.md) | [简体中文](README.md) | [文档索引](docs/index.md)
 
@@ -20,11 +20,11 @@ curl -fsSL https://aithernexus.github.io/coco/install.sh | bash
 或者安装经过明确审阅的固定版本：
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.5/install.sh
-COCO_VERSION=0.1.5 bash install.sh
+curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.6/install.sh
+COCO_VERSION=0.1.6 bash install.sh
 ```
 
-安装程序会根据固定 SHA-256 值验证固定标签发行包和公开 Agnes 凭据，安全解压 Coco，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。全新安装可立即使用 Agnes max，并显示 Agnes、IDEPub、StepFun 和 Achai 模型。Achai 凭据来自 `ACHAI_API_KEY` 或现有的 OpenCode secret；Coco 不捆绑 Achai 密钥。设置 `AGNES_API_KEY` 可覆盖默认 Agnes 凭据，也可以在安装后配置其他提供商。
+安装程序会根据固定 SHA-256 值验证固定标签发行包和公开 Agnes 凭据，安全解压 Coco，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。全新安装可立即使用 Agnes max，并显示 Agnes、IDEPub、StepFun、Achai 和 DeepSeek 模型，包括 `deepseek-v4-flash` 与 `deepseek-v4-pro`。Achai 凭据来自 `ACHAI_API_KEY` 或现有的 OpenCode secret；Coco 不捆绑 Achai 密钥。设置 `AGNES_API_KEY` 可覆盖默认 Agnes 凭据；在全新安装时设置 `DEEPSEEK_API_KEY` 可导入 DeepSeek 凭据，也可以在安装后配置其他提供商。
 
 ## 启动网络策略
 
@@ -38,13 +38,14 @@ PI_OFFLINE=0 coco
 
 ## 认证
 
-通过交互方式为 Coco 的四个受管理提供商之一设置 API 密钥。提示不会回显密钥：
+通过交互方式为 Coco 的五个受管理提供商之一设置 API 密钥。提示不会回显密钥：
 
 ```bash
 coco manage auth set idepub
 coco manage auth set achai
 coco manage auth set agnes
 coco manage auth set stepfun
+coco manage auth set deepseek
 ```
 
 自动化时可通过标准输入传入密钥。不要将真实密钥写入 shell 历史、源代码或问题报告：
@@ -53,7 +54,7 @@ coco manage auth set stepfun
 printf '%s\n' "$IDEPUB_API_KEY" | coco manage auth set idepub --stdin
 ```
 
-也可以仅为当前进程通过 `IDEPUB_API_KEY`、`ACHAI_API_KEY`、`AGNES_API_KEY` 或 `STEPFUN_API_KEY` 提供凭据。存储的密钥位于 `~/.coco/agent/auth.json`，权限为 `0600`；Coco 不捆绑任何凭据。
+也可以仅为当前进程通过 `IDEPUB_API_KEY`、`ACHAI_API_KEY`、`AGNES_API_KEY`、`STEPFUN_API_KEY` 或 `DEEPSEEK_API_KEY` 提供凭据。存储的密钥位于 `~/.coco/agent/auth.json`，权限为 `0600`；Coco 不捆绑任何凭据。
 
 ## 许可证和上游
 
