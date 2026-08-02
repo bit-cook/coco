@@ -7,7 +7,7 @@
   "inventory": {
     "source_markdown_count": 39,
     "source_markdown": [
-      {"source":"README.md","lines":81,"sha256":"21ce51d0c647e059f0c8e0f3d632f91b84ce724f757061bdd917c88694d69ecf","en":"en/README.md","zh-CN":"zh-CN/README.md"},
+      {"source":"README.md","lines":81,"sha256":"789d81e126a78528eb278b7f3ba114b330d5db41f9d6e9fd098644464aa071ec","en":"en/README.md","zh-CN":"zh-CN/README.md"},
       {"source":"CHANGELOG.md","lines":5164,"sha256":"69a534e21fcf6cab8c423844b9c4c4c20a22385b1c6e8e064ad766a3f8c50f12","en":"en/CHANGELOG.md","zh-CN":"zh-CN/CHANGELOG.md"},
       {"source":"DESIGN.md","lines":214,"sha256":"45fb6a93de357cb76d881708246c46fd1a21448227f8c7239756b6ee320e7e91","en":"en/DESIGN.md","zh-CN":"zh-CN/DESIGN.md"},
       {"source":"docs/compaction.md","lines":401,"sha256":"70b93bbae068b11213ce84d36b8189e2909141622f198d7b888559c64fcaa01a","en":"en/docs/compaction.md","zh-CN":"zh-CN/docs/compaction.md"},
