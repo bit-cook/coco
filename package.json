@@ -1,7 +1,7 @@
 {
   "name": "coco",
-  "version": "0.1.5",
-  "description": "Coco — your personal coding agent, forked from pi's minimal coding harness",
+  "version": "0.1.6",
+  "description": "Coco — a general AI assistant with strong coding and terminal capabilities",
   "type": "module",
   "packageManager": "npm@11.18.0",
   "repository": {
