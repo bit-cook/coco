@@ -6,10 +6,11 @@ receive theme semantics, and invalidate cached themed output on a theme change.
 
 ## 1. Product Intent And Layout
 
-- Coco is a quiet, compact terminal coding agent, not a transcript viewer.
-- Startup opens directly to the editor with only the essential header, editor,
-  and footer chrome. It does not print a banner, help panel, recent activity, or
-  explanatory transcript into the terminal.
+- Coco is a quiet, compact general AI assistant with strong coding and terminal
+  capabilities, not a transcript viewer.
+- Startup opens directly to the editor with a compact Responsive Startup
+  Wordmark, editor, and footer chrome. It does not print onboarding, help,
+  recent activity, or explanatory transcript into the terminal unless verbose.
 - Detailed help and collapsed tool output are disclosure, not startup content.
   `Ctrl+O` expands or collapses tool output; its hint belongs in contextual help,
   not in a persistent startup transcript.
@@ -87,9 +88,21 @@ title, and border color continue to express tool state.
 
 ## 5. Component Contracts
 
-- **Header:** a single compact identity/status line. It may show the active
-  model or session context, but never an onboarding banner. Accent is `cyan`;
-  secondary detail is `muted` or `dim`.
+- **Responsive Startup Wordmark:** the header's named identity primitive. It is
+  static, ASCII-only, original to Coco, and has at most four rows. It must not
+  reproduce another product's letterforms, compact mark, or composition.
+  `render(width)` selects a four-row original CoCo wordmark only when the
+  supplied render width includes its one-cell component padding; otherwise it
+  selects the single-line `CoCo` fallback. At zero width it renders no rows; at
+  other tiny widths it uses ANSI-safe `truncateToWidth` and omits padding that
+  does not fit, so no rendered row exceeds `width`. The primary mark uses
+  `theme.bold(theme.fg("accent", ...))`; a dim version label is included only
+  when it fits. The primitive uses no startup I/O, timers, or animation,
+  rebuilds themed output on `invalidate()`, and implements `setExpanded()` so
+  extension-header replacement/restoration and `Ctrl+O` contracts remain
+  intact. Default startup renders this wordmark only; verbose startup renders
+  the same wordmark plus existing compact or expanded instructions. Accent is
+  `cyan` and the optional version is `dim`.
 - **Transcript and terminal scrollback:** conversation and tool output render
   in normal terminal flow. The terminal emulator owns scrollback, selection,
   copy behavior, and history navigation. Coco creates no mouse-reporting mode,
