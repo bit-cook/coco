@@ -20,11 +20,11 @@ curl -fsSL https://aithernexus.github.io/coco/install.sh | bash
 Or install an explicitly reviewed release:
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.4/install.sh
-COCO_VERSION=0.1.4 bash install.sh
+curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.5/install.sh
+COCO_VERSION=0.1.5 bash install.sh
 ```
 
-The installer verifies the exact-tag release tarball and the pinned public Agnes credential against their published SHA-256 values, safely extracts Coco, and preserves existing `~/.coco/agent` configuration during updates and reinstalls. Fresh installs work with Agnes max immediately and include public metadata for Agnes, IDEPub, StepFun, and Achai. Set `AGNES_API_KEY` to override the default credential, or configure another provider after installation.
+The installer verifies the exact-tag release tarball and the pinned public Agnes credential against their published SHA-256 values, safely extracts Coco, and preserves existing `~/.coco/agent` configuration during updates and reinstalls. Fresh installs work with Agnes max immediately and show models for Agnes, IDEPub, StepFun, and Achai. Achai credentials come from `ACHAI_API_KEY` or an existing OpenCode secret; Coco does not bundle an Achai key. Set `AGNES_API_KEY` to override the default Agnes credential, or configure another provider after installation.
 
 Run Coco after installation:
 
