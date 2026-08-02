@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -7,11 +7,13 @@ import test from "node:test";
 import { getAuthStatus, removeAuthKey, setAuthKey } from "../scripts/auth-management.mjs";
 import { bootstrapState } from "../scripts/bootstrap-state.mjs";
 import { dispatchCoco } from "../scripts/coco-dispatcher.mjs";
+import { migrateState } from "../scripts/migrate-state.mjs";
 import { resolveCredential } from "../scripts/state-schema.mjs";
 
 const providers = [
   ["idepub", "IDEPUB_API_KEY"],
   ["achai", "ACHAI_API_KEY"],
+  ["deepseek", "DEEPSEEK_API_KEY"],
   ["agnes", "AGNES_API_KEY"],
   ["stepfun", "STEPFUN_API_KEY"],
 ];
@@ -19,6 +21,7 @@ const providers = [
 const publicEndpoints = {
   achai: { baseUrl: "https://www.achai.cc/v1", chatPath: "/v1/chat/completions", modelsPath: "/v1/models", origin: "https://www.achai.cc" },
   agnes: { baseUrl: "https://apihub.agnes-ai.com/v1", chatPath: "/v1/chat/completions", modelsPath: "/v1/models", origin: "https://apihub.agnes-ai.com" },
+  deepseek: { baseUrl: "https://api.deepseek.com", chatPath: "/chat/completions", modelsPath: "/models", origin: "https://api.deepseek.com" },
   idepub: { baseUrl: "https://ai.ide.pub/v1", chatPath: "/v1/chat/completions", modelsPath: "/v1/models", origin: "https://ai.ide.pub" },
   stepfun: { baseUrl: "https://api.stepfun.com/step_plan/v1", chatPath: "/step_plan/v1/chat/completions", modelsPath: "/step_plan/v1/models", origin: "https://api.stepfun.com" },
 };
@@ -62,7 +65,7 @@ test("Given a fresh agent directory, when Coco bootstraps public provider state,
   }
 });
 
-test("Given the frozen public registry, when its four providers are inspected, then their exact endpoint metadata is credential-free", async () => {
+test("Given the frozen public registry, when its five providers are inspected, then their exact endpoint metadata is credential-free", async () => {
   const cocoRoot = new URL("..", import.meta.url).pathname;
   const registry = JSON.parse(await readFile(join(cocoRoot, "resources", "provider-registry.v1.json"), "utf8"));
 
@@ -70,4 +73,38 @@ test("Given the frozen public registry, when its four providers are inspected, t
   assert.deepEqual(Object.fromEntries(Object.entries(registry.providers).map(([provider, entry]) => [provider, { baseUrl: entry.baseUrl, chatPath: entry.chatPath, modelsPath: entry.modelsPath, origin: entry.origin }])), publicEndpoints);
   assert.equal(JSON.stringify(registry).includes("apiKey"), false);
   assert.equal(JSON.stringify(registry).includes("credential"), false);
+});
+
+test("Given official DeepSeek bootstrap state, when its provider is inspected, then it preserves Pi's DeepSeek thinking compatibility", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coco-deepseek-bootstrap-"));
+  const agentDir = join(root, "agent");
+  const cocoRoot = new URL("..", import.meta.url).pathname;
+  try {
+    await bootstrapState({ agentDir, root: cocoRoot });
+    const models = JSON.parse(await readFile(join(agentDir, "models.json"), "utf8"));
+    assert.deepEqual(models.providers.deepseek, {
+      api: "openai-completions",
+      authHeader: true,
+      baseUrl: "https://api.deepseek.com",
+    compat: { supportsDeveloperRole: false, supportsReasoningEffort: true },
+      models: [],
+    });
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("Given legacy official DeepSeek credentials, when state migrates, then the credential is isolated in auth without changing the provider identity", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coco-deepseek-migration-"));
+  const agentDir = join(root, "agent");
+  try {
+    await mkdir(agentDir, { recursive: true, mode: 0o700 });
+    await writeFile(join(agentDir, "models.json"), JSON.stringify({ providers: { deepseek: { apiKey: "deepseek-legacy" } } }));
+    const result = await migrateState({ agentDir });
+    assert.deepEqual(result.rotationRequired, ["deepseek"]);
+    assert.deepEqual(JSON.parse(await readFile(join(agentDir, "auth.json"), "utf8")), { deepseek: { key: "deepseek-legacy", type: "api_key" } });
+    assert.deepEqual(JSON.parse(await readFile(join(agentDir, "models.json"), "utf8")), { providers: { deepseek: {} } });
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });

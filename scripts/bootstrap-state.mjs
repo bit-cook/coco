@@ -7,8 +7,8 @@ import { ownedProviderPointers, ownedSettingsPointers, parseStrictJson, StateErr
 import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
 
-const PROVIDERS = ["idepub", "achai", "agnes", "stepfun"];
-const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, enabledModels: ["agnes/agnes-2.5-flash"], lastChangelogVersion: "0.1.5" };
+const PROVIDERS = ["idepub", "achai", "agnes", "deepseek", "stepfun"];
+const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, enabledModels: ["agnes/agnes-2.5-flash"], lastChangelogVersion: "0.1.6" };
 
 function hash(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }

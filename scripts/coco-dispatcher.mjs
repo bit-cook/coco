@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { COCO_VERSION } from "./coco-runtime-identity.mjs";
 
-const MANAGED_PROVIDERS = new Set(["idepub", "achai", "agnes", "stepfun"]);
+const MANAGED_PROVIDERS = new Set(["idepub", "achai", "agnes", "deepseek", "stepfun"]);
 const NATIVE_COMMANDS = new Set(["manage", "doctor", "core"]);
 
 function usage(message) {
