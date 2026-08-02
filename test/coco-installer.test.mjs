@@ -133,13 +133,15 @@ for (const installer of installers) {
       const auth = JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8"));
       assert.deepEqual(Object.keys(models.providers).sort(), ["achai", "agnes", "idepub", "stepfun"]);
       assert.deepEqual(Object.fromEntries(Object.entries(models.providers).map(([provider, model]) => [provider, model.baseUrl])), publicBaseUrls);
+      assert.deepEqual(models.providers.idepub.models.map(({ id }) => id), ["gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]);
+      assert.deepEqual(models.providers.stepfun.models.map(({ id }) => id), ["step-3.7-flash", "step-3.5-flash-2603", "step-3.5-flash"]);
       assert.equal(JSON.stringify(models).includes("apiKey"), false);
       assert.equal(auth.agnes.type, "api_key");
       assert.equal(Buffer.byteLength(await readFile(join(setup.server, "agnes.key"))), 52);
       assert.equal(auth.agnes.key, syntheticAgnesKey);
       assert.equal(Buffer.byteLength(auth.agnes.key), 51);
       assert.equal((await readFile(setup.environment.COCO_TEST_DOWNLOAD_LOG, "utf8")).includes(agnesAssetUrl), true);
-      assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "settings.json"), "utf8")), { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enabledModels: ["agnes/agnes-2.5-flash"] });
+      assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "settings.json"), "utf8")), { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max" });
       assert.equal((await stat(join(setup.agent, "models.json"))).mode & 0o777, 0o600);
       assert.equal((await stat(join(setup.agent, "auth.json"))).mode & 0o777, 0o600);
     } finally {

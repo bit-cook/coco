@@ -306,6 +306,8 @@ const settingsPath = `${agentDir}/settings.json`;
 const agnes = registry.providers.agnes;
 if (createdModels === "1") {
 const models = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
+const idepub = registry.providers.idepub;
+const stepfun = registry.providers.stepfun;
 models.providers.agnes = {
   api: agnes.api,
   authHeader: true,
@@ -321,14 +323,38 @@ models.providers.agnes = {
     maxTokens: 16384
   }]
 };
+models.providers.idepub = {
+  api: idepub.api,
+  authHeader: idepub.authHeader,
+  baseUrl: idepub.baseUrl,
+  compat: idepub.compat,
+  models: [
+    { id: "gpt-5.6", name: "GPT-5.6 Sol", reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 },
+    { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 },
+    { id: "gpt-5.6-terra", name: "GPT-5.6 Terra", reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 },
+    { id: "gpt-5.6-luna", name: "GPT-5.6 Luna", reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 }
+  ]
+};
+models.providers.stepfun = {
+  api: stepfun.api,
+  authHeader: stepfun.authHeader,
+  baseUrl: stepfun.baseUrl,
+  compat: stepfun.compat,
+  models: [
+    { id: "step-3.7-flash", name: "Step 3.7 Flash", reasoning: true, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 },
+    { id: "step-3.5-flash-2603", name: "Step 3.5 Flash 2603", reasoning: true, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 },
+    { id: "step-3.5-flash", name: "Step 3.5 Flash", reasoning: true, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 }
+  ]
+};
 fs.writeFileSync(modelsPath, JSON.stringify(models) + "\n", { mode: 0o600 });
 }
 const settings = fs.existsSync(settingsPath) ? JSON.parse(fs.readFileSync(settingsPath, "utf8")) : {};
 settings.defaultProvider = "agnes";
 settings.defaultModel = "agnes-2.5-flash";
 settings.defaultThinkingLevel = "max";
-settings.enabledModels = [...new Set([...(settings.enabledModels ?? []), "agnes/agnes-2.5-flash"])];
-if (!fs.existsSync(settingsPath)) fs.writeFileSync(settingsPath, JSON.stringify(settings) + "\n", { mode: 0o600 });
+if (!fs.existsSync(settingsPath)) {
+  fs.writeFileSync(settingsPath, JSON.stringify(settings) + "\n", { mode: 0o600 });
+}
 NODE
   chmod 600 "$COCO_AGENT_DIR/models.json" "$COCO_AGENT_DIR/settings.json" "$COCO_AGENT_DIR/auth.json"
 }
