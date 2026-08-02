@@ -47,7 +47,7 @@ async function runInstallerBounded(script, environment, timeoutMs = 2_000) {
 
 async function writeChecksum(tarball) {
   const digest = createHash("sha256").update(await readFile(tarball)).digest("hex");
-  await writeFile(`${tarball}.sha256`, `${digest}  coco-0.1.3.tgz\n`);
+  await writeFile(`${tarball}.sha256`, `${digest}  coco-0.1.4.tgz\n`);
 }
 
 async function fixture() {
@@ -56,7 +56,7 @@ async function fixture() {
   const install = join(root, "install");
   const agent = join(install, "agent");
   const bin = join(root, "bin");
-  const tarball = join(server, "coco-0.1.3.tgz");
+  const tarball = join(server, "coco-0.1.4.tgz");
   const agnesAsset = join(server, "agnes.key");
   const packageRoot = join(root, "package");
   await mkdir(join(packageRoot, "bin"), { recursive: true });
@@ -89,7 +89,7 @@ async function fixture() {
       COCO_INSTALL_TEST_MODE: "1",
       COCO_TEST_AGNES_ASSET: agnesAsset,
       COCO_TEST_DOWNLOAD_LOG: join(root, "downloads.log"),
-      COCO_TEST_SIDECAR: join(server, "coco-0.1.3.tgz.sha256"),
+      COCO_TEST_SIDECAR: join(server, "coco-0.1.4.tgz.sha256"),
       COCO_TEST_TARBALL: tarball,
       HOME: root,
       PATH: `${bin}:${process.env.PATH}`,
@@ -225,7 +225,7 @@ for (const installer of installers) {
       assert.equal(await runInstaller(installer, setup.environment), 0);
       await writeFile(join(setup.agent, "settings.json"), settings);
       await writeFile(join(setup.install, "installed-before-checksum-failure"), "preserve\n");
-      await writeFile(join(setup.server, "coco-0.1.3.tgz.sha256"), `${"0".repeat(64)}  coco-0.1.3.tgz\n`);
+      await writeFile(join(setup.server, "coco-0.1.4.tgz.sha256"), `${"0".repeat(64)}  coco-0.1.4.tgz\n`);
       assert.notEqual(await runInstaller(installer, setup.environment), 0);
       assert.equal(await readFile(join(setup.install, "installed-before-checksum-failure"), "utf8"), "preserve\n");
       assert.deepEqual(await readFile(join(setup.agent, "settings.json")), settings);

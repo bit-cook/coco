@@ -19,13 +19,13 @@ test("Given public release metadata, when the Pages launcher runs, then it execu
     const metadata = join(output, "releases.json");
     const installer = join(output, "install.sh");
     await mkdir(bin);
-    await writeFile(metadata, '[{"tag_name":"v0.1.2","draft":false,"prerelease":false},{"tag_name":"v0.1.3","draft":false,"prerelease":false},{"tag_name":"v9.0.0","draft":true,"prerelease":false}]\n');
+    await writeFile(metadata, '[{"tag_name":"v0.1.2","draft":false,"prerelease":false},{"tag_name":"v0.1.3","draft":false,"prerelease":false},{"tag_name":"v0.1.4","draft":false,"prerelease":false},{"tag_name":"v9.0.0","draft":true,"prerelease":false}]\n');
     await writeFile(installer, '#!/usr/bin/env bash\nprintf "%s\\n" "$COCO_VERSION" > "$COCO_TEST_RESULT"\n');
-    await writeFile(join(bin, "curl"), '#!/usr/bin/env bash\nset -euo pipefail\nfor argument in "$@"; do\n  case "$argument" in\n    http*) url="$argument" ;;\n    -o) output=1 ;;\n    *) if [ "${output:-0}" = 1 ]; then target="$argument"; output=0; fi ;;\n  esac\ndone\ncase "$url" in\n  *api.github.com*) cp "$COCO_TEST_METADATA" "$target" ;;\n  */v0.1.3/install.sh) cp "$COCO_TEST_INSTALLER" "$target" ;;\n  *) exit 1 ;;\nesac\n');
+    await writeFile(join(bin, "curl"), '#!/usr/bin/env bash\nset -euo pipefail\nfor argument in "$@"; do\n  case "$argument" in\n    http*) url="$argument" ;;\n    -o) output=1 ;;\n    *) if [ "${output:-0}" = 1 ]; then target="$argument"; output=0; fi ;;\n  esac\ndone\ncase "$url" in\n  *api.github.com*) cp "$COCO_TEST_METADATA" "$target" ;;\n  */v0.1.4/install.sh) cp "$COCO_TEST_INSTALLER" "$target" ;;\n  *) exit 1 ;;\nesac\n');
     await Promise.all([chmod(installer, 0o755), chmod(join(bin, "curl"), 0o755)]);
     const environment = { ...process.env, COCO_INSTALL_ROOT_URL: "https://raw.example/coco", COCO_RELEASES_API_URL: "https://api.github.com/fake", COCO_TEST_INSTALLER: installer, COCO_TEST_METADATA: metadata, COCO_TEST_RESULT: result, PATH: `${bin}:${process.env.PATH}`, TMPDIR: output };
     await exec("bash", [join(root, "site", "install.sh")], { env: environment });
-    assert.equal((await readFile(result, "utf8")).trim(), "0.1.3");
+    assert.equal((await readFile(result, "utf8")).trim(), "0.1.4");
     await writeFile(metadata, "not-json\n");
     await assert.rejects(exec("bash", [join(root, "site", "install.sh")], { env: environment }));
   } finally {
@@ -119,8 +119,8 @@ test("Given release workflows, when tarball closure runs through the shell, then
   }
 });
 
-test("Given the v0.1.3 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
-  const version = "0.1.3";
+test("Given the v0.1.4 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
+  const version = "0.1.4";
   const [packageJson, packageLock, installer, readme, englishReadme, chineseReadme, ciWorkflow, releaseWorkflow] = await Promise.all([
     readFile(join(root, "package.json"), "utf8"),
     readFile(join(root, "package-lock.json"), "utf8"),
