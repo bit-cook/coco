@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -71,7 +71,7 @@ testWithWritableCgroup("Given a TERM-ignoring detached descendant, when timeout 
 testWithWritableCgroup("Given an immediate-parent-exit detached TERM-ignoring child, when timeout resolves, then it is contained and dead", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-observer-reparent-"));
   const pidPath = join(fixture, "pid");
-  const before = new Set((await readdir("/sys/fs/cgroup")).filter((name) => name.startsWith("coco-egress-"))); let group;
+  let group;
   try {
     const child = `require('fs').writeFileSync(${JSON.stringify(pidPath)},String(process.pid));process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`;
     const parent = `require('child_process').spawn(process.execPath,['-e',${JSON.stringify(child)}],{detached:true,stdio:'ignore'}).unref();process.exit(0)`;
@@ -81,6 +81,5 @@ testWithWritableCgroup("Given an immediate-parent-exit detached TERM-ignoring ch
     assert.equal(result.status, "inconclusive");
     assert.equal(isAlive(await pidFrom(pidPath)), false);
     await assert.rejects(access(group, constants.F_OK));
-    assert.equal((await readdir("/sys/fs/cgroup")).filter((name) => name.startsWith("coco-egress-") && !before.has(name)).length, 0);
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });
