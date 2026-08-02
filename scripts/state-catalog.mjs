@@ -16,6 +16,8 @@ export function normalizeModels({ provider, response, transformations }) {
     if (!object(raw) || typeof raw.id !== "string" || !modelId.test(raw.id) || seen.has(raw.id)) fail("CATALOG_SCHEMA_INVALID");
     seen.add(raw.id);
     const key = `${provider}/${raw.id}`;
+    const allowed = transformations.allowlist?.[provider];
+    if (allowed !== undefined && (!Array.isArray(allowed) || !allowed.includes(raw.id))) continue;
     if (transformations.denylist?.includes(key) || (provider === "idepub" && idepubNonChat.test(raw.id))) continue;
     if (provider === "achai" && "supported_endpoint_types" in raw) {
       if (!Array.isArray(raw.supported_endpoint_types)) fail("CATALOG_SCHEMA_INVALID");
@@ -25,7 +27,11 @@ export function normalizeModels({ provider, response, transformations }) {
     if (!object(defaults) || !Array.isArray(defaults.input) || !object(defaults.cost)) fail("CAPABILITY_SCHEMA_INVALID");
     const override = transformations.capabilityOverrides?.[key] ?? {};
     const name = transformations.displayNames?.[key] ?? (typeof raw.display_name === "string" && raw.display_name.length > 0 ? raw.display_name : raw.id);
-    models.push({ contextWindow: defaults.contextWindow, cost: structuredClone(defaults.cost), id: raw.id, input: [...defaults.input], maxTokens: defaults.maxTokens, name, reasoning: override.reasoning ?? defaults.reasoning });
+    const cost = object(override.cost) ? override.cost : defaults.cost;
+    const model = { contextWindow: override.contextWindow ?? defaults.contextWindow, cost: structuredClone(cost), id: raw.id, input: [...defaults.input], maxTokens: override.maxTokens ?? defaults.maxTokens, name, reasoning: override.reasoning ?? defaults.reasoning };
+    if (object(override.compat)) model.compat = structuredClone(override.compat);
+    if (object(override.thinkingLevelMap)) model.thinkingLevelMap = structuredClone(override.thinkingLevelMap);
+    models.push(model);
   }
   models.sort((left, right) => byteOrder(left.id, right.id));
   return models;
