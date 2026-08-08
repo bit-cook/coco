@@ -8,6 +8,7 @@ import test from "node:test";
 
 const cocoRoot = new URL("..", import.meta.url).pathname;
 const installers = [join(cocoRoot, "install.sh")];
+const uninstaller = join(cocoRoot, "uninstall.sh");
 const publicBaseUrls = {
   achai: "https://www.achai.cc/v1",
   agnes: "https://apihub.agnes-ai.com/v1",
@@ -48,7 +49,7 @@ async function runInstallerBounded(script, environment, timeoutMs = 2_000) {
 
 async function writeChecksum(tarball) {
   const digest = createHash("sha256").update(await readFile(tarball)).digest("hex");
-  await writeFile(`${tarball}.sha256`, `${digest}  coco-0.1.6.tgz\n`);
+  await writeFile(`${tarball}.sha256`, `${digest}  coco-0.1.7.tgz\n`);
 }
 
 async function fixture() {
@@ -57,7 +58,7 @@ async function fixture() {
   const install = join(root, "install");
   const agent = join(install, "agent");
   const bin = join(root, "bin");
-  const tarball = join(server, "coco-0.1.6.tgz");
+  const tarball = join(server, "coco-0.1.7.tgz");
   const agnesAsset = join(server, "agnes.key");
   const packageRoot = join(root, "package");
   await mkdir(join(packageRoot, "bin"), { recursive: true });
@@ -90,7 +91,7 @@ async function fixture() {
       COCO_INSTALL_TEST_MODE: "1",
       COCO_TEST_AGNES_ASSET: agnesAsset,
       COCO_TEST_DOWNLOAD_LOG: join(root, "downloads.log"),
-      COCO_TEST_SIDECAR: join(server, "coco-0.1.6.tgz.sha256"),
+      COCO_TEST_SIDECAR: join(server, "coco-0.1.7.tgz.sha256"),
       COCO_TEST_TARBALL: tarball,
       HOME: root,
       PATH: `${bin}:${process.env.PATH}`,
@@ -284,7 +285,7 @@ for (const installer of installers) {
       assert.equal(await runInstaller(installer, setup.environment), 0);
       await writeFile(join(setup.agent, "settings.json"), settings);
       await writeFile(join(setup.install, "installed-before-checksum-failure"), "preserve\n");
-      await writeFile(join(setup.server, "coco-0.1.6.tgz.sha256"), `${"0".repeat(64)}  coco-0.1.6.tgz\n`);
+      await writeFile(join(setup.server, "coco-0.1.7.tgz.sha256"), `${"0".repeat(64)}  coco-0.1.7.tgz\n`);
       assert.notEqual(await runInstaller(installer, setup.environment), 0);
       assert.equal(await readFile(join(setup.install, "installed-before-checksum-failure"), "utf8"), "preserve\n");
       assert.deepEqual(await readFile(join(setup.agent, "settings.json")), settings);
@@ -426,3 +427,16 @@ for (const installer of installers) {
     }
   });
 }
+
+test("Given a custom binary directory, when Coco is uninstalled, then its launcher and runtime are both removed", async () => {
+  const setup = await fixture();
+  try {
+    assert.equal(await runInstaller(installers[0], { ...setup.environment, COCO_INSTALL_TEST_MODE: "0" }), 0);
+    await lstat(join(setup.bin, "coco"));
+    assert.equal(await runInstaller(uninstaller, setup.environment), 0);
+    await assert.rejects(lstat(join(setup.bin, "coco")));
+    await assert.rejects(lstat(setup.install));
+  } finally {
+    await rm(setup.root, { force: true, recursive: true });
+  }
+});

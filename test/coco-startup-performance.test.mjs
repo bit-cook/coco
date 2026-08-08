@@ -35,6 +35,7 @@ test("Given a successful cold verification, when Coco writes its warm cache, the
     const dependencyEntries = Object.keys(cache.entries).filter((path) => path.startsWith("node_modules/"));
     assert.ok(Object.keys(cache.entries).length > 0);
     assert.ok(Object.keys(cache.entries).length < 2_000);
+    assert.ok(Object.keys(cache.directories).length > 0);
     assert.ok(dependencyEntries.every((path) => path.startsWith("node_modules/@earendil-works/pi-coding-agent/dist/") || path === "node_modules/@earendil-works/pi-coding-agent/package.json"));
   } finally {
     await rm(directory, { force: true, recursive: true });

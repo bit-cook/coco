@@ -76,13 +76,15 @@ export async function recoverTransactions(agentDir) {
 }
 
 export async function applyStateTransaction({ agentDir, operations, transactionId = randomUUID() }) {
-  if (!Array.isArray(operations) || operations.length === 0) fail("TRANSACTION_INVALID");
+  if (typeof operations !== "function" && (!Array.isArray(operations) || operations.length === 0)) fail("TRANSACTION_INVALID");
   const lock = await acquireStateLock(agentDir);
   try {
     await recoverTransactions(agentDir);
+    const inputs = typeof operations === "function" ? await operations() : operations;
+    if (!Array.isArray(inputs) || inputs.length === 0) fail("TRANSACTION_INVALID");
     const directory = join(agentDir, "transactions");
     const prepared = [];
-    for (const input of operations) {
+    for (const input of inputs) {
       const path = safeStatePath(agentDir, input.path);
       const bytes = Buffer.from(input.bytes);
       await mkdir(dirname(path), { recursive: true, mode: 0o700 });

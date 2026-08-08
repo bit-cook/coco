@@ -32,7 +32,7 @@ const FAST_ROOTS = ["bin", "dist", "resources", "scripts", "package.json", `${CO
 
 const MANIFEST_ENTRY = "resources/runtime-integrity-manifest.v1.json";
 const SIDECAR_ENTRY = "resources/runtime-integrity-manifest.v1.json.sha256";
-const CACHE_SCHEMA_VERSION = 1;
+const CACHE_SCHEMA_VERSION = 2;
 
 function hash(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function canonical(value) { if (Array.isArray(value)) return value.map(canonical); if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])); return value; }
@@ -56,7 +56,7 @@ function openVerified(path, type) {
       closeQuietly(descriptor);
       return undefined;
     }
-    return { descriptor, before: snapshot(before), type };
+    return { descriptor, before: snapshot(before), opened: snapshot(opened), type };
   } catch (error) {
     closeQuietly(descriptor);
     throw error;
@@ -87,9 +87,10 @@ function snapshotValid(value) {
 function cacheValid(cached) {
   if (!cached || typeof cached !== "object" || Array.isArray(cached)) return false;
   const fields = Object.keys(cached);
-  return fields.length === 3 && fields.every((field) => ["schemaVersion", "manifestHash", "entries"].includes(field))
+  return fields.length === 4 && fields.every((field) => ["schemaVersion", "manifestHash", "entries", "directories"].includes(field))
     && cached.schemaVersion === CACHE_SCHEMA_VERSION && typeof cached.manifestHash === "string" && /^[a-f0-9]{64}$/.test(cached.manifestHash)
-    && cached.entries && typeof cached.entries === "object" && !Array.isArray(cached.entries);
+    && cached.entries && typeof cached.entries === "object" && !Array.isArray(cached.entries)
+    && cached.directories && typeof cached.directories === "object" && !Array.isArray(cached.directories);
 }
 
 function readCache() {
@@ -100,15 +101,47 @@ function readCache() {
   return undefined;
 }
 
-function writeCache(manifestHash, snapshots) {
+function writeCache(manifestHash, snapshots, directories) {
   try {
-    for (const [path, value] of Object.entries(snapshots)) {
-      if (!snapshotValid(value)) return;
-    }
+    for (const value of Object.values(snapshots)) if (!snapshotValid(value)) return;
+    for (const value of Object.values(directories)) if (!snapshotValid(value)) return;
     mkdirSync(dirname(cachePath), { recursive: true });
-    writeFileSync(cachePath, JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, manifestHash, entries: snapshots }), { encoding: "utf8", mode: 0o600 });
+    writeFileSync(cachePath, JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, manifestHash, entries: snapshots, directories }), { encoding: "utf8", mode: 0o600 });
     chmodSync(cachePath, 0o600);
   } catch { /* cache write is best-effort */ }
+}
+
+function directorySnapshots(runtimeRoots) {
+  const directories = {};
+  for (const directory of runtimeRoots) {
+    const absolute = join(root, directory);
+    let info;
+    try { info = lstatSync(absolute); } catch { return null; }
+    if (info.isFile() && !info.isSymbolicLink()) continue;
+    if (!info.isDirectory() || info.isSymbolicLink()) return null;
+    directories[directory] = snapshot(info);
+    for (const dirent of readdirSync(absolute, { withFileTypes: true, recursive: true })) {
+      if (!dirent.isDirectory() || EXCLUDED_COMPONENTS.has(dirent.name) || dirent.parentPath.split(sep).some((component) => EXCLUDED_COMPONENTS.has(component))) continue;
+      const path = pathOf(join(dirent.parentPath, dirent.name));
+      const child = lstatSync(join(root, path));
+      if (!child.isDirectory() || child.isSymbolicLink()) return null;
+      directories[path] = snapshot(child);
+    }
+  }
+  return directories;
+}
+
+function directorySnapshotsMatch(directories) {
+  if (Object.keys(directories).length === 0) return false;
+  return Object.entries(directories).every(([path, cachedSnapshot]) => {
+    if (!snapshotValid(cachedSnapshot)) return false;
+    try {
+      const info = lstatSync(join(root, path));
+      return info.isDirectory() && !info.isSymbolicLink() && sameSnapshot(snapshot(info), cachedSnapshot);
+    } catch {
+      return false;
+    }
+  });
 }
 
 /** Walk a runtime root with readdir only (no per-file stat), returning file
@@ -166,12 +199,8 @@ async function main() {
     sidecarDescriptor = verifiedSidecar.descriptor;
     const bytes = readFileSync(manifestDescriptor);
     if (!revalidatePath(manifestPath, verifiedManifest)) return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
-    const manifest = JSON.parse(bytes.toString("utf8"));
-    const canonicalBytes = `${JSON.stringify(canonical(manifest))}\n`;
-    if (canonicalBytes !== bytes.toString("utf8")) {
-      console.error("CANONICAL_MISMATCH", canonicalBytes.length, bytes.length);
-      return reject("RUNTIME_INTEGRITY_MANIFEST_CANONICAL");
-    }
+    const manifestText = bytes.toString("utf8");
+    const manifest = JSON.parse(manifestText);
     const sidecarBytes = readFileSync(sidecarDescriptor, "utf8");
     if (!revalidatePath(sidecarPath, verifiedSidecar)) return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
     const manifestHash = hash(bytes);
@@ -180,18 +209,27 @@ async function main() {
       console.error("SIDECAR_MISMATCH", sidecarBytes, expectedSidecar);
       return reject("RUNTIME_INTEGRITY_SIDECAR_INVALID");
     }
+    const cached = process.env.COCO_INTEGRITY_FULL === "1" ? undefined : readCache();
+    // A matching sidecar authenticates the exact manifest bytes. Canonicalize
+    // only on a cold/full verification, where the result will seed the cache.
+    if (cached?.manifestHash !== manifestHash) {
+      const canonicalBytes = `${JSON.stringify(canonical(manifest))}\n`;
+      if (canonicalBytes !== manifestText) {
+        console.error("CANONICAL_MISMATCH", canonicalBytes.length, bytes.length);
+        return reject("RUNTIME_INTEGRITY_MANIFEST_CANONICAL");
+      }
+    }
     if (!Array.isArray(manifest.entries)) return reject("RUNTIME_INTEGRITY_MANIFEST_INVALID");
     const entriesValid = manifest.entries.every((entry) => entry && typeof entry.path === "string" && !entry.path.startsWith("/") && !entry.path.includes("..") && /^[a-f0-9]{64}$/.test(entry.sha256));
     if (!entriesValid) return reject("RUNTIME_INTEGRITY_MANIFEST_ENTRY_INVALID");
     const expected = new Set(manifest.entries.map((entry) => entry.path));
     const runtimeRoots = [...ROOTS, "node_modules"];
 
-    // Fast path: readdir-only structural check + trusted-local metadata cache.
+    // Fast path: cached directory topology + trusted-local file metadata.
     // Set COCO_INTEGRITY_FULL=1 (or delete the cache) to force full hashing.
     let verified = false;
     if (process.env.COCO_INTEGRITY_FULL !== "1") {
-      const cached = readCache();
-      if (cached?.manifestHash === manifestHash && structureCheck(expected, FAST_ROOTS)) {
+      if (cached?.manifestHash === manifestHash && directorySnapshotsMatch(cached.directories)) {
         const cachedPaths = Object.keys(cached.entries);
         const fastEntries = manifest.entries.filter((entry) => fastPath(entry.path));
         verified = cachedPaths.length === fastEntries.length && cachedPaths.every((path) => expected.has(path) && fastPath(path)) && fastEntries.every((entry) => {
@@ -201,8 +239,7 @@ async function main() {
             const verifiedEntry = openVerified(join(root, entry.path), "file");
             if (!verifiedEntry) return false;
             try {
-              const info = fstatSync(verifiedEntry.descriptor);
-              return revalidatePath(join(root, entry.path), verifiedEntry) && sameSnapshot(snapshot(info), cachedSnapshot) && mode(info) === entry.mode;
+              return revalidatePath(join(root, entry.path), verifiedEntry) && sameSnapshot(verifiedEntry.opened, cachedSnapshot) && mode(verifiedEntry.opened) === entry.mode;
             } finally {
               closeQuietly(verifiedEntry.descriptor);
             }
@@ -264,7 +301,10 @@ async function main() {
           return reject("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY");
         }
       }
-      writeCache(manifestHash, verifiedSnapshots);
+      const verifiedDirectories = directorySnapshots(FAST_ROOTS);
+      if (verifiedDirectories !== null && structureCheck(expected, FAST_ROOTS) && directorySnapshotsMatch(verifiedDirectories)) {
+        writeCache(manifestHash, verifiedSnapshots, verifiedDirectories);
+      }
     }
     if (!revalidateCurrentPath(root, verifiedRoot)) {
       console.error("ROOT_RACE");

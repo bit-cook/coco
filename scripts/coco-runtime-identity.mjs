@@ -5,7 +5,7 @@ import { realpath } from "node:fs/promises";
 
 export const CORE_NAME = "@earendil-works/pi-coding-agent";
 export const CORE_VERSION = "0.82.1";
-export const COCO_VERSION = "0.1.6";
+export const COCO_VERSION = "0.1.7";
 
 function rejected(code) { return { code, status: "rejected" }; }
 

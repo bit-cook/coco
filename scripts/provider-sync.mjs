@@ -2,18 +2,21 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { canonicalJson, sha256 } from "./canonical-json.mjs";
 import { catalogPayload, catalogSha256, normalizeModels } from "./state-catalog.mjs";
 import { StateError, ownedProviderPointers, parseStrictJson, resolveCredential, validateAuth, validateOwnership } from "./state-schema.mjs";
 import { inspectRegular, statePaths } from "./state-paths.mjs";
-import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
+import { applyStateTransaction } from "./state-transaction.mjs";
 
 export const PROVIDER_REGISTRY_SHA256 = "6da33abba5fe501f2e92b2c2621f3c14c49cbe95300a7cc97ab8afc1396b42c1";
 export const PROVIDER_TRANSFORMATIONS_SHA256 = "f79110eab47af63e59309af68a9bc28a8b6ba24f2cabb32b0e6a44f3d968014c";
 const PROVIDERS = ["achai", "agnes", "deepseek", "idepub", "stepfun"];
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
+const LOCK_RETRY_ATTEMPTS = 200;
+const LOCK_RETRY_MS = 25;
 
 function fail(code) { throw new StateError(code); }
 function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
@@ -91,47 +94,57 @@ function ownershipNext(previous, providers) {
   return { managedFiles, schemaVersion: 1 };
 }
 
-async function syncModels({ agentDir, allowEmpty = false, fetchCatalog, providerIds = PROVIDERS, root }) {
-  await recoverTransactions(agentDir);
+async function applySyncTransaction(options) {
+  for (let attempt = 0; attempt < LOCK_RETRY_ATTEMPTS; attempt += 1) {
+    try { return await applyStateTransaction(options); }
+    catch (error) {
+      if (!(error instanceof StateError) || error.code !== "STATE_LOCKED" || attempt === LOCK_RETRY_ATTEMPTS - 1) throw error;
+      await delay(LOCK_RETRY_MS);
+    }
+  }
+}
+
+export async function syncModels({ agentDir, allowEmpty = false, fetchCatalog, providerIds = PROVIDERS, root }) {
   const { registry, transformations } = await readFrozenProviderContracts(root);
   const ids = [...new Set(providerIds)].sort(byteOrder);
   if (ids.length === 0 || ids.some((id) => !PROVIDERS.includes(id))) fail("PROVIDER_INVALID");
   const paths = statePaths(agentDir);
   const currentModels = await optionalJson(paths.models, "MODELS_SCHEMA_INVALID", { providers: {} });
   if (!object(currentModels) || !object(currentModels.providers)) fail("MODELS_SCHEMA_INVALID");
-  const previousOwnership = await optionalJson(paths.ownership, "OWNERSHIP_SCHEMA_INVALID", { managedFiles: {}, schemaVersion: 1 });
-  validateOwnership(previousOwnership);
   const auth = await optionalJson(paths.auth, "AUTH_SCHEMA_INVALID", {});
   validateAuth(auth);
-  const prepared = [];
-  for (const provider of ids) {
+  // Provider catalogues are independent network reads. Promise.all preserves
+  // the sorted input order, so transaction output remains deterministic.
+  const prepared = await Promise.all(ids.map(async (provider) => {
     const entry = registry.providers[provider];
     const fetched = await fetchCatalog({ authorization: resolveCredential({ auth, legacyModels: currentModels, provider }).key, entry, provider });
     const models = normalizeModels({ provider, response: fetched.response, transformations });
     if (!allowEmpty && models.length === 0) fail("EMPTY_CATALOG_REJECTED");
-    const payload = catalogPayload(provider, models);
     const metadata = { catalogSha256: catalogSha256(provider, models), fetchedAtUtc: new Date().toISOString(), modelCount: models.length, providerId: provider, registryVersion: 1, responseSha256: sha256(fetched.bytes), schemaVersion: 1 };
-    prepared.push({ entry, metadata, models, provider });
-  }
-  const nextModels = structuredClone(currentModels);
-  const operations = [];
-  for (const item of prepared) {
-    const directory = join(paths.catalogs, item.provider);
-    const currentModelsPath = join(directory, "current.models.json");
-    const currentMetaPath = join(directory, "current.meta.json");
-    const previousModelsPath = join(directory, "previous.models.json");
-    const previousMetaPath = join(directory, "previous.meta.json");
-    const oldModels = await optionalJson(currentModelsPath, "CATALOG_SCHEMA_INVALID", null);
-    const oldMeta = await optionalJson(currentMetaPath, "CATALOG_SCHEMA_INVALID", null);
-    if (oldModels !== null && oldMeta !== null) {
-      operations.push({ bytes: canonicalJson(oldModels), path: previousModelsPath }, { bytes: canonicalJson(oldMeta), path: previousMetaPath });
+    return { entry, metadata, models, provider };
+  }));
+  await applySyncTransaction({ agentDir, operations: async () => {
+    const latestModels = await optionalJson(paths.models, "MODELS_SCHEMA_INVALID", { providers: {} });
+    if (!object(latestModels) || !object(latestModels.providers)) fail("MODELS_SCHEMA_INVALID");
+    const latestOwnership = await optionalJson(paths.ownership, "OWNERSHIP_SCHEMA_INVALID", { managedFiles: {}, schemaVersion: 1 });
+    validateOwnership(latestOwnership);
+    const nextModels = structuredClone(latestModels);
+    const operations = [];
+    for (const item of prepared) {
+      const directory = join(paths.catalogs, item.provider);
+      const currentModelsPath = join(directory, "current.models.json");
+      const currentMetaPath = join(directory, "current.meta.json");
+      const oldModels = await optionalJson(currentModelsPath, "CATALOG_SCHEMA_INVALID", null);
+      const oldMeta = await optionalJson(currentMetaPath, "CATALOG_SCHEMA_INVALID", null);
+      if (oldModels !== null && oldMeta !== null) {
+        operations.push({ bytes: canonicalJson(oldModels), path: join(directory, "previous.models.json") }, { bytes: canonicalJson(oldMeta), path: join(directory, "previous.meta.json") });
+      }
+      operations.push({ bytes: canonicalJson(catalogPayload(item.provider, item.models)), path: currentModelsPath }, { bytes: canonicalJson(item.metadata), path: currentMetaPath });
+      nextModels.providers[item.provider] = piProvider(item.entry, item.models, latestModels.providers[item.provider]);
     }
-    operations.push({ bytes: canonicalJson(catalogPayload(item.provider, item.models)), path: currentModelsPath }, { bytes: canonicalJson(item.metadata), path: currentMetaPath });
-    nextModels.providers[item.provider] = piProvider(item.entry, item.models, currentModels.providers[item.provider]);
-  }
-  const ownership = ownershipNext(previousOwnership, ids);
-  operations.push({ bytes: canonicalJson(nextModels), path: paths.models }, { bytes: canonicalJson(ownership), path: paths.ownership });
-  await applyStateTransaction({ agentDir, operations });
+    operations.push({ bytes: canonicalJson(nextModels), path: paths.models }, { bytes: canonicalJson(ownershipNext(latestOwnership, ids)), path: paths.ownership });
+    return operations;
+  } });
   return { modelCount: prepared.reduce((count, item) => count + item.models.length, 0), providers: prepared.map((item) => ({ catalogSha256: item.metadata.catalogSha256, modelCount: item.models.length, provider: item.provider })), status: "applied" };
 }
 

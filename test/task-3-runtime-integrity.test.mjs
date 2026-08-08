@@ -34,7 +34,7 @@ test("Given the coco package root, when runtime identity is resolved, then it pi
   assert.equal(runtime.identity.configDir, ".coco");
   assert.equal(runtime.identity.agentEnv, "COCO_CODING_AGENT_DIR");
   assert.equal(runtime.identity.sessionEnv, "COCO_CODING_AGENT_SESSION_DIR");
-  assert.equal(runtime.identity.version, "0.1.6");
+  assert.equal(runtime.identity.version, "0.1.7");
   assert.equal(runtime.piVersion, "0.82.1");
   assert.equal(runtime.root, resolve(root));
 });
@@ -280,12 +280,14 @@ promises.readFile = async (path, ...arguments_) => {
     assert.equal(initial.code, 0, initial.stderr);
     const manifest = JSON.parse(await readFile(join(packageRoot, "resources", "runtime-integrity-manifest.v1.json"), "utf8"));
     const cache = JSON.parse(await readFile(join(agentDir, ".runtime-integrity-cache.json"), "utf8"));
-    assert.equal(cache.schemaVersion, 1);
+    assert.equal(cache.schemaVersion, 2);
     assert.equal((await stat(join(agentDir, ".runtime-integrity-cache.json"))).mode & 0o777, 0o600);
     const fastRoots = ["bin", "dist", "resources", "scripts", "package.json", "node_modules/@earendil-works/pi-coding-agent/dist", "node_modules/@earendil-works/pi-coding-agent/package.json"];
     const isFast = (path) => fastRoots.some((directory) => path === directory || path.startsWith(`${directory}/`));
     assert.deepEqual(Object.keys(cache.entries).sort(), manifest.entries.filter((entry) => isFast(entry.path)).map((entry) => entry.path).sort());
     for (const snapshot of Object.values(cache.entries)) assert.deepEqual(Object.keys(snapshot).sort(), ["ctimeMs", "dev", "ino", "mode", "mtimeMs", "size"]);
+    assert.ok(Object.keys(cache.directories).length > 0);
+    for (const snapshot of Object.values(cache.directories)) assert.deepEqual(Object.keys(snapshot).sort(), ["ctimeMs", "dev", "ino", "mode", "mtimeMs", "size"]);
     const warm = await runBootstrap(packageRoot, ["--version"], { ...environment, NODE_OPTIONS: `--require=${probe}` });
     assert.equal(warm.code, 0, warm.stderr);
     const full = await runBootstrap(packageRoot, ["--version"], { ...environment, COCO_INTEGRITY_FULL: "1", NODE_OPTIONS: `--require=${probe}` });
@@ -324,7 +326,7 @@ test("Given a replacement after bytes are hashed, when bootstrap creates a cache
     await generateRuntimeIntegrityManifest({ root: packageRoot });
     const target = join(packageRoot, "package.json");
     const original = await readFile(target, "utf8");
-    const replacement = original.replace('"version": "0.1.6"', '"version": "9.9.9"');
+    const replacement = original.replace('"version": "0.1.7"', '"version": "9.9.9"');
     assert.notEqual(replacement, original);
     const sibling = `${target}.replacement`;
     await writeFile(sibling, replacement);

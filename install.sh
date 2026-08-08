@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.1.6}"
+COCO_VERSION="${COCO_VERSION:-0.1.7}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/aithernexus/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/aithernexus/coco/releases/download/installer-v0.1.1.1/agnes.key"

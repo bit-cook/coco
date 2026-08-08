@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.7] - 2026-08-08
+
+### Performance
+
+- Reduced warm integrity-verified startup latency by avoiding repeated manifest canonicalization, redundant file metadata calls, and recursive fast-root scans.
+- Added `npm run benchmark:startup` with machine-readable cold, warm, and full-verification timing summaries.
+- Fetches independent provider model catalogs concurrently while preserving sorted output and atomic state updates.
+- Bounded runtime-manifest hashing concurrency to avoid queueing more than 17,000 filesystem operations at once.
+
+### Fixed
+
+- Made concurrent provider syncs merge against the latest state under the transaction lock, preventing one sync from overwriting another provider's update.
+- Made the uninstaller honor the installer's custom `COCO_BIN_DIR` location.
+
 ## [0.82.1] - 2026-07-25
 
 ### New Features

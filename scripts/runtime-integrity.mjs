@@ -136,7 +136,7 @@ export async function generateRuntimeIntegrityManifest({ root }) {
   const runtimeRoots = [...ROOTS, "node_modules"];
   const runtimePaths = (await Promise.all(runtimeRoots.map(async (directory) => files(absolute, join(absolute, directory))))).flat().map((item) => item.path).filter((path) => path !== MANIFEST && path !== SIDECAR && !TRUST_ANCHORS.has(path));
   const paths = [...new Set([...mappedPaths, ...runtimePaths])].sort((left, right) => left.localeCompare(right));
-  const entries = await Promise.all(paths.map((path) => entry(absolute, path)));
+  const entries = await mapConcurrent(paths, VERIFY_CONCURRENCY, (path) => entry(absolute, path));
   const manifest = { assetMapSha256: map.sha256, entries, schemaVersion: 1 };
   const bytes = canonicalJson(manifest);
   await writeFile(join(absolute, MANIFEST), bytes, { encoding: "utf8", mode: 0o644 });

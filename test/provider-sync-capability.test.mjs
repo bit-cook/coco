@@ -110,3 +110,37 @@ test("Given the official DeepSeek fixture response, when provider sync normalize
     await rm(agentDir, { force: true, recursive: true });
   }
 });
+
+test("Given concurrent provider syncs, when both commit to one agent directory, then neither provider update is lost", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-concurrent-provider-sync-"));
+  const capability = createProviderSyncTestCapability(root);
+  const previousNodeEnv = process.env.NODE_ENV;
+  const server = createServer((_request, response) => {
+    setTimeout(() => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ data: [{ id: "deepseek-v4-flash" }, { id: "gpt-5.6" }] }));
+    }, 25);
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string") throw new Error("TEST_SERVER_INVALID");
+  try {
+    process.env.NODE_ENV = "test";
+    await writeFile(join(agentDir, "auth.json"), JSON.stringify({ deepseek: { key: "deepseek-fixture-key", type: "api_key" }, idepub: { key: "idepub-fixture-key", type: "api_key" } }));
+    const options = { agentDir, capability, origin: `http://127.0.0.1:${address.port}`, root };
+    await Promise.all([
+      syncProviderModelsForTest({ ...options, provider: "deepseek" }),
+      syncProviderModelsForTest({ ...options, provider: "idepub" }),
+    ]);
+    const models = JSON.parse(await readFile(join(agentDir, "models.json"), "utf8"));
+    assert.deepEqual(Object.keys(models.providers).sort(), ["deepseek", "idepub"]);
+    await Promise.all([
+      readFile(join(agentDir, "catalogs", "deepseek", "current.models.json")),
+      readFile(join(agentDir, "catalogs", "idepub", "current.models.json")),
+    ]);
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previousNodeEnv;
+    await new Promise((resolve) => server.close(resolve));
+    await rm(agentDir, { force: true, recursive: true });
+  }
+});

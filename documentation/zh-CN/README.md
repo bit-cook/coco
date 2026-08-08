@@ -20,8 +20,8 @@ curl -fsSL https://aithernexus.github.io/coco/install.sh | bash
 或者安装经过明确审阅的固定版本：
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.6/install.sh
-COCO_VERSION=0.1.6 bash install.sh
+curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.7/install.sh
+COCO_VERSION=0.1.7 bash install.sh
 ```
 
 安装程序会根据固定 SHA-256 值验证固定标签发行包和公开 Agnes 凭据，安全解压 Coco，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。全新安装可立即使用 Agnes max，并显示 Agnes、IDEPub、StepFun、Achai 和 DeepSeek 模型，包括 `deepseek-v4-flash` 与 `deepseek-v4-pro`。Achai 凭据来自 `ACHAI_API_KEY` 或现有的 OpenCode secret；Coco 不捆绑 Achai 密钥。设置 `AGNES_API_KEY` 可覆盖默认 Agnes 凭据；在全新安装时设置 `DEEPSEEK_API_KEY` 可导入 DeepSeek 凭据，也可以在安装后配置其他提供商。
