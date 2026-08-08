@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.1.7}"
+COCO_VERSION="${COCO_VERSION:-0.1.8}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/aithernexus/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/aithernexus/coco/releases/download/installer-v0.1.1.1/agnes.key"
@@ -195,6 +195,7 @@ validate_candidate() {
   [ -f "$CANDIDATE_DIR/resources/provider-registry.v1.json" ] || die "Candidate is missing provider registry"
   [ -d "$CANDIDATE_DIR/node_modules" ] || die "Candidate is missing bundled node_modules"
   PATH="$(dirname "$NODE_BIN"):$PATH" "$CANDIDATE_DIR/bin/coco" --version >/dev/null 2>&1 || die "Candidate did not pass its version check"
+  printf '%s\n' 'coco-install-v1' > "$CANDIDATE_DIR/.coco-install-owner"
 }
 
 validate_regular_path() {
@@ -266,6 +267,8 @@ write_config() {
   mkdir -p "$COCO_AGENT_DIR"
   [ ! -L "$COCO_AGENT_DIR" ] || die "Refusing symlinked agent directory: ${COCO_AGENT_DIR}"
   chmod 700 "$COCO_AGENT_DIR"
+  mkdir -p "$COCO_AGENT_DIR/sessions"
+  chmod 700 "$COCO_AGENT_DIR/sessions"
   validate_regular_path "$COCO_AGENT_DIR/models.json" "models configuration"
   validate_regular_path "$COCO_AGENT_DIR/auth.json" "auth configuration"
   validate_regular_path "$COCO_AGENT_DIR/settings.json" "settings configuration"
@@ -386,15 +389,32 @@ models.providers.stepfun = {
 };
 fs.writeFileSync(modelsPath, JSON.stringify(models) + "\n", { mode: 0o600 });
 }
-const settings = fs.existsSync(settingsPath) ? JSON.parse(fs.readFileSync(settingsPath, "utf8")) : {};
+const settingsExisted = fs.existsSync(settingsPath);
+const settings = settingsExisted ? JSON.parse(fs.readFileSync(settingsPath, "utf8")) : {};
 settings.defaultProvider = "agnes";
 settings.defaultModel = "agnes-2.5-flash";
 settings.defaultThinkingLevel = "max";
 if (!fs.existsSync(settingsPath)) {
   fs.writeFileSync(settingsPath, JSON.stringify(settings) + "\n", { mode: 0o600 });
 }
+if (createdModels === "1" && !settingsExisted && !fs.existsSync(`${agentDir}/ownership.json`)) {
+  const crypto = require("crypto"); const path = require("path");
+  const appendPath = `${agentDir}/APPEND_SYSTEM.md`;
+  const appendSource = fs.readFileSync(path.join(path.dirname(registryPath), "append-system-v1.md"));
+  if (!fs.existsSync(appendPath)) fs.writeFileSync(appendPath, appendSource, { mode: 0o600, flag: "wx" });
+  const providerFields = ["baseUrl", "api", "authHeader", "compat", "models"];
+  const providerPointers = Object.keys(registry.providers).flatMap((provider) => providerFields.map((field) => `/providers/${provider}/${field}`));
+  const ownership = { managedFiles: {
+    "APPEND_SYSTEM.md": { ownedJsonPointers: [], sourceSha256: crypto.createHash("sha256").update(appendSource).digest("hex") },
+    "models.json": { ownedJsonPointers: providerPointers },
+    "settings.json": { ownedJsonPointers: ["/defaultProvider", "/defaultModel", "/defaultThinkingLevel"] }
+  }, schemaVersion: 1 };
+  fs.writeFileSync(`${agentDir}/ownership.json`, JSON.stringify(ownership) + "\n", { mode: 0o600, flag: "wx" });
+}
 NODE
   chmod 600 "$COCO_AGENT_DIR/models.json" "$COCO_AGENT_DIR/settings.json" "$COCO_AGENT_DIR/auth.json"
+  [ ! -e "$COCO_AGENT_DIR/ownership.json" ] || chmod 600 "$COCO_AGENT_DIR/ownership.json"
+  [ ! -e "$COCO_AGENT_DIR/APPEND_SYSTEM.md" ] || chmod 600 "$COCO_AGENT_DIR/APPEND_SYSTEM.md"
 }
 
 verify_config() {

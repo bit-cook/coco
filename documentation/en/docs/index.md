@@ -1,4 +1,8 @@
-# Pi Documentation
+# Coco Documentation
+
+## Coco operational documentation
+
+Coco is a downstream Pi distribution. [Coco CLI](coco-cli.md) and [Coco security](coco-security.md) describe Coco behavior and take precedence when they conflict with inherited Pi pages below. The remaining pages are inherited Pi reference and may describe commands, providers, paths, project resources, or update behavior that Coco changes or disables.
 
 Pi is a minimal terminal coding harness. It is designed to stay small at the core while being extended through TypeScript extensions, skills, prompt templates, themes, and pi packages.
 

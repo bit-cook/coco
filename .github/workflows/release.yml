@@ -11,11 +11,12 @@ jobs:
   release:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 22.19.0
           cache: npm
@@ -29,7 +30,7 @@ jobs:
       - run: mkdir release
       - run: cp install.sh release/install.sh
       - run: cp uninstall.sh release/uninstall.sh
-      - run: npm pack --json --pack-destination release
+      - run: node node_modules/npm/bin/npm-cli.js pack --json --pack-destination release
       - run: node scripts/publication-secret-scanner.mjs release
       - run: node -e "import('./scripts/verify-package-closure.mjs').then(async ({verifyTarballClosure}) => { const {readdir}=await import('node:fs/promises'); const tarball=(await readdir('release')).find((entry)=>entry.endsWith('.tgz')); const result=await verifyTarballClosure({root:process.cwd(),tarball:'release/'+tarball}); console.log(JSON.stringify(result)); process.exit(result.status==='approved'?0:1); })"
       - run: tar -tzf release/coco-*.tgz | (! grep -E '(^package/(\.coco-tools|documentation/[^/]+/logs|test/)|/\.omo/)')
@@ -41,8 +42,21 @@ jobs:
       - run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes release/install.sh release/uninstall.sh release/coco-*.tgz release/coco-*.tgz.sha256 release/SHA256SUMS
         env:
           GH_TOKEN: ${{ github.token }}
-      - run: curl -fsSL --retry 5 --retry-delay 2 "https://github.com/aithernexus/coco/releases/download/$GITHUB_REF_NAME/install.sh" >/dev/null
-      - run: curl -fsSL --retry 5 --retry-delay 2 "https://github.com/aithernexus/coco/releases/download/$GITHUB_REF_NAME/uninstall.sh" >/dev/null
-      - run: curl -fsSL --retry 5 --retry-delay 2 "https://github.com/aithernexus/coco/releases/download/$GITHUB_REF_NAME/coco-$(node -p "require('./package.json').version").tgz" >/dev/null
-      - run: curl -fsSL --retry 5 --retry-delay 2 "https://github.com/aithernexus/coco/releases/download/$GITHUB_REF_NAME/coco-$(node -p "require('./package.json').version").tgz.sha256" >/dev/null
-      - run: curl -fsSL --retry 5 --retry-delay 2 "https://github.com/aithernexus/coco/releases/download/$GITHUB_REF_NAME/SHA256SUMS" >/dev/null
+      - name: Verify released assets and package lifecycle
+        run: |
+          release_dir="$(mktemp -d)"
+           sandbox="$(mktemp -d)"
+          version="$(node -p "require('./package.json').version")"
+          base_url="https://github.com/aithernexus/coco/releases/download/$GITHUB_REF_NAME"
+           trap 'rm -rf "$release_dir" "$sandbox"' EXIT
+          for asset in install.sh uninstall.sh "coco-$version.tgz" "coco-$version.tgz.sha256" SHA256SUMS; do
+            curl -fsSL --retry 5 --retry-delay 2 "$base_url/$asset" -o "$release_dir/$asset"
+          done
+          (cd "$release_dir" && sha256sum --check SHA256SUMS)
+           export HOME="$sandbox/home" COCO_INSTALL_DIR="$sandbox/install" COCO_AGENT_DIR="$sandbox/agent" COCO_CODING_AGENT_DIR="$sandbox/agent" COCO_BIN_DIR="$sandbox/bin" COCO_VERSION="$version"
+           mkdir -p "$HOME" "$COCO_BIN_DIR"
+           bash "$release_dir/install.sh"
+           test "$("$COCO_BIN_DIR/coco" --version)" = "$version"
+           bash "$release_dir/uninstall.sh"
+           test ! -e "$COCO_BIN_DIR/coco"
+           test ! -e "$COCO_INSTALL_DIR"

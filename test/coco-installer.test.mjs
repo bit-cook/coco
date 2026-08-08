@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmod, lstat, mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdtemp, mkdir, readFile, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { execFile, spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -49,7 +49,7 @@ async function runInstallerBounded(script, environment, timeoutMs = 2_000) {
 
 async function writeChecksum(tarball) {
   const digest = createHash("sha256").update(await readFile(tarball)).digest("hex");
-  await writeFile(`${tarball}.sha256`, `${digest}  coco-0.1.7.tgz\n`);
+  await writeFile(`${tarball}.sha256`, `${digest}  coco-0.1.8.tgz\n`);
 }
 
 async function fixture() {
@@ -58,7 +58,7 @@ async function fixture() {
   const install = join(root, "install");
   const agent = join(install, "agent");
   const bin = join(root, "bin");
-  const tarball = join(server, "coco-0.1.7.tgz");
+  const tarball = join(server, "coco-0.1.8.tgz");
   const agnesAsset = join(server, "agnes.key");
   const packageRoot = join(root, "package");
   await mkdir(join(packageRoot, "bin"), { recursive: true });
@@ -68,6 +68,7 @@ async function fixture() {
   await mkdir(server);
   await writeFile(join(packageRoot, "bin", "coco"), "#!/usr/bin/env bash\nif [ \"$1\" = \"--version\" ]; then exit 0; fi\n");
   await writeFile(join(packageRoot, "resources", "provider-registry.v1.json"), JSON.stringify({ providers: Object.fromEntries(Object.entries(publicBaseUrls).map(([provider, baseUrl]) => [provider, { api: "openai-completions", authHeader: true, baseUrl, compat: provider === "deepseek" ? { supportsDeveloperRole: false, supportsReasoningEffort: true } : {} }])), schemaVersion: 1 }));
+  await writeFile(join(packageRoot, "resources", "append-system-v1.md"), "Coco managed prompt.\n");
   await chmod(join(packageRoot, "bin", "coco"), 0o755);
   await exec("tar", ["-czf", tarball, "package"], { cwd: root });
   await writeChecksum(tarball);
@@ -91,7 +92,7 @@ async function fixture() {
       COCO_INSTALL_TEST_MODE: "1",
       COCO_TEST_AGNES_ASSET: agnesAsset,
       COCO_TEST_DOWNLOAD_LOG: join(root, "downloads.log"),
-      COCO_TEST_SIDECAR: join(server, "coco-0.1.7.tgz.sha256"),
+      COCO_TEST_SIDECAR: join(server, "coco-0.1.8.tgz.sha256"),
       COCO_TEST_TARBALL: tarball,
       HOME: root,
       PATH: `${bin}:${process.env.PATH}`,
@@ -150,6 +151,10 @@ for (const installer of installers) {
       assert.equal(Buffer.byteLength(auth.agnes.key), 51);
       assert.equal((await readFile(setup.environment.COCO_TEST_DOWNLOAD_LOG, "utf8")).includes(agnesAssetUrl), true);
       assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "settings.json"), "utf8")), { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max" });
+      const ownership = JSON.parse(await readFile(join(setup.agent, "ownership.json"), "utf8"));
+      assert.equal(ownership.schemaVersion, 1);
+      assert.ok(ownership.managedFiles["models.json"].ownedJsonPointers.includes("/providers/agnes/models"));
+      assert.match(ownership.managedFiles["APPEND_SYSTEM.md"].sourceSha256, /^[a-f0-9]{64}$/);
       assert.equal((await stat(join(setup.agent, "models.json"))).mode & 0o777, 0o600);
       assert.equal((await stat(join(setup.agent, "auth.json"))).mode & 0o777, 0o600);
     } finally {
@@ -285,7 +290,7 @@ for (const installer of installers) {
       assert.equal(await runInstaller(installer, setup.environment), 0);
       await writeFile(join(setup.agent, "settings.json"), settings);
       await writeFile(join(setup.install, "installed-before-checksum-failure"), "preserve\n");
-      await writeFile(join(setup.server, "coco-0.1.7.tgz.sha256"), `${"0".repeat(64)}  coco-0.1.7.tgz\n`);
+      await writeFile(join(setup.server, "coco-0.1.8.tgz.sha256"), `${"0".repeat(64)}  coco-0.1.8.tgz\n`);
       assert.notEqual(await runInstaller(installer, setup.environment), 0);
       assert.equal(await readFile(join(setup.install, "installed-before-checksum-failure"), "utf8"), "preserve\n");
       assert.deepEqual(await readFile(join(setup.agent, "settings.json")), settings);
@@ -436,6 +441,60 @@ test("Given a custom binary directory, when Coco is uninstalled, then its launch
     assert.equal(await runInstaller(uninstaller, setup.environment), 0);
     await assert.rejects(lstat(join(setup.bin, "coco")));
     await assert.rejects(lstat(setup.install));
+  } finally {
+    await rm(setup.root, { force: true, recursive: true });
+  }
+});
+
+test("Given a legacy default v0.1.7 install, when Coco is uninstalled, then its runtime and managed launcher are removed", async () => {
+  const setup = await fixture();
+  const install = join(setup.root, ".coco");
+  const agent = join(install, "agent");
+  const environment = { ...setup.environment, COCO_AGENT_DIR: agent, COCO_CODING_AGENT_DIR: agent, COCO_INSTALL_DIR: install };
+  try {
+    assert.equal(await runInstaller(installers[0], { ...environment, COCO_INSTALL_TEST_MODE: "0" }), 0);
+    await unlink(join(install, ".coco-install-owner"));
+    assert.equal(await runInstaller(uninstaller, environment), 0);
+    await assert.rejects(lstat(join(setup.bin, "coco")));
+    await assert.rejects(lstat(install));
+  } finally {
+    await rm(setup.root, { force: true, recursive: true });
+  }
+});
+
+test("Given destructive or unrecognized install paths, when Coco is uninstalled, then they are preserved", async () => {
+  const setup = await fixture();
+  const unrelated = join(setup.root, "unrelated");
+  const agentParent = join(setup.root, "agent-parent");
+  const agent = join(agentParent, "agent");
+  try {
+    await mkdir(unrelated);
+    await mkdir(agent, { recursive: true });
+    await writeFile(join(unrelated, "keep"), "preserve\n");
+    await writeFile(join(unrelated, ".coco-install-owner"), "coco-install-v1\n");
+    for (const [install, environment] of [
+      [setup.root, setup.environment],
+      [unrelated, setup.environment],
+      [agentParent, { ...setup.environment, COCO_AGENT_DIR: agent }],
+    ]) {
+      assert.notEqual(await runInstaller(uninstaller, { ...environment, COCO_INSTALL_DIR: install }), 0);
+      assert.equal(await readFile(join(unrelated, "keep"), "utf8"), "preserve\n");
+    }
+  } finally {
+    await rm(setup.root, { force: true, recursive: true });
+  }
+});
+
+test("Given an unrelated launcher, when Coco is uninstalled, then the launcher is preserved", async () => {
+  const setup = await fixture();
+  const launcher = join(setup.bin, "coco");
+  try {
+    assert.equal(await runInstaller(installers[0], { ...setup.environment, COCO_INSTALL_TEST_MODE: "0" }), 0);
+    await unlink(launcher);
+    await writeFile(launcher, "#!/usr/bin/env bash\necho unrelated\n");
+    await chmod(launcher, 0o755);
+    assert.notEqual(await runInstaller(uninstaller, setup.environment), 0);
+    assert.equal(await readFile(launcher, "utf8"), "#!/usr/bin/env bash\necho unrelated\n");
   } finally {
     await rm(setup.root, { force: true, recursive: true });
   }

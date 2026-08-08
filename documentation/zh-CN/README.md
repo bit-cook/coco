@@ -4,6 +4,8 @@ Coco 是通用 AI 助手，具备强大的编码和终端能力。它作为 [Pi 
 
 [English](../en/README.md) | [简体中文](README.md) | [文档索引](docs/index.md)
 
+操作参考：[Coco CLI](docs/coco-cli.md) | [Coco 安全](docs/coco-security.md)。如与继承的 Pi 文档冲突，以 Coco 专用文档为准。
+
 ## 要求
 
 - Node.js `>=22.19.0`
@@ -20,11 +22,13 @@ curl -fsSL https://aithernexus.github.io/coco/install.sh | bash
 或者安装经过明确审阅的固定版本：
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.7/install.sh
-COCO_VERSION=0.1.7 bash install.sh
+curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.8/install.sh
+COCO_VERSION=0.1.8 bash install.sh
 ```
 
 安装程序会根据固定 SHA-256 值验证固定标签发行包和公开 Agnes 凭据，安全解压 Coco，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。全新安装可立即使用 Agnes max，并显示 Agnes、IDEPub、StepFun、Achai 和 DeepSeek 模型，包括 `deepseek-v4-flash` 与 `deepseek-v4-pro`。Achai 凭据来自 `ACHAI_API_KEY` 或现有的 OpenCode secret；Coco 不捆绑 Achai 密钥。设置 `AGNES_API_KEY` 可覆盖默认 Agnes 凭据；在全新安装时设置 `DEEPSEEK_API_KEY` 可导入 DeepSeek 凭据，也可以在安装后配置其他提供商。
+
+升级时再次运行稳定安装程序命令。不要使用 `coco update`；Coco 有意不提供该命令。
 
 ## 启动网络策略
 

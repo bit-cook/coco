@@ -4,6 +4,8 @@ Coco is a general AI assistant with strong coding and terminal capabilities, bui
 
 [English](https://github.com/aithernexus/coco/blob/main/README.md) | [简体中文](https://github.com/aithernexus/coco/blob/main/documentation/zh-CN/README.md) | [Documentation](https://github.com/aithernexus/coco/tree/main/documentation)
 
+Operational reference: [Coco CLI](docs/coco-cli.md) | [Coco security](docs/coco-security.md). Coco-specific documentation takes precedence over inherited Pi documentation when they differ.
+
 ## Requirements
 
 - Node.js `>=22.19.0`
@@ -20,11 +22,13 @@ curl -fsSL https://aithernexus.github.io/coco/install.sh | bash
 Or install an explicitly reviewed release:
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.7/install.sh
-COCO_VERSION=0.1.7 bash install.sh
+curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.8/install.sh
+COCO_VERSION=0.1.8 bash install.sh
 ```
 
 The installer verifies the exact-tag release tarball and the pinned public Agnes credential against their published SHA-256 values, safely extracts Coco, and preserves existing `~/.coco/agent` configuration during updates and reinstalls. Fresh installs work with Agnes max immediately and show models for Agnes, IDEPub, StepFun, Achai, and DeepSeek, including `deepseek-v4-flash` and `deepseek-v4-pro`. Achai credentials come from `ACHAI_API_KEY` or an existing OpenCode secret; Coco does not bundle an Achai key. Set `AGNES_API_KEY` to override the default Agnes credential, set `DEEPSEEK_API_KEY` on a fresh install to import a DeepSeek credential, or configure another provider after installation.
+
+To upgrade, run the stable installer command again. Do not use `coco update`; Coco intentionally does not provide that command.
 
 Run Coco after installation:
 

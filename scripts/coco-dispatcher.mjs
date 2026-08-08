@@ -3,10 +3,50 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { COCO_VERSION } from "./coco-runtime-identity.mjs";
+import { COCO_VERSION, CORE_VERSION } from "./coco-runtime-identity.mjs";
 
 const MANAGED_PROVIDERS = new Set(["idepub", "achai", "agnes", "deepseek", "stepfun"]);
 const NATIVE_COMMANDS = new Set(["manage", "doctor", "core"]);
+
+function help() {
+  process.stdout.write(`Coco ${COCO_VERSION}
+
+Usage:
+  coco [Pi arguments...]
+  coco --help | -h | help
+  coco --version | -v
+  coco manage auth set <provider> [--stdin] [--json]
+  coco manage auth status [provider] [--json]
+  coco manage auth remove <provider> [--yes] [--json]
+  coco manage models sync [--provider <provider>] [--allow-empty] [--yes] [--json]
+  coco manage migrate [--dry-run] [--json] [--yes]
+  coco manage bootstrap [--dry-run] [--json] [--yes]
+  coco doctor [--json] [--connectivity]
+  coco core <status|check> [--json]
+
+Managed providers:
+  idepub, achai, agnes, deepseek, stepfun
+
+Credentials:
+  Set a provider credential interactively with "coco manage auth set <provider>",
+  or read it from standard input with --stdin. Do not put credentials on the
+  command line. "auth status" reports availability and source, never a value.
+
+Offline and resources:
+  Coco starts offline unless PI_OFFLINE is explicitly set. Network-dependent
+  checks and model sync require an enabled connection. Packaged resources are
+  integrity-checked; executable project resources are not trusted.
+
+Security:
+  Coco safety guardrails are best-effort and are not a sandbox. "coco update"
+  is prohibited; update Coco through its approved installation process.
+
+Pi compatibility:
+  Commands outside this native grammar are forwarded to bundled Pi ${CORE_VERSION}
+  with Coco's guard. Pi options and commands remain compatible.
+`);
+  return { exitCode: 0, kind: "native" };
+}
 
 function usage(message) {
   process.stderr.write(`coco: ${message}\n`);
@@ -83,7 +123,17 @@ function promptWarnings() {
   } catch { return ["OWNED_APPEND_DRIFT"]; }
 }
 
-function diagnosticOutput(body, json) { process.stdout.write(json ? `${JSON.stringify(body)}\n` : `coco ${body.command}: ${body.status}\n`); return { exitCode: body.exitCode, kind: "native" }; }
+function diagnosticOutput(body, json) {
+  if (json) process.stdout.write(`${JSON.stringify(body)}\n`);
+  else {
+    process.stdout.write(`coco ${body.command}: ${body.status}\n`);
+    for (const check of body.checks) {
+      const marker = check.status === "pass" ? "PASS" : check.status === "skipped" ? "SKIP" : check.severity === "fatal" ? "FAIL" : "WARN";
+      process.stdout.write(`${marker.padEnd(4)}  ${check.id.padEnd(32)} ${check.message}\n`);
+    }
+  }
+  return { exitCode: body.exitCode, kind: "native" };
+}
 
 async function native(argv, root) {
   if (argv[0] === "doctor") {
@@ -166,6 +216,7 @@ export async function dispatchCoco({ argv = process.argv.slice(2), root }) {
   if (hasProviderTestSeam()) return failure("TEST_SEAM_FORBIDDEN");
   if (hasApiKeyArgument(argv)) return failure("API_KEY_ARG_FORBIDDEN");
   if (argv[0] === "update") return failure("UPDATE_COMMAND_FORBIDDEN");
+  if (argv.length === 1 && ["--help", "-h", "help"].includes(argv[0])) return help();
   if (argv[0] === "--version" || argv[0] === "-v") {
     process.stdout.write(`${COCO_VERSION}\n`);
     return { exitCode: 0, kind: "native" };

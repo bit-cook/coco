@@ -4,6 +4,8 @@
       "title": "Start here",
       "items": [
         { "title": "Overview", "path": "index.md" },
+        { "title": "Coco CLI", "path": "coco-cli.md" },
+        { "title": "Coco Security", "path": "coco-security.md" },
         { "title": "Quickstart", "path": "quickstart.md" },
         { "title": "Using Pi", "path": "usage.md" },
         { "title": "Providers", "path": "providers.md" },

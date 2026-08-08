@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.8] - 2026-08-08
+
+### Added
+
+- Added native `coco --help`, `coco -h`, and `coco help` output for Coco commands, managed providers, credentials, offline behavior, project-resource policy, and Pi compatibility.
+- Added concise English and Simplified Chinese Coco CLI and security guides that take precedence over inherited Pi operational documentation.
+- Added trustworthy doctor checks for the default provider, catalog hashes, sessions, prompt ownership, trust policy, and the packaged guard.
+
+### Security
+
+- Hardened uninstall path and launcher ownership checks to prevent deleting arbitrary directories or unrelated executables.
+- Added an installation ownership marker and managed state ownership metadata for fresh installations.
+- Updated GitHub Actions to current immutable pins and added bounded jobs, cancellable CI, release checksum verification, and a real published installer lifecycle test.
+
+### Changed
+
+- `coco core check` now treats the default offline registry check as skipped instead of failing an otherwise healthy local verification.
+- Text diagnostics now list each check and its status instead of printing only the aggregate result.
+
 ## [0.1.7] - 2026-08-08
 
 ### Performance

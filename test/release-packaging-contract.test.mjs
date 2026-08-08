@@ -19,13 +19,13 @@ test("Given public release metadata, when the Pages launcher runs, then it execu
     const metadata = join(output, "releases.json");
     const installer = join(output, "install.sh");
     await mkdir(bin);
-    await writeFile(metadata, '[{"tag_name":"v0.1.2","draft":false,"prerelease":false},{"tag_name":"v0.1.3","draft":false,"prerelease":false},{"tag_name":"v0.1.6","draft":false,"prerelease":false},{"tag_name":"v0.1.7","draft":false,"prerelease":false},{"tag_name":"v9.0.0","draft":true,"prerelease":false}]\n');
+    await writeFile(metadata, '[{"tag_name":"v0.1.2","draft":false,"prerelease":false},{"tag_name":"v0.1.3","draft":false,"prerelease":false},{"tag_name":"v0.1.7","draft":false,"prerelease":false},{"tag_name":"v0.1.8","draft":false,"prerelease":false},{"tag_name":"v9.0.0","draft":true,"prerelease":false}]\n');
     await writeFile(installer, '#!/usr/bin/env bash\nprintf "%s\\n" "$COCO_VERSION" > "$COCO_TEST_RESULT"\n');
-    await writeFile(join(bin, "curl"), '#!/usr/bin/env bash\nset -euo pipefail\nfor argument in "$@"; do\n  case "$argument" in\n    http*) url="$argument" ;;\n    -o) output=1 ;;\n    *) if [ "${output:-0}" = 1 ]; then target="$argument"; output=0; fi ;;\n  esac\ndone\ncase "$url" in\n  *api.github.com*) cp "$COCO_TEST_METADATA" "$target" ;;\n  */v0.1.7/install.sh) cp "$COCO_TEST_INSTALLER" "$target" ;;\n  *) exit 1 ;;\nesac\n');
+    await writeFile(join(bin, "curl"), '#!/usr/bin/env bash\nset -euo pipefail\nfor argument in "$@"; do\n  case "$argument" in\n    http*) url="$argument" ;;\n    -o) output=1 ;;\n    *) if [ "${output:-0}" = 1 ]; then target="$argument"; output=0; fi ;;\n  esac\ndone\ncase "$url" in\n  *api.github.com*) cp "$COCO_TEST_METADATA" "$target" ;;\n  */v0.1.8/install.sh) cp "$COCO_TEST_INSTALLER" "$target" ;;\n  *) exit 1 ;;\nesac\n');
     await Promise.all([chmod(installer, 0o755), chmod(join(bin, "curl"), 0o755)]);
     const environment = { ...process.env, COCO_INSTALL_ROOT_URL: "https://raw.example/coco", COCO_RELEASES_API_URL: "https://api.github.com/fake", COCO_TEST_INSTALLER: installer, COCO_TEST_METADATA: metadata, COCO_TEST_RESULT: result, PATH: `${bin}:${process.env.PATH}`, TMPDIR: output };
     await exec("bash", [join(root, "site", "install.sh")], { env: environment });
-    assert.equal((await readFile(result, "utf8")).trim(), "0.1.7");
+    assert.equal((await readFile(result, "utf8")).trim(), "0.1.8");
     await writeFile(metadata, "not-json\n");
     await assert.rejects(exec("bash", [join(root, "site", "install.sh")], { env: environment }));
   } finally {
@@ -102,11 +102,39 @@ test("Given release workflows, when npm packs release assets, then the destinati
   for (const workflowName of ["ci.yml", "release.yml"]) {
     const workflow = await readFile(join(root, ".github", "workflows", workflowName), "utf8");
     const createDirectory = workflow.indexOf("- run: mkdir release");
-    const pack = workflow.indexOf("- run: npm pack --json --pack-destination release");
+    const pack = workflow.indexOf("- run: node node_modules/npm/bin/npm-cli.js pack --json --pack-destination release");
     assert.notEqual(createDirectory, -1);
     assert.notEqual(pack, -1);
     assert.ok(createDirectory < pack);
   }
+});
+
+test("Given release workflows, when GitHub Actions and execution controls are configured, then pins are current, CI is cancellable, and jobs are bounded", async () => {
+  const [ciWorkflow, releaseWorkflow, pagesWorkflow] = await Promise.all([
+    readFile(join(root, ".github", "workflows", "ci.yml"), "utf8"),
+    readFile(join(root, ".github", "workflows", "release.yml"), "utf8"),
+    readFile(join(root, ".github", "workflows", "pages.yml"), "utf8"),
+  ]);
+
+  assert.match(ciWorkflow, /concurrency:\n  group: ci-\$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n  cancel-in-progress: true/);
+  for (const workflow of [ciWorkflow, releaseWorkflow, pagesWorkflow]) assert.match(workflow, /timeout-minutes: 20/);
+  for (const workflow of [ciWorkflow, releaseWorkflow, pagesWorkflow]) assert.match(workflow, /actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09/);
+  for (const workflow of [ciWorkflow, releaseWorkflow]) assert.match(workflow, /actions\/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38/);
+  assert.match(ciWorkflow, /actions\/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4/);
+  assert.match(pagesWorkflow, /actions\/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d/);
+  assert.match(pagesWorkflow, /actions\/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b/);
+  assert.match(pagesWorkflow, /actions\/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128/);
+});
+
+test("Given a published release, when post-release validation runs, then checksums and an isolated package lifecycle are verified", async () => {
+  const workflow = await readFile(join(root, ".github", "workflows", "release.yml"), "utf8");
+  assert.match(workflow, /curl -fsSL --retry 5 --retry-delay 2 "\$base_url\/\$asset" -o "\$release_dir\/\$asset"/);
+  assert.match(workflow, /\(cd "\$release_dir" && sha256sum --check SHA256SUMS\)/);
+  assert.match(workflow, /COCO_INSTALL_DIR="\$sandbox\/install"/);
+  assert.match(workflow, /bash "\$release_dir\/install\.sh"/);
+  assert.match(workflow, /test "\$\("\$COCO_BIN_DIR\/coco" --version\)" = "\$version"/);
+  assert.match(workflow, /bash "\$release_dir\/uninstall\.sh"/);
+  assert.match(workflow, /test ! -e "\$COCO_INSTALL_DIR"/);
 });
 
 test("Given release workflows, when tarball closure runs through the shell, then its inline JavaScript contains no command substitution", async () => {
@@ -119,8 +147,8 @@ test("Given release workflows, when tarball closure runs through the shell, then
   }
 });
 
-test("Given the v0.1.7 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
-  const version = "0.1.7";
+test("Given the v0.1.8 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
+  const version = "0.1.8";
   const [packageJson, packageLock, installer, readme, englishReadme, chineseReadme, ciWorkflow, releaseWorkflow] = await Promise.all([
     readFile(join(root, "package.json"), "utf8"),
     readFile(join(root, "package-lock.json"), "utf8"),
@@ -140,13 +168,13 @@ test("Given the v0.1.7 release contract, when public release surfaces are inspec
     assert.match(document, new RegExp(`COCO_VERSION=${version} bash install\\.sh`));
   }
   assert.match(packageJson, /tarball:'coco-'\+require\('\.\/package\.json'\)\.version\+'\.tgz'/);
-  assert.match(ciWorkflow, /actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02/);
+  assert.match(ciWorkflow, /actions\/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4/);
   for (const workflow of [ciWorkflow, releaseWorkflow]) {
     assert.match(workflow, /coco-\$\(node -p "require\('\.\.\/package\.json'\)\.version"\)\.tgz\.sha256/);
   }
   assert.equal(releaseWorkflow.includes("releases/latest/download"), false);
   assert.equal(releaseWorkflow.includes("agnes.key"), false);
-  assert.match(releaseWorkflow, /releases\/download\/\$GITHUB_REF_NAME\/install\.sh/);
+  assert.match(releaseWorkflow, /releases\/download\/\$GITHUB_REF_NAME/);
   assert.match(releaseWorkflow, /sha256sum install\.sh uninstall\.sh coco-\*\.tgz coco-\*\.tgz\.sha256 > SHA256SUMS/);
   assert.match(releaseWorkflow, /release\/SHA256SUMS/);
 });

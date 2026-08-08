@@ -4,6 +4,8 @@
       "title": "从这里开始",
       "items": [
         { "title": "概览", "path": "index.md" },
+        { "title": "Coco CLI", "path": "coco-cli.md" },
+        { "title": "Coco 安全", "path": "coco-security.md" },
         { "title": "快速开始", "path": "quickstart.md" },
         { "title": "使用 Pi", "path": "usage.md" },
         { "title": "提供商", "path": "providers.md" },
