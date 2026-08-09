@@ -79,7 +79,10 @@ a:focus-visible, button:focus-visible, summary:focus-visible { outline: none; bo
 .page-shell { width: min(calc(100% - var(--space-6)), var(--content-width)); margin-inline: auto; }
 .masthead, .footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .masthead { padding-block: var(--space-5); border-bottom: var(--border-width) solid var(--line); }
-.wordmark { color: var(--accent); font-size: var(--text-lg); font-weight: 700; letter-spacing: -0.08em; text-decoration: none; }
+.masthead-links { display: flex; align-items: center; gap: var(--space-5); }
+.brand-lockup { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--accent); text-decoration: none; }
+.brand-mark { width: 1.5rem; height: 1.5rem; flex: 0 0 auto; }
+.wordmark { font-size: var(--text-lg); font-weight: 700; letter-spacing: -0.08em; }
 .repository-link { font-size: var(--text-sm); }
 
 main { padding-block: var(--space-9) var(--space-8); }
@@ -151,6 +154,7 @@ details[open] summary { margin-bottom: var(--space-4); color: var(--accent); }
   .command-block { align-items: stretch; flex-direction: column; }
   .copy-button { width: 100%; }
   .footer { align-items: flex-start; flex-direction: column; }
+  .masthead-links { align-items: flex-end; flex-direction: column; gap: var(--space-2); }
 }
 
 @media (prefers-reduced-motion: reduce) {
