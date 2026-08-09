@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { COCO_VERSION, CORE_VERSION } from "./coco-runtime-identity.mjs";
 
 const MANAGED_PROVIDERS = new Set(["idepub", "achai", "agnes", "deepseek", "stepfun"]);
-const NATIVE_COMMANDS = new Set(["manage", "doctor", "core"]);
+const NATIVE_COMMANDS = new Set(["manage", "doctor", "core", "task", "runner", "control", "mcp"]);
 
 function help() {
   process.stdout.write(`CoCo ${COCO_VERSION}
@@ -23,6 +23,11 @@ Usage:
   coco manage bootstrap [--dry-run] [--json] [--yes]
   coco doctor [--json] [--connectivity]
   coco core <status|check> [--json]
+  coco task create <prompt> [--no-worktree] [--schedule <Nm|Nh|Nd>] [--webhook] [--github-event <event>]
+  coco task list|active|show|cancel|stop-all|run [id] [--json]
+  coco runner start|status|stop|run [--once]
+  coco control start|status|token|stop [--host <address>] [--port <port>]
+  coco mcp add <name> -- <command> [args...] | list | approve|ask|deny|remove <name>
 
 Interactive goals:
   /goal [status]            Show goal and step progress
@@ -160,6 +165,20 @@ function diagnosticOutput(body, json) {
 }
 
 async function native(argv, root) {
+  if (argv[0] === "task" || argv[0] === "runner") {
+    try {
+      const commands = await import("./task-commands.mjs");
+      return argv[0] === "task" ? commands.taskCommand(argv.slice(1), root) : commands.runnerCommand(argv.slice(1), root);
+    } catch (error) { return failure(error instanceof Error && "code" in error ? error.code : "TASK_COMMAND_FAILED"); }
+  }
+  if (argv[0] === "mcp") {
+    try { const { agentDirectory } = await import("./state-paths.mjs"); return await (await import("./mcp-config.mjs")).mcpCommand(argv.slice(1), agentDirectory()); }
+    catch (error) { return failure(error instanceof Error && "code" in error ? error.code : "MCP_COMMAND_FAILED"); }
+  }
+  if (argv[0] === "control") {
+    try { const { agentDirectory } = await import("./state-paths.mjs"); return await (await import("./control-service.mjs")).controlCommand(argv.slice(1), { agentDir: agentDirectory(), root }); }
+    catch (error) { return failure(error instanceof Error && "code" in error ? error.code : "CONTROL_COMMAND_FAILED"); }
+  }
   if (argv[0] === "doctor") {
     const { doctor } = await import("./diagnostics.mjs");
     const flags = argv.slice(1);
@@ -250,7 +269,9 @@ export async function dispatchCoco({ argv = process.argv.slice(2), root }) {
   const guard = join(root, "resources", "coco-guard.mjs");
   const goal = join(root, "resources", "coco-goal.mjs");
   const loop = join(root, "resources", "coco-loop.mjs");
+  const mcp = join(root, "resources", "coco-mcp.mjs");
+  const subagents = join(root, "examples", "extensions", "subagent", "index.ts");
   if (argv.includes("--help") || argv.includes("-h")) process.stderr.write("coco: CoCo safety guardrails are best-effort and not a sandbox.\n");
-  process.argv.splice(2, process.argv.length - 2, "-e", language, "-e", guard, "-e", goal, "-e", loop, ...argv);
-  return { goal, guard, kind: "forward", language, loop };
+  process.argv.splice(2, process.argv.length - 2, "-e", language, "-e", guard, "-e", goal, "-e", loop, "-e", mcp, "-e", subagents, ...argv);
+  return { goal, guard, kind: "forward", language, loop, mcp, subagents };
 }

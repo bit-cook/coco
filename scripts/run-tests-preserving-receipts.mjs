@@ -12,7 +12,8 @@ const receipts = receiptDirectory ? receiptNames.map((name) => join(receiptDirec
 const snapshots = await Promise.all(receipts.map(async (path) => {
   try { return { bytes: await readFile(path), path }; } catch (error) { if (error && error.code === "ENOENT") return null; throw error; }
 }));
-const tests = process.env.COCO_TEST_FILES?.split(",").filter(Boolean) ?? (await readdir("test")).filter((path) => path.endsWith(".test.mjs")).sort().map((path) => `test/${path}`);
+const excluded = new Set(process.env.COCO_TEST_EXCLUDE?.split(",").filter(Boolean) ?? []);
+const tests = process.env.COCO_TEST_FILES?.split(",").filter(Boolean) ?? (await readdir("test")).filter((path) => path.endsWith(".test.mjs") && !excluded.has(path)).sort().map((path) => `test/${path}`);
 const code = await new Promise((finish) => {
   const child = spawn(process.execPath, ["--test", "--test-concurrency=1", ...tests], { env: process.env, stdio: "inherit" });
   child.once("close", (status) => finish(status ?? 1));

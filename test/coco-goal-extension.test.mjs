@@ -127,7 +127,7 @@ test("goal extension avoids status and widget updates in non-UI contexts", async
   assert.equal(harness.ui.notifications.length, 1);
 });
 
-test("dispatcher installs language, guard, goal, then loop ahead of Pi arguments and keeps native help out of Pi", async () => {
+test("dispatcher installs CoCo native extensions ahead of Pi arguments and keeps native help out of Pi", async () => {
   const originalArgv = process.argv.slice();
   const originalWrite = process.stdout.write;
   let stdout = "";
@@ -141,12 +141,16 @@ test("dispatcher installs language, guard, goal, then loop ahead of Pi arguments
       kind: "forward",
       language: join("/root/coco", "resources", "coco-language.mjs"),
       loop: join("/root/coco", "resources", "coco-loop.mjs"),
+      mcp: join("/root/coco", "resources", "coco-mcp.mjs"),
+      subagents: join("/root/coco", "examples", "extensions", "subagent", "index.ts"),
     });
     assert.deepEqual(process.argv.slice(2), [
       "-e", join("/root/coco", "resources", "coco-language.mjs"),
       "-e", join("/root/coco", "resources", "coco-guard.mjs"),
       "-e", join("/root/coco", "resources", "coco-goal.mjs"),
       "-e", join("/root/coco", "resources", "coco-loop.mjs"),
+      "-e", join("/root/coco", "resources", "coco-mcp.mjs"),
+      "-e", join("/root/coco", "examples", "extensions", "subagent", "index.ts"),
       "--model", "test-model",
     ]);
 

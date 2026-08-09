@@ -146,8 +146,8 @@ test("Given an unresolved upstream resolver path, when the asset map is generate
 test("Given an installed core at 0.82.0, when its package closure is verified, then it rejects with the pinned-core code", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-core-version-"));
   try {
-    await writeFile(join(fixture, "package.json"), JSON.stringify({ bundledDependencies: ["@earendil-works/pi-coding-agent"], dependencies: { "@earendil-works/pi-coding-agent": "0.82.1" }, devDependencies: { npm: "11.18.0" }, packageManager: "npm@11.18.0" }));
-    await writeFile(join(fixture, "package-lock.json"), JSON.stringify({ lockfileVersion: 3, packages: { "": { dependencies: { "@earendil-works/pi-coding-agent": "0.82.1" }, devDependencies: { npm: "11.18.0" } } } }));
+    await writeFile(join(fixture, "package.json"), JSON.stringify({ bundledDependencies: ["@earendil-works/pi-coding-agent", "@modelcontextprotocol/sdk"], dependencies: { "@earendil-works/pi-coding-agent": "0.82.1", "@modelcontextprotocol/sdk": "1.30.0" }, devDependencies: { npm: "11.18.0" }, packageManager: "npm@11.18.0" }));
+    await writeFile(join(fixture, "package-lock.json"), JSON.stringify({ lockfileVersion: 3, packages: { "": { dependencies: { "@earendil-works/pi-coding-agent": "0.82.1", "@modelcontextprotocol/sdk": "1.30.0" }, devDependencies: { npm: "11.18.0" } } } }));
     await mkdir(join(fixture, "node_modules", "@earendil-works", "pi-coding-agent"), { recursive: true });
     await writeFile(join(fixture, "node_modules", "@earendil-works", "pi-coding-agent", "package.json"), JSON.stringify({ version: "0.82.0" }));
     assert.equal((await verifyPackageClosure({ root: fixture })).code, "PACKAGE_CORE_VERSION_MISMATCH");

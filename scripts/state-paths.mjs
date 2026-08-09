@@ -12,7 +12,20 @@ export function agentDirectory(environment = process.env) {
 
 export function statePaths(agentDir) {
   const root = resolve(agentDir);
-  return Object.freeze({ agentDir: root, auth: join(root, "auth.json"), catalogs: join(root, "catalogs"), journal: join(root, "transactions"), models: join(root, "models.json"), ownership: join(root, "ownership.json"), settings: join(root, "settings.json") });
+  return Object.freeze({
+    agentDir: root,
+    auth: join(root, "auth.json"),
+    catalogs: join(root, "catalogs"),
+    control: join(root, "control.json"),
+    journal: join(root, "transactions"),
+    mcp: join(root, "mcp.json"),
+    models: join(root, "models.json"),
+    ownership: join(root, "ownership.json"),
+    runner: join(root, "runner.json"),
+    settings: join(root, "settings.json"),
+    tasks: join(root, "tasks.json"),
+    worktrees: join(root, "worktrees"),
+  });
 }
 
 export function safeStatePath(agentDir, path) {

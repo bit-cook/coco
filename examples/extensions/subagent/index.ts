@@ -32,6 +32,7 @@ import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.ts";
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
+const MAX_NESTING_DEPTH = 2;
 const COLLAPSED_ITEM_COUNT = 10;
 const PER_TASK_OUTPUT_CAP = 50 * 1024;
 
@@ -334,6 +335,7 @@ async function runSingleAgent(
 			const invocation = getPiInvocation(args);
 			const proc = spawn(invocation.command, invocation.args, {
 				cwd: cwd ?? defaultCwd,
+				env: { ...process.env, COCO_SUBAGENT_DEPTH: String(Number(process.env.COCO_SUBAGENT_DEPTH || "0") + 1) },
 				shell: false,
 				stdio: ["ignore", "pipe", "pipe"],
 			});
@@ -470,6 +472,10 @@ export default function (pi: ExtensionAPI) {
 		parameters: SubagentParams,
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
+			const nestingDepth = Number(process.env.COCO_SUBAGENT_DEPTH || "0");
+			if (!Number.isSafeInteger(nestingDepth) || nestingDepth < 0 || nestingDepth >= MAX_NESTING_DEPTH) {
+				return { content: [{ type: "text", text: `Subagent nesting is limited to ${MAX_NESTING_DEPTH} levels.` }], isError: true };
+			}
 			const agentScope: AgentScope = params.agentScope ?? "user";
 			const discovery = discoverAgents(ctx.cwd, agentScope);
 			const agents = discovery.agents;

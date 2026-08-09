@@ -19,8 +19,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 Or install an explicitly reviewed release:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.1.8/install.sh
-COCO_VERSION=0.1.8 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.2.0/install.sh
+COCO_VERSION=0.2.0 bash install.sh
 ```
 
 The installer verifies the exact-tag release tarball and the pinned public Agnes credential against their published SHA-256 values, safely extracts CoCo, and preserves existing `~/.coco/agent` configuration during updates and reinstalls.
@@ -43,6 +43,7 @@ coco --list-models
 
 - User manual: [English](documentation/en/docs/manual.md) | [简体中文](documentation/zh-CN/docs/manual.md)
 - Operational reference: [CoCo CLI](documentation/en/docs/coco-cli.md) | [CoCo security](documentation/en/docs/coco-security.md)
+- Tasks and control: [English](documentation/en/docs/tasks.md) | [简体中文](documentation/zh-CN/docs/tasks.md)
 - Language packs: [English instructions](documentation/en/docs/manual.md#language-switching-and-language-packs) | [中文说明](documentation/zh-CN/docs/manual.md#多语言切换与语言包)
 - Documentation index: [English](documentation/en/README.md) | [简体中文](documentation/zh-CN/README.md)
 
@@ -53,6 +54,8 @@ CoCo-specific documentation takes precedence over inherited Pi documentation whe
 Use the built-in interactive `/goal` command to set and track a goal for the current session branch. Goals and plans persist with that branch, survive context compaction, and guide the agent without overriding the current user instruction or CoCo safety policy. See [CoCo CLI](documentation/en/docs/coco-cli.md#persistent-goals) for the command grammar and [CoCo security](documentation/en/docs/coco-security.md#goal-instruction-and-safety-boundary) for the trust boundary.
 
 Use interactive `/loop` for recurring work in the current saved session. It runs only while that matching CoCo session is open, inherits normal CoCo guard and permission behavior, and never loads project-local loop prompts. See [CoCo CLI](documentation/en/docs/coco-cli.md#scheduled-loops).
+
+Use `coco task create` for durable background and worktree tasks that survive terminal closure. Inspect live Agent PIDs with `coco task active`, and completely terminate all Agent process groups with `coco task stop-all`. See [Tasks, Agents, and Control](documentation/en/docs/tasks.md).
 
 CoCo includes English and Simplified Chinese language switching through `/language`. Additional languages can be installed as global JSON language packs.
 
@@ -84,6 +87,9 @@ Alternatively, supply credentials only for the current process with these enviro
 | `~/.coco/agent/models.json` | Public provider and model metadata |
 | `~/.coco/agent/auth.json` | Locally stored credentials (`0600`) |
 | `~/.coco/agent/loops.json` | Saved-session recurring loops |
+| `~/.coco/agent/tasks.json` | Durable tasks, schedules, status, and results |
+| `~/.coco/agent/mcp.json` | MCP stdio server registry and approval policy |
+| `~/.coco/agent/control.json` | Active local control endpoint and token (`0600`) |
 | `~/.coco/agent/loop.md` | Optional global default loop prompt |
 | `~/.coco/agent/skills/` | Skills |
 | `~/.coco/agent/prompts/` | Prompt templates |

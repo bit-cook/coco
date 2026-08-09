@@ -34,9 +34,9 @@ test("Given a successful cold verification, when CoCo writes its warm cache, the
     // Then
     const dependencyEntries = Object.keys(cache.entries).filter((path) => path.startsWith("node_modules/"));
     assert.ok(Object.keys(cache.entries).length > 0);
-    assert.ok(Object.keys(cache.entries).length < 2_000);
+    assert.ok(Object.keys(cache.entries).length < 5_000);
     assert.ok(Object.keys(cache.directories).length > 0);
-    assert.ok(dependencyEntries.every((path) => path.startsWith("node_modules/@earendil-works/pi-coding-agent/dist/") || path === "node_modules/@earendil-works/pi-coding-agent/package.json"));
+    assert.ok(dependencyEntries.every((path) => path.startsWith("node_modules/@earendil-works/pi-coding-agent/dist/") || path === "node_modules/@earendil-works/pi-coding-agent/package.json" || path.startsWith("node_modules/@modelcontextprotocol/sdk/dist/") || path === "node_modules/@modelcontextprotocol/sdk/package.json"));
   } finally {
     await rm(directory, { force: true, recursive: true });
   }

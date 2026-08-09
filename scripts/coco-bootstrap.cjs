@@ -19,16 +19,19 @@ const PACKAGE_EXCLUDED = new Set([
   "scripts/verify-plan-evidence.mjs", "scripts/verify-protected-baseline.mjs",
   "node_modules/@earendil-works/pi-coding-agent/node_modules/proper-lockfile/CHANGELOG.md",
   "node_modules/@earendil-works/pi-coding-agent/node_modules/which/CHANGELOG.md",
+  "node_modules/proper-lockfile/CHANGELOG.md",
+  "node_modules/which/CHANGELOG.md",
   "node_modules/@earendil-works/pi-coding-agent/.runtime-integrity-cache.json",
 ]);
 for (let task = 1; task <= 16; task += 1) PACKAGE_EXCLUDED.add(`scripts/qa-task-${task}.mjs`);
 const TRUST_ANCHORS = new Set(["bin/coco", "scripts/coco-bootstrap.cjs"]);
 const ROOTS = ["bin", "dist", "docs", "examples", "resources", "scripts", "CHANGELOG.md", "README.md", "package.json"];
 const CORE_ROOT = "node_modules/@earendil-works/pi-coding-agent";
+const MCP_ROOT = "node_modules/@modelcontextprotocol/sdk";
 // Warm verification is trusted-local change detection, not an adversarial
 // same-user sandbox. Installation and COCO_INTEGRITY_FULL retain full hashing;
 // startup checks CoCo code plus the pinned Pi core to avoid scanning SDK trees.
-const FAST_ROOTS = ["bin", "dist", "resources", "scripts", "package.json", `${CORE_ROOT}/dist`, `${CORE_ROOT}/package.json`];
+const FAST_ROOTS = ["bin", "dist", "resources", "scripts", "package.json", `${CORE_ROOT}/dist`, `${CORE_ROOT}/package.json`, `${MCP_ROOT}/package.json`];
 
 const MANIFEST_ENTRY = "resources/runtime-integrity-manifest.v1.json";
 const SIDECAR_ENTRY = "resources/runtime-integrity-manifest.v1.json.sha256";

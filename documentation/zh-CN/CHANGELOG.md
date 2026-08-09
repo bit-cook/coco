@@ -1,5 +1,11 @@
 # 更新日志
 
+## [0.2.0] - 2026-08-09
+
+- 新增原生 Subagents、持久后台与工作树任务、定时任务、认证 Webhook 和 GitHub 事件触发。
+- 新增本地可视化控制后台、令牌认证远程控制 API、原生 MCP 客户端和 VS Code 客户端。
+- 新增运行中 Agent/PID 查看，以及通过 `coco task active` 和 `coco task stop-all` 验证完整进程组终止。
+
 ## [0.82.1] - 2026-07-25
 
 ### 新功能

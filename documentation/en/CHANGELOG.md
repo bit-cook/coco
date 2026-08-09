@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.0] - 2026-08-09
+
+- Added native subagents, persistent background and worktree tasks, schedules, authenticated webhooks, and GitHub event triggers.
+- Added the local control dashboard, token-authenticated remote control API, native MCP client, and VS Code client.
+- Added live Agent/PID inspection and verified process-group termination through `coco task active` and `coco task stop-all`.
+
 ## [0.82.1] - 2026-07-25
 
 ### New Features

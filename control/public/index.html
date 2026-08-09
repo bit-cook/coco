@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>CoCo Control</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="control.css">
+</head>
+<body>
+  <header>
+    <a class="brand" href="/"><span class="mark">C</span><span>CoCo Control</span></a>
+    <div class="connection"><span id="status-dot"></span><span id="status">未连接</span></div>
+  </header>
+  <main>
+    <section class="hero">
+      <div><p class="eyebrow">LOCAL-FIRST TASK CONTROL</p><h1>让任务继续运行，<br><em>而不是让窗口一直开着。</em></h1></div>
+      <p class="lede">工作树隔离、后台执行、事件触发和结果回传，共用一个安全任务队列。</p>
+    </section>
+    <section class="connect panel" id="connect-panel">
+      <div><strong>连接本机控制服务</strong><p>令牌仅保存在当前浏览器会话。运行 <code>coco control token</code> 获取。</p></div>
+      <form id="connect-form"><input id="token" type="password" autocomplete="off" placeholder="控制令牌" required><button>连接</button></form>
+    </section>
+    <section class="composer panel hidden" id="composer">
+      <div class="section-title"><div><span>新任务</span><h2>交给 CoCo 后台完成</h2></div><span class="safe">默认 Worktree</span></div>
+      <form id="task-form">
+        <textarea id="prompt" required placeholder="描述要完成的工作、验收标准和限制..."></textarea>
+        <div class="form-row"><input id="cwd" required placeholder="项目绝对路径"><label><input id="worktree" type="checkbox" checked> 工作树隔离</label><label><input id="approval" type="checkbox"> 审批后运行</label><button>创建任务</button></div>
+      </form>
+    </section>
+    <section class="tasks hidden" id="tasks-section">
+      <div class="section-title"><div><span>任务队列</span><h2>运行、等待与结果</h2></div><div class="actions"><button class="danger" id="stop-all">全部终止</button><button class="quiet" id="refresh">刷新</button></div></div>
+      <div class="agents panel" id="agents"><strong>活跃 Agent</strong><span id="agent-count">0 个正在运行</span></div>
+      <div id="tasks" class="task-grid"></div>
+    </section>
+  </main>
+  <template id="task-template"><article class="task-card"><div class="task-head"><span class="task-status"></span><code class="task-id"></code></div><h3 class="task-prompt"></h3><div class="task-meta"></div><pre class="task-result"></pre><button class="approve">批准运行</button><button class="cancel quiet">取消任务</button></article></template>
+  <script src="app.js" defer></script>
+</body>
+</html>

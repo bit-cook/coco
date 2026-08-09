@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.0] - 2026-08-09
+
+### Added
+
+- Added native configurable subagents with single, parallel, and chained orchestration, per-agent models and tool allowlists.
+- Added persistent background tasks with process-group supervision, live Agent/PID inspection, and verified one-click termination of all Agent process trees.
+- Added interval schedules, authenticated webhooks, and GitHub event triggers backed by one durable task queue.
+- Added a bright local control dashboard and a token-authenticated, loopback-first control API with explicit remote opt-in.
+- Added an official MCP client with a versioned stdio server registry, approval policy, tool discovery, cancellation, and safe default environment inheritance.
+- Added native Git worktree task isolation with deterministic branches and dirty-worktree cleanup protection.
+- Added a VS Code client for selection and open-tab context, task history, native diff review, and background task creation.
+
+### Security
+
+- Remote control is disabled unless explicitly enabled; raw Pi RPC, credentials, arbitrary session paths, and direct shell endpoints are not exposed.
+- Webhook tasks remain blocked until bearer or GitHub HMAC verification succeeds.
+- Background cancellation sends `SIGTERM` then `SIGKILL` to the complete process group and reports failure if any Agent remains alive.
+
 ## [0.1.8] - 2026-08-08
 
 ### Added

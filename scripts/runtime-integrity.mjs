@@ -17,6 +17,8 @@ const PACKAGE_EXCLUDED = new Set([
   "scripts/verify-plan-evidence.mjs", "scripts/verify-protected-baseline.mjs",
   "node_modules/@earendil-works/pi-coding-agent/node_modules/proper-lockfile/CHANGELOG.md",
   "node_modules/@earendil-works/pi-coding-agent/node_modules/which/CHANGELOG.md",
+  "node_modules/proper-lockfile/CHANGELOG.md",
+  "node_modules/which/CHANGELOG.md",
   "node_modules/@earendil-works/pi-coding-agent/.runtime-integrity-cache.json",
 ]);
 for (let task = 1; task <= 16; task += 1) PACKAGE_EXCLUDED.add(`scripts/qa-task-${task}.mjs`);

@@ -19,13 +19,13 @@ test("Given public release metadata, when the Pages launcher runs, then it execu
     const metadata = join(output, "releases.json");
     const installer = join(output, "install.sh");
     await mkdir(bin);
-    await writeFile(metadata, '[{"tag_name":"v0.1.2","draft":false,"prerelease":false},{"tag_name":"v0.1.3","draft":false,"prerelease":false},{"tag_name":"v0.1.7","draft":false,"prerelease":false},{"tag_name":"v0.1.8","draft":false,"prerelease":false},{"tag_name":"v9.0.0","draft":true,"prerelease":false}]\n');
+    await writeFile(metadata, '[{"tag_name":"v0.1.8","draft":false,"prerelease":false},{"tag_name":"v0.2.0","draft":false,"prerelease":false},{"tag_name":"v9.0.0","draft":true,"prerelease":false}]\n');
     await writeFile(installer, '#!/usr/bin/env bash\nprintf "%s\\n" "$COCO_VERSION" > "$COCO_TEST_RESULT"\n');
-    await writeFile(join(bin, "curl"), '#!/usr/bin/env bash\nset -euo pipefail\nfor argument in "$@"; do\n  case "$argument" in\n    http*) url="$argument" ;;\n    -o) output=1 ;;\n    *) if [ "${output:-0}" = 1 ]; then target="$argument"; output=0; fi ;;\n  esac\ndone\ncase "$url" in\n  *api.github.com*) cp "$COCO_TEST_METADATA" "$target" ;;\n  */v0.1.8/install.sh) cp "$COCO_TEST_INSTALLER" "$target" ;;\n  *) exit 1 ;;\nesac\n');
+    await writeFile(join(bin, "curl"), '#!/usr/bin/env bash\nset -euo pipefail\nfor argument in "$@"; do\n  case "$argument" in\n    http*) url="$argument" ;;\n    -o) output=1 ;;\n    *) if [ "${output:-0}" = 1 ]; then target="$argument"; output=0; fi ;;\n  esac\ndone\ncase "$url" in\n  *api.github.com*) cp "$COCO_TEST_METADATA" "$target" ;;\n  */v0.2.0/install.sh) cp "$COCO_TEST_INSTALLER" "$target" ;;\n  *) exit 1 ;;\nesac\n');
     await Promise.all([chmod(installer, 0o755), chmod(join(bin, "curl"), 0o755)]);
     const environment = { ...process.env, COCO_INSTALL_ROOT_URL: "https://raw.example/coco", COCO_RELEASES_API_URL: "https://api.github.com/fake", COCO_TEST_INSTALLER: installer, COCO_TEST_METADATA: metadata, COCO_TEST_RESULT: result, PATH: `${bin}:${process.env.PATH}`, TMPDIR: output };
     await exec("bash", [join(root, "site", "install.sh")], { env: environment });
-    assert.equal((await readFile(result, "utf8")).trim(), "0.1.8");
+    assert.equal((await readFile(result, "utf8")).trim(), "0.2.0");
     await writeFile(metadata, "not-json\n");
     await assert.rejects(exec("bash", [join(root, "site", "install.sh")], { env: environment }));
   } finally {
@@ -49,6 +49,8 @@ test("Given the public package contract, when CoCo is packed, then only release-
     assert.equal(paths.includes("package/install.sh"), true);
     assert.equal(paths.includes("package/uninstall.sh"), true);
     assert.equal(paths.includes("package/documentation/en/README.md"), true);
+    assert.equal(paths.includes("package/control/public/index.html"), true);
+    assert.equal(paths.includes("package/vscode/extension.js"), true);
     assert.equal(paths.includes("package/scripts/protected-baseline.json"), true);
     assert.equal(paths.includes("package/scripts/protected-baseline.json.sha256"), true);
     assert.equal(paths.some((path) => path.includes("/logs/")), false);
@@ -91,7 +93,7 @@ test("Given release workflows, when runtime tests execute, then the patched runt
   for (const workflowName of ["ci.yml", "release.yml"]) {
     const workflow = await readFile(join(root, ".github", "workflows", workflowName), "utf8");
     const build = workflow.indexOf("- run: npm run build");
-    const test = workflow.indexOf("- run: npm test");
+    const test = workflow.indexOf("- run: npm run test:core");
     assert.notEqual(build, -1);
     assert.notEqual(test, -1);
     assert.ok(build < test);
@@ -117,7 +119,8 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   ]);
 
   assert.match(ciWorkflow, /concurrency:\n  group: ci-\$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n  cancel-in-progress: true/);
-  for (const workflow of [ciWorkflow, releaseWorkflow, pagesWorkflow]) assert.match(workflow, /timeout-minutes: 20/);
+  for (const workflow of [ciWorkflow, pagesWorkflow]) assert.match(workflow, /timeout-minutes: 20/);
+  assert.match(releaseWorkflow, /timeout-minutes: 40/);
   for (const workflow of [ciWorkflow, releaseWorkflow, pagesWorkflow]) assert.match(workflow, /actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09/);
   for (const workflow of [ciWorkflow, releaseWorkflow]) assert.match(workflow, /actions\/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38/);
   assert.match(ciWorkflow, /actions\/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4/);
@@ -147,8 +150,8 @@ test("Given release workflows, when tarball closure runs through the shell, then
   }
 });
 
-test("Given the v0.1.8 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
-  const version = "0.1.8";
+test("Given the v0.2.0 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
+  const version = "0.2.0";
   const [packageJson, packageLock, installer, readme, englishReadme, chineseReadme, ciWorkflow, releaseWorkflow] = await Promise.all([
     readFile(join(root, "package.json"), "utf8"),
     readFile(join(root, "package-lock.json"), "utf8"),
@@ -175,7 +178,7 @@ test("Given the v0.1.8 release contract, when public release surfaces are inspec
   assert.equal(releaseWorkflow.includes("releases/latest/download"), false);
   assert.equal(releaseWorkflow.includes("agnes.key"), false);
   assert.match(releaseWorkflow, /releases\/download\/\$GITHUB_REF_NAME/);
-  assert.match(releaseWorkflow, /sha256sum install\.sh uninstall\.sh coco-\*\.tgz coco-\*\.tgz\.sha256 coco-\*-offline-\*\.zip coco-\*-offline-\*\.zip\.sha256 > SHA256SUMS/);
+  assert.match(releaseWorkflow, /sha256sum install\.sh uninstall\.sh coco-\*\.tgz coco-\*\.tgz\.sha256 coco-\*-offline-\*\.zip coco-\*-offline-\*\.zip\.sha256 coco-agent-\*\.vsix > SHA256SUMS/);
   assert.match(releaseWorkflow, /npm run build:offline/);
   assert.match(releaseWorkflow, /release\/SHA256SUMS/);
 });

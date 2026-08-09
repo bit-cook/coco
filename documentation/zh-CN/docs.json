@@ -7,6 +7,7 @@
         { "title": "CoCo 用户手册", "path": "manual.md" },
         { "title": "CoCo CLI", "path": "coco-cli.md" },
         { "title": "CoCo 安全", "path": "coco-security.md" },
+        { "title": "任务与控制后台", "path": "tasks.md" },
         { "title": "快速开始", "path": "quickstart.md" },
         { "title": "使用 Pi", "path": "usage.md" },
         { "title": "提供商", "path": "providers.md" },

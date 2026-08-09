@@ -46,12 +46,12 @@ function crc32(bytes) {
 }
 function u16(value) { const result = Buffer.alloc(2); result.writeUInt16LE(value); return result; }
 function u32(value) { const result = Buffer.alloc(4); result.writeUInt32LE(value >>> 0); return result; }
-async function writeZip(directory, output, bundleRoot) {
+export async function writeZip(directory, output, bundleRoot = "") {
   const files = await regularFiles(directory);
   const chunks = [], central = [];
   let offset = 0;
   for (const file of files) {
-    const bytes = await readFile(file.path), name = Buffer.from(`${bundleRoot}/${file.relative}`), crc = crc32(bytes);
+    const bytes = await readFile(file.path), name = Buffer.from(bundleRoot ? `${bundleRoot}/${file.relative}` : file.relative), crc = crc32(bytes);
     const local = Buffer.concat([u32(0x04034b50), u16(20), u16(0x800), u16(0), u16(0), u16(0x21), u32(crc), u32(bytes.length), u32(bytes.length), u16(name.length), u16(0), name]);
     chunks.push(local, bytes);
     central.push(Buffer.concat([u32(0x02014b50), u16((3 << 8) | 20), u16(20), u16(0x800), u16(0), u16(0), u16(0x21), u32(crc), u32(bytes.length), u32(bytes.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(file.mode << 16), u32(offset), name]));

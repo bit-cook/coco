@@ -1,5 +1,7 @@
 # CoCo 文档
 
+- [任务、Agent 与控制后台](tasks.md) - 后台任务、活跃 Agent、工作树、触发器、MCP、控制后台、远程控制和 VS Code。
+
 ## CoCo 操作文档
 
 CoCo Agent 是 Pi 的下游发行版。[CoCo CLI](coco-cli.md) 和 [CoCo 安全](coco-security.md) 说明 CoCo 的行为；如与下方继承的 Pi 页面冲突，以它们为准。其余页面是继承的 Pi 参考资料，其中可能包含 CoCo 已更改或禁用的命令、提供商、路径、项目资源或更新行为。

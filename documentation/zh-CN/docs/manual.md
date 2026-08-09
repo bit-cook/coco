@@ -39,8 +39,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 如果需要审阅一个特定发布版，下载该标签对应的安装程序，并显式指定同一版本：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.1.8/install.sh
-COCO_VERSION=0.1.8 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.2.0/install.sh
+COCO_VERSION=0.2.0 bash install.sh
 ```
 
 安装程序会校验发行包；更新或重装时会保留既有的 `~/.coco/agent` 配置。
