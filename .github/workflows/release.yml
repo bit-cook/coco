@@ -40,7 +40,10 @@ jobs:
       - working-directory: release
         run: sha256sum install.sh uninstall.sh coco-*.tgz coco-*.tgz.sha256 coco-*-offline-*.zip coco-*-offline-*.zip.sha256 > SHA256SUMS
       - run: node scripts/publication-secret-scanner.mjs release
-      - run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes release/install.sh release/uninstall.sh release/coco-*.tgz release/coco-*.tgz.sha256 release/coco-*-offline-*.zip release/coco-*-offline-*.zip.sha256 release/SHA256SUMS
+      - run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: gh release upload "$GITHUB_REF_NAME" --clobber release/install.sh release/uninstall.sh release/coco-*.tgz release/coco-*.tgz.sha256 release/coco-*-offline-*.zip release/coco-*-offline-*.zip.sha256 release/SHA256SUMS
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Verify released assets and package lifecycle

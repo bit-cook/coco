@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { chmod, lstat, mkdtemp, mkdir, readFile, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { execFile, spawn } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 
 const cocoRoot = new URL("..", import.meta.url).pathname;
@@ -95,7 +95,7 @@ async function fixture() {
       COCO_TEST_SIDECAR: join(server, "coco-0.1.8.tgz.sha256"),
       COCO_TEST_TARBALL: tarball,
       HOME: root,
-      PATH: `${bin}:/usr/bin:/bin`,
+      PATH: `${bin}:${dirname(process.execPath)}:/usr/bin:/bin`,
     },
     install,
     root,
