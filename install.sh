@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_URL="${COCO_RELEASES_API_URL:-https://api.github.com/repos/aithernexus/coco/releases?per_page=100}"
-ROOT_URL="${COCO_INSTALL_ROOT_URL:-https://raw.githubusercontent.com/aithernexus/coco}"
+API_URL="${COCO_RELEASES_API_URL:-https://api.github.com/repos/bit-cook/coco/releases?per_page=100}"
+ROOT_URL="${COCO_INSTALL_ROOT_URL:-https://raw.githubusercontent.com/bit-cook/coco}"
 TMP_ROOT="${TMPDIR:-/tmp}"
 metadata="$(mktemp "${TMP_ROOT%/}/coco-releases.XXXXXX")"
 installer="$(mktemp "${TMP_ROOT%/}/coco-install.XXXXXX")"
