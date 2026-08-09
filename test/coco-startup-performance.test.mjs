@@ -19,7 +19,7 @@ function run(environment) {
   });
 }
 
-test("Given a successful cold verification, when Coco writes its warm cache, then it stores only the bounded startup closure", async () => {
+test("Given a successful cold verification, when CoCo writes its warm cache, then it stores only the bounded startup closure", async () => {
   // Given
   const directory = await mkdtemp(join(tmpdir(), "coco-fast-startup-"));
   const agentDir = join(directory, "agent");

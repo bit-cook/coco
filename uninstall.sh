@@ -72,10 +72,10 @@ if [ -e "$COCO_AGENT_DIR" ] || [ -L "$COCO_AGENT_DIR" ]; then
   fi
 fi
 if [ -e "$COCO_INSTALL_DIR" ] || [ -L "$COCO_INSTALL_DIR" ]; then
-  is_owned_install || die "Refusing to remove an unrecognized Coco installation: $COCO_INSTALL_DIR"
+  is_owned_install || die "Refusing to remove an unrecognized CoCo installation: $COCO_INSTALL_DIR"
 fi
 
-info "Removing Coco completely"
+info "Removing CoCo completely"
 
 rm -rf -- \
   "$COCO_INSTALL_DIR" \
@@ -105,7 +105,7 @@ remove_managed_launcher "$COCO_SYSTEM_BIN"
 hash -r 2>/dev/null || true
 
 if command -v coco >/dev/null 2>&1; then
-  die "Another Coco executable remains at $(command -v coco)"
+  die "Another CoCo executable remains at $(command -v coco)"
 fi
 
-info "Coco has been completely removed"
+info "CoCo has been completely removed"

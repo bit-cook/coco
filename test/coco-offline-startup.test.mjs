@@ -53,7 +53,7 @@ async function installedStartupFixture() {
 }
 
 for (const explicitValue of ["0", "false"]) {
-  test(`Given PI_OFFLINE=${explicitValue}, when Coco enters its trusted bootstrap, then it preserves the user's startup-network opt-in`, async () => {
+  test(`Given PI_OFFLINE=${explicitValue}, when CoCo enters its trusted bootstrap, then it preserves the user's startup-network opt-in`, async () => {
     const fixture = await bootstrapFixture();
     try {
       const result = await run(process.execPath, [join(fixture, "scripts", "coco-bootstrap.cjs")], { ...process.env, COCO_CODING_AGENT_DIR: join(fixture, "agent"), PI_OFFLINE: explicitValue });
@@ -65,7 +65,7 @@ for (const explicitValue of ["0", "false"]) {
   });
 }
 
-test("Given PI_OFFLINE is unset, when Coco enters its trusted bootstrap, then it enables the upstream offline contract before the launcher imports", async () => {
+test("Given PI_OFFLINE is unset, when CoCo enters its trusted bootstrap, then it enables the upstream offline contract before the launcher imports", async () => {
   const fixture = await bootstrapFixture();
   try {
     const environment = { ...process.env, COCO_CODING_AGENT_DIR: join(fixture, "agent") };
@@ -78,7 +78,7 @@ test("Given PI_OFFLINE is unset, when Coco enters its trusted bootstrap, then it
   }
 });
 
-test("Given a bare installed Coco PTY with missing fd and rg, when startup begins without PI_OFFLINE, then it neither downloads tools nor invokes fetch", async () => {
+test("Given a bare installed CoCo PTY with missing fd and rg, when startup begins without PI_OFFLINE, then it neither downloads tools nor invokes fetch", async () => {
   const fixture = await installedStartupFixture();
   try {
     const toolsManager = await readFile(join(root, "dist", "utils", "tools-manager.js"), "utf8");

@@ -1,6 +1,6 @@
-# Coco CLI
+# CoCo CLI
 
-This page is the Coco operational reference. It takes precedence over inherited Pi documentation.
+This page is the CoCo operational reference. It takes precedence over inherited Pi documentation.
 
 ## Install and upgrade
 
@@ -27,7 +27,7 @@ coco -p "hello"
 coco --list-models
 ```
 
-Coco starts with `PI_OFFLINE=1` unless you have set `PI_OFFLINE`. Startup therefore does not check for updates or download missing `fd` and `ripgrep` binaries. This does not disable model or provider API calls. Opt in to Pi startup networking for one run with:
+CoCo starts with `PI_OFFLINE=1` unless you have set `PI_OFFLINE`. Startup therefore does not check for updates or download missing `fd` and `ripgrep` binaries. This does not disable model or provider API calls. Opt in to Pi startup networking for one run with:
 
 ```bash
 PI_OFFLINE=0 coco
@@ -59,17 +59,37 @@ PI_OFFLINE=0 coco
 
 Goal state is appended to session history and restored from the current branch, so a forked or resumed branch has its own latest goal state rather than a shared global goal. During context compaction, the active goal context is regenerated before the next agent turn; use `/goal status` to inspect the persisted goal and plan after compaction.
 
-The model has a `goal` tool for reading and updating the current goal's plan and progress. Its actions are `status`, `set_steps`, `activate_step`, `block_step`, `reopen_step`, `complete_step`, and `complete`; it must use `set_steps` to store an ordered plan and must not complete a step before work and verification finish. The goal guides work but does not override the current user instruction or Coco safety policy.
+The model has a `goal` tool for reading and updating the current goal's plan and progress. Its actions are `status`, `set_steps`, `activate_step`, `block_step`, `reopen_step`, `complete_step`, and `complete`; it must use `set_steps` to store an ordered plan and must not complete a step before work and verification finish. The goal guides work but does not override the current user instruction or CoCo safety policy.
+
+## Scheduled loops
+
+`/loop` schedules recurring agent prompts in the current saved session, not a shell command or top-level `coco` argument.
+
+```text
+/loop
+/loop check deploy
+/loop 5m check deploy
+/loop check deploy every 2 hours
+/loop list
+/loop cancel <id>
+```
+
+- Durations accept compact leading `s`, `m`, `h`, or `d`, and trailing natural `seconds`, `minutes`, `hours`, or `days` (singular or plural). The minimum is one minute; seconds round up to a minute. Fixed loops use elapsed intervals, not Claude cron normalization.
+- Tasks are scoped to the exact saved session file in `~/.coco/agent/loops.json`, with at most 50 active tasks and 8-character IDs. They expire after seven days. An open matching session receives one final fire at expiry, even before its next regular due time; expired tasks found on resume are removed silently. Resume advances missed due times to a future interval without catch-up bursts.
+- `list` and `status` show this session's loops. `cancel` accepts an unambiguous ID prefix and rejects ambiguous prefixes.
+- Bare and interval-only loops read only global `~/.coco/agent/loop.md` on each fire (regular non-symlink file, capped at 25,000 bytes), otherwise use the conservative built-in maintenance prompt. Project-local loop files are never loaded.
+- Prompt-only loops begin dynamically at 10 minutes. The resulting turn can use `loop_wakeup` to reschedule from 1 minute through 1 hour with a reason, or stop; otherwise it falls back once at about 20 minutes and stops after the next unrescheduled fallback. Fixed loops need no tool call.
+- Resulting turns inherit existing CoCo guardrails and permissions. A scheduled `/...` prompt is text, not an extension command.
 
 ## Language
 
-Use `/language`, `/language en`, or `/language zh-CN` to select a built-in language. `/language status` shows the selection and `/language list` includes valid user language packs. Selection persists globally. Custom data-only JSON packs belong in `~/.coco/agent/languages/`; see the [Coco user manual](manual.md#language-switching-and-language-packs) for the schema, supported keys, validation rules, and pack-authoring workflow.
+Use `/language`, `/language en`, or `/language zh-CN` to select a built-in language. `/language status` shows the selection and `/language list` includes valid user language packs. Selection persists globally. Custom data-only JSON packs belong in `~/.coco/agent/languages/`; see the [CoCo user manual](manual.md#language-switching-and-language-packs) for the schema, supported keys, validation rules, and pack-authoring workflow.
 
-The selection localizes Coco-owned commands and response guidance. Some inherited Pi core UI remains English, and an explicit current user language request takes priority.
+The selection localizes CoCo-owned commands and response guidance. Some inherited Pi core UI remains English, and an explicit current user language request takes priority.
 
 ## Managed providers and authentication
 
-Coco manages exactly these providers: `agnes`, `idepub`, `achai`, `stepfun`, and `deepseek`. A fresh installer configures Agnes as the default (`agnes/agnes-2.5-flash` with `max` thinking); it does not bundle provider credentials in source.
+CoCo manages exactly these providers: `agnes`, `idepub`, `achai`, `stepfun`, and `deepseek`. A fresh installer configures Agnes as the default (`agnes/agnes-2.5-flash` with `max` thinking); it does not bundle provider credentials in source.
 
 Do not pass credentials on the command line: `--api-key` is rejected. Store a key without exposing it in shell history with the interactive command, which does not echo the key:
 
@@ -94,4 +114,4 @@ Current-process credentials may instead use `AGNES_API_KEY`, `IDEPUB_API_KEY`, `
 
 ## Configuration scope
 
-Coco uses global resources under `~/.coco/agent/`, including `settings.json`, `models.json`, `auth.json`, `skills/`, `prompts/`, and `extensions/`. Project-local settings, extensions, skills, prompts, and system prompt files are not loaded. See [Coco security](coco-security.md).
+CoCo uses global resources under `~/.coco/agent/`, including `settings.json`, `models.json`, `auth.json`, `skills/`, `prompts/`, and `extensions/`. Project-local settings, extensions, skills, prompts, and system prompt files are not loaded. See [CoCo security](coco-security.md).

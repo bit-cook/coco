@@ -1,26 +1,26 @@
-# Coco 用户手册
+# CoCo 用户手册
 
-本手册面向日常使用 Coco 的用户，覆盖安装、交互界面、认证、模型、会话、自动化与安全边界。
+本手册面向日常使用 CoCo Agent 的用户，覆盖安装、交互界面、认证、模型、会话、自动化与安全边界。
 
-Coco 是基于 Pi Coding Agent 的下游发行版，提供编码和终端能力，并增加受管理提供商、持久目标、启动离线策略与资源信任限制。
+CoCo 是基于 Pi Coding Agent 的下游发行版，提供编码和终端能力，并增加受管理提供商、持久目标、启动离线策略与资源信任限制。
 
-除非特别说明，命令均在终端中运行；斜线命令在 Coco 的交互界面编辑器中输入。
+除非特别说明，命令均在终端中运行；斜线命令在 CoCo 的交互界面编辑器中输入。
 
 ## 阅读规则与优先级
 
-本仓库同时附带 Coco 专用文档和继承的 Pi 文档。
+本仓库同时附带 CoCo 专用文档和继承的 Pi 文档。
 
 发生冲突时，优先级从高到低如下：
 
-1. Coco 运行时的原生命令与错误输出。
-2. 本手册以及 [Coco CLI](coco-cli.md) 和 [Coco 安全](coco-security.md)。
+1. CoCo 运行时的原生命令与错误输出。
+2. 本手册以及 [CoCo CLI](coco-cli.md) 和 [CoCo 安全](coco-security.md)。
 3. 其他随附的 Pi 兼容功能文档。
 
-因此，不要把 Pi 文档中出现的 `pi` 可执行文件、`~/.pi/agent` 路径、项目资源信任、`pi update` 或 `--api-key` 直接套用到 Coco。
+因此，不要把 Pi 文档中出现的 `pi` 可执行文件、`~/.pi/agent` 路径、项目资源信任、`pi update` 或 `--api-key` 直接套用到 CoCo。
 
-在 Coco 中使用 `coco` 启动，且状态默认位于 `~/.coco/agent/`。
+在 CoCo 中使用 `coco` 启动，且状态默认位于 `~/.coco/agent/`。
 
-`--api-key` 被 Coco 拒绝，无论它写成 `--api-key VALUE` 还是 `--api-key=VALUE`。
+`--api-key` 被 CoCo 拒绝，无论它写成 `--api-key VALUE` 还是 `--api-key=VALUE`。
 
 `coco update` 也被明确拒绝；升级必须重新运行获准的安装程序。
 
@@ -63,7 +63,7 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 
 ### 离线与内网安装
 
-对于无法访问公网的 Linux 或 macOS 主机，可在联网的发布构建机上生成对应平台的 Coco 离线 ZIP。ZIP 内含 Coco 完整软件本体、全部捆绑依赖、已校验的私有 Node 运行时、校验文件和 `offline-install.sh`；目标机不会运行 npm，也不会下载组件。
+对于无法访问公网的 Linux 或 macOS 主机，可在联网的发布构建机上生成对应平台的 CoCo 离线 ZIP。ZIP 内含 CoCo 完整软件本体、全部捆绑依赖、已校验的私有 Node 运行时、校验文件和 `offline-install.sh`；目标机不会运行 npm，也不会下载组件。
 
 将 ZIP 传入内网并解压后运行：
 
@@ -92,7 +92,7 @@ printf '%s\n' "$INTRANET_AI_API_KEY" | \
   bash offline-install.sh
 ```
 
-还可设置 `COCO_INTRANET_MODEL_NAME`、`COCO_INTRANET_CONTEXT_WINDOW` 和 `COCO_INTRANET_MAX_TOKENS`。安装器不会静默覆盖已有的同名提供商。离线启动器固定设置 `PI_OFFLINE=1`，但仍允许 Coco 请求已配置的内网模型地址。
+还可设置 `COCO_INTRANET_MODEL_NAME`、`COCO_INTRANET_CONTEXT_WINDOW` 和 `COCO_INTRANET_MAX_TOKENS`。安装器不会静默覆盖已有的同名提供商。离线启动器固定设置 `PI_OFFLINE=1`，但仍允许 CoCo 请求已配置的内网模型地址。
 
 发布维护者可用 `npm run build:offline` 生成当前平台 ZIP。构建机可能下载并校验官方 Node 归档，但目标机安装过程不访问公网。
 
@@ -128,13 +128,13 @@ coco manage auth status
 
 再为所需的受管理提供商设置凭据，或在当前进程设置相应环境变量。
 
-首次运行会使用 Coco 的全局状态目录；请确保当前用户有权限创建 `~/.coco`。
+首次运行会使用 CoCo 的全局状态目录；请确保当前用户有权限创建 `~/.coco`。
 
 ## 启动离线策略
 
-Coco 默认离线启动，除非调用环境已经显式设置 `PI_OFFLINE`。
+CoCo 默认离线启动，除非调用环境已经显式设置 `PI_OFFLINE`。
 
-默认情况下 Coco 在 Pi 加载前设置 `PI_OFFLINE=1`。
+默认情况下 CoCo 在 Pi 加载前设置 `PI_OFFLINE=1`。
 
 这会阻止启动阶段的版本检查，以及缺失 `fd` 和 `ripgrep` 二进制文件的下载。
 
@@ -150,11 +150,11 @@ PI_OFFLINE=0 coco
 
 ## 原生命令概览
 
-`coco --help`、`coco -h` 与 `coco help` 显示 Coco 原生帮助。
+`coco --help`、`coco -h` 与 `coco help` 显示 CoCo 原生帮助。
 
-`coco --version` 或 `coco -v` 显示 Coco 版本。
+`coco --version` 或 `coco -v` 显示 CoCo 版本。
 
-下表中的命令由 Coco 自己处理，不会转发给 Pi。
+下表中的命令由 CoCo 自己处理，不会转发给 Pi。
 
 | 命令 | 用途 | 关键选项 |
 |---|---|---|
@@ -163,8 +163,8 @@ PI_OFFLINE=0 coco
 | `coco manage auth remove <provider>` | 删除已存储密钥 | `--yes`、`--json` |
 | `coco manage models sync` | 从提供商刷新模型目录 | `--provider`、`--allow-empty`、`--yes`、`--json` |
 | `coco manage migrate` | 迁移旧状态 | `--dry-run`、`--yes`、`--json` |
-| `coco manage bootstrap` | 建立或修复 Coco 管理的基础状态 | `--dry-run`、`--yes`、`--json` |
-| `coco doctor` | 检查本地 Coco 状态 | `--connectivity`、`--json` |
+| `coco manage bootstrap` | 建立或修复 CoCo 管理的基础状态 | `--dry-run`、`--yes`、`--json` |
+| `coco doctor` | 检查本地 CoCo 状态 | `--connectivity`、`--json` |
 | `coco core status` | 校验本地核心身份 | `--json` |
 | `coco core check` | 检查本地核心并尝试注册表比较 | `--json` |
 
@@ -174,13 +174,13 @@ PI_OFFLINE=0 coco
 
 `--json` 输出机器可读 JSON，适合脚本消费；不要依赖普通文本诊断的列宽或措辞。
 
-除 `manage`、`doctor`、`core` 和帮助/version 外，其他参数会转发给随 Coco 提供的 Pi 兼容运行时，并自动加载 Coco 防护和 `/goal` 扩展。
+除 `manage`、`doctor`、`core` 和帮助/version 外，其他参数会转发给随 CoCo 提供的 Pi 兼容运行时，并自动加载 CoCo 防护和 `/goal` 扩展。
 
 ## 受管理提供商与认证
 
-Coco 仅管理以下五个提供商：`agnes`、`idepub`、`achai`、`stepfun`、`deepseek`。
+CoCo 仅管理以下五个提供商：`agnes`、`idepub`、`achai`、`stepfun`、`deepseek`。
 
-“管理”指 Coco 原生命令可为它们保存凭据并同步其模型目录；它不表示 Coco 会提供你的密钥。
+“管理”指 CoCo 原生命令可为它们保存凭据并同步其模型目录；它不表示 CoCo 会提供你的密钥。
 
 交互式设置会以隐藏输入读取密钥，并要求再次确认：
 
@@ -260,7 +260,7 @@ coco manage models sync --provider idepub --yes --json
 
 只有在你明确接受空目录结果时使用 `--allow-empty`。
 
-同步需要可用网络；Coco 默认离线启动不等同于禁用后续模型 API，但你必须提供实际可达的连接。
+同步需要可用网络；CoCo 默认离线启动不等同于禁用后续模型 API，但你必须提供实际可达的连接。
 
 使用 `--list-models` 查看当前可选模型：
 
@@ -284,7 +284,7 @@ coco --model agnes/agnes-2.5-flash:max "解释测试失败"
 
 可用思考级别为 `off`、`minimal`、`low`、`medium`、`high`、`xhigh`、`max`，具体模型可能隐藏或映射不支持的级别。
 
-不要使用 `--api-key` 来临时让模型可用。Coco 会在转发前拒绝它，返回 `API_KEY_ARG_FORBIDDEN`。
+不要使用 `--api-key` 来临时让模型可用。CoCo 会在转发前拒绝它，返回 `API_KEY_ARG_FORBIDDEN`。
 
 ## 自定义模型与提供商
 
@@ -307,13 +307,13 @@ coco --model agnes/agnes-2.5-flash:max "解释测试失败"
 }
 ```
 
-此处的 `apiKey` 是配置文件值，不是 Coco 顶层 `--api-key` 参数。
+此处的 `apiKey` 是配置文件值，不是 CoCo 顶层 `--api-key` 参数。
 
 模型配置、兼容开关、模型覆盖与值解析的完整字段说明见[自定义模型](models.md)。
 
 使用 `/model` 时会重新加载 `models.json`，所以修改后通常无需重启会话。
 
-自定义模型配置是全局资源，不要在仓库的 `.pi`、`.coco` 或其他项目目录放置期望由 Coco 加载的副本。
+自定义模型配置是全局资源，不要在仓库的 `.pi`、`.coco` 或其他项目目录放置期望由 CoCo 加载的副本。
 
 ## 交互界面与编辑器
 
@@ -344,7 +344,7 @@ coco --model agnes/agnes-2.5-flash:max "解释测试失败"
 
 外部编辑器依次使用 `externalEditor` 设置、`$VISUAL`、`$EDITOR`，以及平台回退值。
 
-为 VS Code 设置外部编辑器时应包含 `--wait`，使 Coco 等待编辑器关闭：
+为 VS Code 设置外部编辑器时应包含 `--wait`，使 CoCo 等待编辑器关闭：
 
 ```json
 { "externalEditor": "code --wait" }
@@ -370,9 +370,30 @@ Escape 取消排队消息并恢复到编辑器，Alt+Up 可把排队消息取回
 
 技能可作为 `/skill:name` 使用，提示模板会以其模板名称成为斜线命令。
 
+## 循环任务
+
+`/loop` 为当前已保存会话创建循环提示，在交互编辑器中输入，不是 shell 命令或顶层 `coco` 参数。
+
+```text
+/loop
+/loop 检查部署
+/loop 5m 检查部署
+/loop 检查部署 every 2 hours
+/loop list
+/loop cancel <id>
+```
+
+循环保存于 `~/.coco/agent/loops.json`，绑定精确会话文件，仅在匹配 CoCo 进程/会话保持打开时运行。恢复时，错过的时间会推进至下一未来间隔，不补跑也不突发。每会话最多 50 个活动循环任务，每项 ID 为 8 字符，七天后过期；打开的匹配会话会在过期时最终触发一次，即使在下一个常规到期时间之前，恢复时发现的过期任务会被静默删除。
+
+`/loop list` 和 `/loop status` 显示当前会话的循环任务。`/loop cancel <id>` 接受无歧义 ID 前缀；有歧义的前缀会被拒绝。
+
+时长支持前置紧凑 `s`、`m`、`h`、`d`，以及后置自然语言 seconds、minutes、hours、days。秒会向上取整，最短一分钟。固定间隔有意使用经过时间语义，而非 Claude cron 归一化。
+
+空提示或仅时长循环每次触发只加载全局 `~/.coco/agent/loop.md`，最多 25,000 字节，符号链接或非普通文件会被拒绝；否则使用保守内置维护提示。绝不加载项目本地 `.claude/loop.md` 或 `.coco/loop.md`。仅提示动态循环从 10 分钟开始，可用 `loop_wakeup` 带理由延后 1 分钟至 1 小时，或停止。未调用工具会约 20 分钟后回退一次，下一次仍未重排即停止。计划回合继承 CoCo 既有 guard 和权限；以 `/` 开始的提示仍是文本。
+
 ## 多语言切换与语言包
 
-Coco 默认内置英文（`en`）和简体中文（`zh-CN`），默认语言为英文。可在交互界面中使用：
+CoCo 默认内置英文（`en`）和简体中文（`zh-CN`），默认语言为英文。可在交互界面中使用：
 
 ```text
 /language
@@ -384,7 +405,7 @@ Coco 默认内置英文（`en`）和简体中文（`zh-CN`），默认语言为�
 
 `/language` 会在交互 UI 中打开语言选择器。成功选择后，语言会保存到 `~/.coco/agent/language.json`，重启后继续生效。设置 `COCO_CODING_AGENT_DIR` 时，语言选择文件和语言包目录会跟随该 agent 目录。
 
-所选语言适用于 Coco 自有命令和文案，包括 `/language`、`/goal`、安全确认标题，以及要求模型使用该语言回答的系统引导。命令名、代码、标识符、路径、API 名称和引用原文不会翻译。部分尚未接入 Coco 翻译层的 Pi 核心界面仍可能显示英文。模型回复语言属于引导而非强制；用户当前明确要求使用其他语言时，以用户要求为准。
+所选语言适用于 CoCo 自有命令和文案，包括 `/language`、`/goal`、安全确认标题，以及要求模型使用该语言回答的系统引导。命令名、代码、标识符、路径、API 名称和引用原文不会翻译。部分尚未接入 CoCo 翻译层的 Pi 核心界面仍可能显示英文。模型回复语言属于引导而非强制；用户当前明确要求使用其他语言时，以用户要求为准。
 
 ### 制作语言包
 
@@ -394,7 +415,7 @@ Coco 默认内置英文（`en`）和简体中文（`zh-CN`），默认语言为�
 ~/.coco/agent/languages/<locale>.json
 ```
 
-语言包属于全局用户数据。Coco 不加载项目本地语言包，不联网下载语言包，也不会执行语言包中的代码。
+语言包属于全局用户数据。CoCo 不加载项目本地语言包，不联网下载语言包，也不会执行语言包中的代码。
 
 示例 `~/.coco/agent/languages/es.json`：
 
@@ -427,10 +448,10 @@ Coco 默认内置英文（`en`）和简体中文（`zh-CN`），默认语言为�
 - `messages` 是扁平的字符串键值对象。
 - 用户语言包可以只翻译部分键；缺失内容自动回退到内置英文。
 - 超过 1 MiB、符号链接、未知消息键、非字符串值、NUL 字节或终端转义字符会被拒绝。
-- 无效语言包会被忽略，不会阻止 Coco 启动。
+- 无效语言包会被忽略，不会阻止 CoCo 启动。
 - 英文原文中的 `{locale}`、`{name}`、`{status}`、`{completed}`、`{total}`、`{goal}`、`{locales}` 等占位符应原样保留。
 
-已安装 Coco 中的 `resources/languages/en.json` 是权威语言包模板，`resources/languages/zh-CN.json` 是完整示例。建议按以下步骤制作：
+已安装 CoCo 中的 `resources/languages/en.json` 是权威语言包模板，`resources/languages/zh-CN.json` 是完整示例。建议按以下步骤制作：
 
 1. 将 `resources/languages/en.json` 复制到安装目录之外。
 2. 修改 `locale` 和 `name`。
@@ -456,15 +477,15 @@ coco --no-tools -p "给出不执行工具的建议"
 
 工具选择能减少模型可调用的能力，但不是对宿主环境的隔离。
 
-## Coco guard 与安全边界
+## CoCo guard 与安全边界
 
-转发给 Pi 的会话会在最前面加载 Coco guard 与目标扩展。
+转发给 Pi 的会话会在最前面加载 CoCo guard 与目标扩展。
 
-Coco guard 对部分敏感路径写入和 shell 命令采取尽力而为的阻止或确认策略。
+CoCo guard 对部分敏感路径写入和 shell 命令采取尽力而为的阻止或确认策略。
 
 guard 不是沙箱，也不是安全边界。
 
-Coco、Pi 工具、扩展和你执行的命令均以启动 Coco 的用户权限运行。
+CoCo、Pi 工具、扩展和你执行的命令均以启动 CoCo 的用户权限运行。
 
 不可信仓库、无人值守任务或高价值凭据场景，应使用容器、VM、microVM 或远程沙箱等真实隔离机制。
 
@@ -472,7 +493,7 @@ Coco、Pi 工具、扩展和你执行的命令均以启动 Coco 的用户权限�
 
 仓库中的代码、文档、注释、生成物、提示词和工具输出均可能含有提示注入，应视为不可信输入。
 
-有关策略和建议见[Coco 安全](coco-security.md)与[容器化](containerization.md)。
+有关策略和建议见[CoCo 安全](coco-security.md)与[容器化](containerization.md)。
 
 ## `/goal` 持久目标
 
@@ -534,15 +555,15 @@ Coco、Pi 工具、扩展和你执行的命令均以启动 Coco 的用户权限�
 
 当前用户指令优先于目标。
 
-目标不是授权机制，不能覆盖 Coco 的安全策略或 guard。
+目标不是授权机制，不能覆盖 CoCo 的安全策略或 guard。
 
 目标文本、计划、模型的工具更新、仓库内容和工具输出都应按不可信输入处理。
 
 ## 会话、恢复与分支
 
-Coco 会使用其全局代理目录保存会话，并按工作目录组织。
+CoCo 会使用其全局代理目录保存会话，并按工作目录组织。
 
-默认状态根是 `~/.coco/agent/`；若设置 `COCO_CODING_AGENT_DIR`，Coco 使用该变量指定的绝对状态目录。
+默认状态根是 `~/.coco/agent/`；若设置 `COCO_CODING_AGENT_DIR`，CoCo 使用该变量指定的绝对状态目录。
 
 会话是有树结构的 JSONL 文件。
 
@@ -589,7 +610,7 @@ coco --fork <path|id>    # 从会话创建新文件
 
 ## 上下文压缩
 
-上下文接近窗口限制时，Coco 兼容运行时可自动压缩较早消息。
+上下文接近窗口限制时，CoCo 兼容运行时可自动压缩较早消息。
 
 也可用 `/compact [prompt]` 手动总结旧上下文，并可附加聚焦指令。
 
@@ -655,18 +676,19 @@ JSON 的完整事件定义见[JSON 事件流模式](json.md)，RPC 的全部命�
 
 ## 设置与全局状态路径
 
-Coco 的默认全局配置根为 `~/.coco/agent/`。
+CoCo 的默认全局配置根为 `~/.coco/agent/`。
 
 可通过 `COCO_CODING_AGENT_DIR` 指向另一个绝对代理目录，适合隔离测试或多个独立配置。
 
-下表列出 Coco 相关的确切默认路径。
+下表列出 CoCo 相关的确切默认路径。
 
 | 路径 | 用途 |
 |---|---|
 | `~/.coco/agent/settings.json` | 默认提供商、模型、界面和运行设置 |
 | `~/.coco/agent/models.json` | 自定义及受管理的模型元数据 |
 | `~/.coco/agent/auth.json` | 已保存凭据，权限为 `0600` |
-| `~/.coco/agent/ownership.json` | Coco 管理文件的所有权元数据 |
+| `~/.coco/agent/loops.json` | 已保存会话的循环任务 |
+| `~/.coco/agent/ownership.json` | CoCo 管理文件的所有权元数据 |
 | `~/.coco/agent/migration.json` | 迁移状态与需要轮换的提供商 |
 | `~/.coco/agent/catalogs/` | 受管理提供商的当前与先前目录记录 |
 | `~/.coco/agent/transactions/` | 状态事务日志 |
@@ -702,17 +724,17 @@ Coco 的默认全局配置根为 `~/.coco/agent/`。
 
 ## 扩展、技能、提示与主题
 
-Coco 仅从全局代理目录加载可执行或可影响行为的用户资源。
+CoCo 仅从全局代理目录加载可执行或可影响行为的用户资源。
 
 允许的全局位置是 `~/.coco/agent/extensions/`、`~/.coco/agent/skills/`、`~/.coco/agent/prompts/` 和由全局设置引用的路径。
 
-项目本地设置、扩展、技能、提示模板和系统提示文件不会被 Coco 加载。
+项目本地设置、扩展、技能、提示模板和系统提示文件不会被 CoCo 加载。
 
-换言之，仓库中的 `.pi/settings.json`、`.pi` 资源、`.agents/skills`、项目 `.coco` 资源或项目本地可执行资源不能通过 Coco 自动生效。
+换言之，仓库中的 `.pi/settings.json`、`.pi` 资源、`.agents/skills`、项目 `.coco` 资源或项目本地可执行资源不能通过 CoCo 自动生效。
 
 项目本地可执行资源不会被加载，即使仓库看起来可信，或 Pi 的继承文档描述了项目资源信任流程。
 
-这是 Coco 强制的 global-only 策略，而不是一个可以用 `--approve`、`/trust` 或项目设置绕过的选择。
+这是 CoCo 强制的 global-only 策略，而不是一个可以用 `--approve`、`/trust` 或项目设置绕过的选择。
 
 `-e`/`--extension`、`--skill`、`--prompt-template` 和 `--theme` 是 Pi 兼容的显式资源选项；只应为你已审阅且位于可信位置的资源使用它们。
 
@@ -724,7 +746,7 @@ Coco 仅从全局代理目录加载可执行或可影响行为的用户资源。
 
 模板语法见[提示模板](prompt-templates.md)，主题格式见[主题](themes.md)。
 
-不要将 Coco 的 `settings.json`、`models.json`、`auth.json` 或 managed state 放入版本控制。
+不要将 CoCo 的 `settings.json`、`models.json`、`auth.json` 或 managed state 放入版本控制。
 
 ## 诊断、核心检查、bootstrap 与迁移
 
@@ -756,7 +778,7 @@ coco core check
 
 默认离线状态下，`core check` 的注册表检查会被标为跳过或不确定；这不代表本地完整性失败。
 
-`coco manage bootstrap` 初始化 Coco 管理的状态和受管基线。
+`coco manage bootstrap` 初始化 CoCo 管理的状态和受管基线。
 
 先预览其效果：
 
@@ -770,7 +792,7 @@ coco manage bootstrap --dry-run --json
 coco manage bootstrap --yes
 ```
 
-`coco manage migrate` 用于将旧状态迁移到当前 Coco 状态结构。
+`coco manage migrate` 用于将旧状态迁移到当前 CoCo 状态结构。
 
 同样应先预览：
 
@@ -798,12 +820,12 @@ coco manage migrate --yes
 | 模型未出现在 `/model` | 没有认证、模型未注册或目录未同步 | 运行 `coco manage auth status`，再检查 `--list-models` 或同步目录 |
 | 模型同步失败 | 离线、网络、凭据、目录响应或完整性问题 | 检查网络和认证，运行 `coco doctor`；不要用 `--allow-empty` 掩盖异常 |
 | `EMPTY_CATALOG_REJECTED` | 同步得到空模型列表 | 修复提供商或网络问题；仅在确认空目录正确时使用 `--allow-empty` |
-| `PROJECT_RESOURCE_PREFLIGHT_FAILED` | 当前项目含不符合 Coco 资源策略的可执行资源或预检失败 | 不要尝试让项目资源加载；检查仓库资源类型与 Coco 安全策略 |
+| `PROJECT_RESOURCE_PREFLIGHT_FAILED` | 当前项目含不符合 CoCo 资源策略的可执行资源或预检失败 | 不要尝试让项目资源加载；检查仓库资源类型与 CoCo 安全策略 |
 | `STATE_PERMISSION_INVALID` | 状态目录或文件权限不安全 | 确认 `~/.coco/agent` 由当前用户拥有且不对组/其他用户开放 |
 | `UNOWNED_SYSTEM_OVERRIDE` 或提示所有权失败 | 全局提示覆盖或受管附加提示已漂移 | 先运行 `coco doctor`，再按诊断使用 bootstrap 或审查全局文件 |
-| core check 显示注册表跳过 | Coco 正在离线启动 | 若需要远程比较，使用 `PI_OFFLINE=0 coco core check` |
-| 工具动作被确认或拒绝 | Coco guard 命中尽力而为规则 | 审查操作；guard 不是沙箱，敏感工作应移入真实隔离环境 |
-| 项目扩展或 `.pi` 设置未生效 | Coco 的 global-only 策略 | 将已审阅资源移到 Coco 全局目录，或不要依赖该项目资源 |
+| core check 显示注册表跳过 | CoCo 正在离线启动 | 若需要远程比较，使用 `PI_OFFLINE=0 coco core check` |
+| 工具动作被确认或拒绝 | CoCo guard 命中尽力而为规则 | 审查操作；guard 不是沙箱，敏感工作应移入真实隔离环境 |
+| 项目扩展或 `.pi` 设置未生效 | CoCo 的 global-only 策略 | 将已审阅资源移到 CoCo 全局目录，或不要依赖该项目资源 |
 
 诊断输出会避免回显秘密；如需共享结果，仍应先审阅其中是否包含路径、项目名或其他敏感元数据。
 
@@ -811,7 +833,7 @@ coco manage migrate --yes
 
 使用发行版附带的 `uninstall.sh` 卸载。
 
-该脚本会识别受 Coco 管理的安装，删除安装目录、Coco 的 XDG 配置/缓存/状态目录、受管理启动器和安装临时目录。
+该脚本会识别受 CoCo 管理的安装，删除安装目录、CoCo 的 XDG 配置/缓存/状态目录、受管理启动器和安装临时目录。
 
 它会删除默认 `~/.coco` 安装，因此其中包括 `~/.coco/agent` 内的认证、模型、会话及其他用户状态。
 
@@ -821,7 +843,7 @@ coco manage migrate --yes
 
 如果 `/usr/local/bin/coco` 需要特权才能删除，脚本会在可用时请求 `sudo`；否则会提示需要相应权限。
 
-卸载后若仍可运行 `coco`，脚本会报告另一个可执行文件仍在 `PATH` 中；检查 `command -v coco` 的输出，避免误删非 Coco 管理的程序。
+卸载后若仍可运行 `coco`，脚本会报告另一个可执行文件仍在 `PATH` 中；检查 `command -v coco` 的输出，避免误删非 CoCo 管理的程序。
 
 ## 快速命令清单
 
@@ -878,23 +900,23 @@ coco --mode rpc
 
 ## 本地参考
 
-以下链接均为本仓库内的详细参考；若与本手册冲突，优先使用 Coco 专用页面。
+以下链接均为本仓库内的详细参考；若与本手册冲突，优先使用 CoCo 专用页面。
 
-- [Coco CLI](coco-cli.md)：安装、离线、原生命令、认证和 `/goal` 的简明权威参考。
-- [Coco 安全](coco-security.md)：全局资源策略、guard 限制和目标的安全边界。
-- [设置](settings.md)：Pi 兼容设置字段、界面、重试、压缩和资源配置细节；将其中 `~/.pi/agent` 路径替换为 Coco 全局路径，并忽略项目本地加载说明。
+- [CoCo CLI](coco-cli.md)：安装、离线、原生命令、认证和 `/goal` 的简明权威参考。
+- [CoCo 安全](coco-security.md)：全局资源策略、guard 限制和目标的安全边界。
+- [设置](settings.md)：Pi 兼容设置字段、界面、重试、压缩和资源配置细节；将其中 `~/.pi/agent` 路径替换为 CoCo 全局路径，并忽略项目本地加载说明。
 - [自定义模型](models.md)：`models.json`、兼容 API、模型字段与本地服务配置。
 - [会话](sessions.md)：恢复选择器、会话树、分支和删除行为。
 - [上下文压缩](compaction.md)：自动压缩、手动压缩和分支总结。
 - [JSON 事件流模式](json.md)：JSONL 输出事件和脚本示例。
 - [RPC 模式](rpc.md)：无头协议、所有命令和事件。
-- [扩展](extensions.md)：扩展 API；仅采用适用于 Coco 全局扩展的部分。
-- [技能](skills.md)：技能格式与命令使用；仅放在 Coco 全局位置。
-- [提示模板](prompt-templates.md)：模板格式与调用方式；仅使用 Coco 全局模板。
+- [扩展](extensions.md)：扩展 API；仅采用适用于 CoCo 全局扩展的部分。
+- [技能](skills.md)：技能格式与命令使用；仅放在 CoCo 全局位置。
+- [提示模板](prompt-templates.md)：模板格式与调用方式；仅使用 CoCo 全局模板。
 - [主题](themes.md)：主题创建和选择。
 - [键绑定](keybindings.md)：快捷键查找和自定义。
-- [环境变量](environment-variables.md)：Pi 兼容环境变量；Coco 的认证和目录变量以本手册为准。
+- [环境变量](environment-variables.md)：Pi 兼容环境变量；CoCo 的认证和目录变量以本手册为准。
 - [容器化](containerization.md)：为不可信或高风险工作建立真实隔离环境。
 - [终端设置](terminal-setup.md)：终端快捷键与 Windows 终端配置。
 
-使用 `coco --help` 核对当前安装版本实际支持的 Coco 原生命令；对转发的 Pi 兼容功能，再查对应本地参考页面。
+使用 `coco --help` 核对当前安装版本实际支持的 CoCo 原生命令；对转发的 Pi 兼容功能，再查对应本地参考页面。

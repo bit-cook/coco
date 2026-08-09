@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="CoCo 与 Codex、Claude Code、Gemini CLI、GitHub Copilot、Cursor、Aider、Pi Coding Agent 和 OpenClaw 的能力对比与产品路线建议。" />
+    <meta name="theme-color" content="#fffdf8" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href="https://bit-cook.github.io/coco/landscape.html" />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://bit-cook.github.io/coco/landscape.html" />
+    <meta property="og:title" content="CoCo 竞品能力研究报告" />
+    <meta property="og:description" content="八类参照产品与 CoCo 的能力对比、关键缺口和三阶段产品路线图。" />
+    <title>CoCo 竞品能力研究报告</title>
+    <link rel="stylesheet" href="landscape.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#report">跳到报告正文</a>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="返回 CoCo Agent 首页">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="logo.svg#coco-mark" /></svg>
+        <span aria-hidden="true">CoCo</span><span aria-hidden="true">/landscape</span>
+      </a>
+      <nav aria-label="报告导航">
+        <a href="#matrix">能力矩阵</a>
+        <a href="#gaps">关键缺口</a>
+        <a href="#roadmap">路线建议</a>
+        <a href="#sources">资料来源</a>
+      </nav>
+    </header>
+
+    <main id="report">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="kicker">产品研究 · 2026-08-09</p>
+          <h1>终端助手的下一站，<br /><span>不是更多命令。</span></h1>
+          <p class="lede">CoCo 已经拥有可靠的本地基础设施。与 Codex、Claude Code、Pi Coding Agent 和 OpenClaw 等产品相比，真正需要补齐的是任务隔离、并行执行、开发工作流连接和可恢复性。</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#verdict">查看结论</a>
+            <a class="button" href="https://github.com/bit-cook/coco">查看 CoCo 源码</a>
+          </div>
+        </div>
+        <aside class="score-card" aria-label="研究范围">
+          <p class="score-label">研究范围</p>
+          <strong>9</strong>
+          <span>个产品 / 产品族</span>
+          <dl>
+            <div><dt>资料口径</dt><dd>官方文档</dd></div>
+            <div><dt>结论类型</dt><dd>能力差距</dd></div>
+            <div><dt>目标周期</dt><dd>12 个月</dd></div>
+          </dl>
+        </aside>
+      </section>
+
+      <section id="verdict" class="section verdict" aria-labelledby="verdict-title">
+        <div class="section-heading">
+          <p class="section-index">01 / 核心判断</p>
+          <h2 id="verdict-title">CoCo 不缺一个更大的模型，缺的是模型之外的产品层。</h2>
+        </div>
+        <div class="verdict-grid">
+          <article class="verdict-card warm">
+            <span class="tag">已有护城河</span>
+            <h3>本地可信运行</h3>
+            <p>离线启动、内网部署、运行时完整性、保守安装与卸载，以及项目资源的 global-only 策略，构成 CoCo 最清晰的差异化。</p>
+          </article>
+          <article class="verdict-card mint">
+            <span class="tag">产品基础</span>
+            <h3>分支化会话与 Goal</h3>
+            <p>会话树、fork、clone、resume、compaction 与持久化 `/goal` 已经适合长任务，但还缺文件级 checkpoint 和隔离工作树。</p>
+          </article>
+          <article class="verdict-card blue">
+            <span class="tag">最大缺口</span>
+            <h3>从单会话到任务系统</h3>
+            <p>头部产品把代理扩展到后台、云端、PR、IDE、定时任务与多代理协调。OpenClaw 进一步展示了自托管网关、调度与远程节点的组合；CoCo 仍主要是用户面前的一条本地终端会话。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section snapshot" aria-labelledby="snapshot-title">
+        <div class="section-heading compact">
+          <p class="section-index">02 / CoCo 现状</p>
+          <h2 id="snapshot-title">强基础，窄表面。</h2>
+        </div>
+        <div class="snapshot-grid">
+          <div class="snapshot-positive">
+            <h3>已经具备</h3>
+            <ul>
+              <li>终端交互、headless、JSONL RPC 与 SDK</li>
+              <li>会话树、fork、clone、resume 与 compaction</li>
+              <li>持久 `/goal`、步骤状态与模型 goal tool</li>
+              <li>图片输入、扩展、skills 与自定义工具</li>
+              <li>五个托管 provider 与自定义 provider 登录</li>
+              <li>离线包、内网模型、双语与语言包</li>
+              <li>运行时完整性、secret scan 与安全 guard</li>
+            </ul>
+          </div>
+          <div class="snapshot-negative">
+            <h3>原生缺失</h3>
+            <ul>
+              <li>OS 级 sandbox 与通用权限规则</li>
+              <li>MCP 客户端与服务器治理</li>
+              <li>原生 subagents、agent teams 与工作树调度</li>
+              <li>自动文件 checkpoint 与一键 rewind</li>
+              <li>VS Code / JetBrains 原生扩展</li>
+              <li>GitHub PR、review、issue-to-PR 自动化</li>
+              <li>云端后台任务、定时任务与企业控制台</li>
+            </ul>
+          </div>
+        </div>
+        <p class="boundary-note"><strong>边界：</strong>CoCo 与上游 Pi 的扩展示例可实现 plan、todo、subagent、Git checkpoint 等工作流，但“可扩展实现”不等于产品原生能力；本报告按开箱即用能力计分。OpenClaw 是自托管个人代理网关，不是纯 IDE 编码代理，矩阵只比较其相交能力。</p>
+      </section>
+
+      <section id="matrix" class="section matrix-section" aria-labelledby="matrix-title">
+        <div class="section-heading">
+          <p class="section-index">03 / 能力矩阵</p>
+          <h2 id="matrix-title">头部产品正在竞争完整的工作系统。</h2>
+          <p>“●”表示官方产品原生提供，“◐”表示部分提供、需要配置或扩展，“—”表示未发现原生实现。矩阵仅表示截至调研日发现该能力，不代表默认开启、所有套餐可用或不同产品功能等价。</p>
+        </div>
+        <div class="table-wrap" tabindex="0" aria-label="横向滚动查看完整能力矩阵">
+          <table>
+            <caption class="sr-only">CoCo、Codex、Claude Code、Gemini、GitHub Copilot、Cursor、Aider、Pi Coding Agent 与 OpenClaw 的产品能力矩阵</caption>
+            <thead>
+              <tr><th scope="col">能力</th><th scope="col" class="coco">CoCo</th><th scope="col">Codex</th><th scope="col">Claude Code</th><th scope="col">Gemini</th><th scope="col">Copilot</th><th scope="col">Cursor</th><th scope="col">Aider</th><th scope="col">Pi Agent</th><th scope="col">OpenClaw</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">本地终端代理</th><td class="yes coco">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td></tr>
+              <tr><th scope="row">Headless / SDK</th><td class="yes coco">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td></tr>
+              <tr><th scope="row">图片输入</th><td class="yes coco">●</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="partial">◐</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td></tr>
+              <tr><th scope="row">离线应用包 / 内网模型</th><td class="yes coco">●</td><td class="partial">◐</td><td class="partial">◐</td><td class="partial">◐</td><td class="no">—</td><td class="no">—</td><td class="partial">◐</td><td class="partial">◐</td><td class="partial">◐</td></tr>
+              <tr><th scope="row">运行时供应链完整性</th><td class="yes coco">●</td><td class="partial">◐</td><td class="partial">◐</td><td class="partial">◐</td><td class="partial">◐</td><td class="partial">◐</td><td class="partial">◐</td><td class="partial">◐</td><td class="partial">◐</td></tr>
+              <tr><th scope="row">OS 级命令沙箱</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="partial">◐</td><td class="yes">●</td></tr>
+              <tr><th scope="row">MCP</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="partial">◐</td><td class="yes">●</td></tr>
+              <tr><th scope="row">原生 Subagents</th><td class="partial coco">◐</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="partial">◐</td><td class="yes">●</td></tr>
+              <tr><th scope="row">隔离 Git worktrees</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="partial">◐</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="yes">●</td></tr>
+              <tr><th scope="row">自动 checkpoint / rewind</th><td class="partial coco">◐</td><td class="partial">◐</td><td class="yes">●</td><td class="partial">◐</td><td class="partial">◐</td><td class="partial">◐</td><td class="yes">●</td><td class="partial">◐</td><td class="partial">◐</td></tr>
+              <tr><th scope="row">原生 IDE 扩展</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="no">—</td><td class="partial">◐</td></tr>
+              <tr><th scope="row">GitHub PR / Review</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="no">—</td><td class="partial">◐</td></tr>
+              <tr><th scope="row">后台 / 云端任务</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="yes">●</td></tr>
+              <tr><th scope="row">定时与事件自动化</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="partial">◐</td><td class="yes">●</td></tr>
+              <tr><th scope="row">远程 / 移动端控制</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="partial">◐</td><td class="yes">●</td></tr>
+              <tr><th scope="row">企业策略与分析</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="partial">◐</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="gaps" class="section gaps" aria-labelledby="gaps-title">
+        <div class="section-heading">
+          <p class="section-index">04 / CoCo 没有而参照产品有</p>
+          <h2 id="gaps-title">十二个缺口，不应该十二个一起做。</h2>
+        </div>
+        <div class="gap-grid">
+          <article><span>01 · P0</span><h3>原生沙箱</h3><p>Codex、Claude Code、Gemini 与 OpenClaw 提供 OS 或容器级隔离。CoCo guard 只能分类与确认，仍以用户权限执行。</p></article>
+          <article><span>02 · P0</span><h3>Checkpoint / Rewind</h3><p>Claude Code 自动快照；Gemini 启用 checkpointing 后可恢复文件与对话；Aider 默认为 AI 编辑创建 Git commit。CoCo 与上游 Pi 仅有会话树和扩展示例。</p></article>
+          <article><span>03 · P0</span><h3>原生工作树任务</h3><p>Codex、Claude Code、Cursor 与 OpenClaw 可用 worktree 隔离修改。CoCo fork 隔离对话分支，但不隔离工作目录。</p></article>
+          <article><span>04 · P0</span><h3>原生 Subagents</h3><p>多个产品允许配置代理角色、模型或工具，并提供并行调度。OpenClaw 还支持后台嵌套编排；CoCo 与上游 Pi 只有示例扩展。</p></article>
+          <article><span>05 · P1</span><h3>MCP 客户端</h3><p>Codex、Claude Code、Gemini、Copilot、Cursor 与 OpenClaw 均原生支持 MCP。CoCo 与上游 Pi 只能经扩展自行集成。</p></article>
+          <article><span>06 · P1</span><h3>GitHub 工作流</h3><p>Codex、Copilot 等产品已把接收任务、代码审查、CI 修复或产出 PR 纳入 GitHub 工作流；Claude 与 Cursor 也覆盖其中部分环节。</p></article>
+          <article><span>07 · P1</span><h3>IDE 原生体验</h3><p>竞品可以读取 selection/open tabs、展示内联 diff、计划审批和历史。CoCo 的集成面仍是终端、RPC 与外部编辑器。</p></article>
+          <article><span>08 · P1</span><h3>后台任务</h3><p>用户关闭窗口后，Codex cloud、Claude web、Copilot agent 与 Cursor cloud 仍可持续执行并回传结果。</p></article>
+          <article><span>09 · P2</span><h3>定时与事件触发</h3><p>Codex Automations、Claude Routines、Copilot Automations 与 Cursor Automations 支持 schedule、webhook 和 GitHub 事件。</p></article>
+          <article><span>10 · P2</span><h3>远程控制</h3><p>Codex、Claude 与 Cursor 都提供远程或云端任务入口；具体能否接管本地主机会因客户端、套餐和运行模式而异。</p></article>
+          <article><span>11 · P2</span><h3>浏览器 / 视觉验证</h3><p>部分头部产品已提供浏览器交互或视觉产物；Cursor Cloud 明确支持截图、录屏和远程桌面，形成实现后的验证线索。</p></article>
+          <article><span>12 · P2</span><h3>企业治理</h3><p>团队采购通常要求集中策略、身份管理、审计、可观测性、集成治理和留存控制；CoCo 尚未形成对应的管理平面。OpenClaw 虽有策略与 OTel，但官方仍定位为单操作者边界。</p></article>
+        </div>
+      </section>
+
+      <section id="roadmap" class="section roadmap" aria-labelledby="roadmap-title">
+        <div class="section-heading">
+          <p class="section-index">05 / 建议路线</p>
+          <h2 id="roadmap-title">先把本地代理做成可靠任务系统，再扩展到云。</h2>
+        </div>
+        <div class="roadmap-list">
+          <article>
+            <div class="phase"><span>Phase 1</span><strong>0-3 个月</strong></div>
+            <div><h3>Safe Local Work</h3><p>实现 Linux/macOS OS sandbox、统一权限规则、自动 checkpoint/rewind、worktree-backed `/goal`。这是信任与并行的共同底座。</p><ul><li>workspace-write / read-only / full-access 模式</li><li>命令、网络、路径三级规则</li><li>每轮文件快照与安全恢复</li><li>Goal 分支与 worktree 生命周期绑定</li></ul></div>
+          </article>
+          <article>
+            <div class="phase"><span>Phase 2</span><strong>3-6 个月</strong></div>
+            <div><h3>Connected Development</h3><p>将扩展示例收敛为稳定产品能力：subagents、MCP、GitHub 与 IDE。保持本地优先，不急于自建云执行。</p><ul><li>原生 explorer / reviewer / worker agents</li><li>MCP server registry 与 tool approvals</li><li>GitHub Action、PR review 与 issue-to-branch</li><li>VS Code thin client，复用 RPC</li></ul></div>
+          </article>
+          <article>
+            <div class="phase"><span>Phase 3</span><strong>6-12 个月</strong></div>
+            <div><h3>Optional Control Plane</h3><p>提供可选、自托管优先的后台调度层，而不是复制一个封闭 SaaS。保留离线 CoCo，同时支持团队任务与审计。</p><ul><li>队列、schedule、webhook 与任务通知</li><li>容器化远程 runner 和 artifact review</li><li>策略分发、OTel 与审计事件</li><li>浏览器验证和移动端只读监控</li></ul></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section choices" aria-labelledby="choices-title">
+        <div class="section-heading compact">
+          <p class="section-index">06 / 不建议复制</p>
+          <h2 id="choices-title">CoCo 应该选择，不应该追平所有 checkbox。</h2>
+        </div>
+        <div class="choice-grid">
+          <article><h3>不要先做大型桌面壳</h3><p>RPC 和 VS Code thin client 足以验证 IDE 需求；桌面多窗格不是安全执行和任务隔离的前置条件。</p></article>
+          <article><h3>不要先做封闭云</h3><p>CoCo 的优势是离线与内网。OpenClaw 证明自托管网关与远程节点可形成另一条路径；CoCo 应优先采用开放 runner 协议。</p></article>
+          <article><h3>不要把扩展当原生能力</h3><p>高价值示例应晋升为有版本、测试、权限和兼容承诺的产品模块，不能只在文档中声称“可以扩展实现”。</p></article>
+        </div>
+      </section>
+
+      <section id="sources" class="section sources" aria-labelledby="sources-title">
+        <div class="section-heading">
+          <p class="section-index">07 / 方法与来源</p>
+          <h2 id="sources-title">只采用第一方资料，结论可复核。</h2>
+          <p>调研日期为 2026-08-09。能力会随版本、地区、套餐和灰度发布变化；“未发现”不等于产品永远没有。CoCo 能力来自仓库代码与文档审计；Pi 与 OpenClaw 按其官方仓库和文档计分。</p>
+        </div>
+        <div class="source-columns">
+          <section><h3>OpenAI Codex</h3><a href="https://developers.openai.com/codex/cli/">CLI</a><a href="https://developers.openai.com/codex/cloud/">Cloud</a><a href="https://developers.openai.com/codex/app/">App</a><a href="https://developers.openai.com/codex/ide/">IDE</a><a href="https://developers.openai.com/codex/third-party/github/">GitHub</a><a href="https://developers.openai.com/codex/automations/">Automations</a><a href="https://developers.openai.com/codex/agent-approvals-security/">Security</a></section>
+          <section><h3>Claude Code</h3><a href="https://code.claude.com/docs/en/overview">Overview</a><a href="https://code.claude.com/docs/en/claude-code-on-the-web">Web</a><a href="https://code.claude.com/docs/en/sub-agents">Subagents</a><a href="https://code.claude.com/docs/en/worktrees">Worktrees</a><a href="https://code.claude.com/docs/en/checkpointing">Checkpointing</a><a href="https://code.claude.com/docs/en/routines">Routines</a><a href="https://code.claude.com/docs/en/sandboxing">Sandboxing</a></section>
+          <section><h3>其他产品</h3><a href="https://geminicli.com/docs/">Gemini CLI</a><a href="https://geminicli.com/docs/cli/checkpointing/">Gemini Checkpointing</a><a href="https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent">Copilot Coding Agent</a><a href="https://cursor.com/cloud">Cursor Cloud</a><a href="https://cursor.com/bugbot">Cursor Bugbot</a><a href="https://aider.chat/docs/git.html">Aider Git</a></section>
+          <section><h3>Pi Coding Agent</h3><a href="https://github.com/earendil-works/pi/tree/main/packages/coding-agent">Overview</a><a href="https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/security.md">Security</a><a href="https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/llama-cpp.md">Local models</a><a href="https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions">Extensions</a></section>
+          <section><h3>OpenClaw</h3><a href="https://docs.openclaw.ai/">Overview</a><a href="https://docs.openclaw.ai/gateway/sandboxing">Sandboxing</a><a href="https://docs.openclaw.ai/tools/mcp">MCP</a><a href="https://docs.openclaw.ai/tools/subagents">Subagents</a><a href="https://docs.openclaw.ai/concepts/managed-worktrees">Worktrees</a><a href="https://docs.openclaw.ai/automation/cron-jobs">Automation</a><a href="https://docs.openclaw.ai/gateway/security">Security scope</a></section>
+          <section><h3>CoCo 证据</h3><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/usage.md">Usage</a><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/coco-security.md">Security</a><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/rpc.md">RPC</a><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/sdk.md">SDK</a><a href="https://github.com/bit-cook/coco/blob/main/resources/coco-goal.mjs">Goal</a><a href="https://github.com/bit-cook/coco/blob/main/offline-install.sh">Offline installer</a></section>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p><strong>CoCo Product Landscape</strong><span>Independent capability analysis by BitCook.</span></p>
+      <a href="./">返回 CoCo 首页</a>
+    </footer>
+  </body>
+</html>

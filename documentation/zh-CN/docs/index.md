@@ -1,8 +1,8 @@
-# Coco 文档
+# CoCo 文档
 
-## Coco 操作文档
+## CoCo 操作文档
 
-Coco 是 Pi 的下游发行版。[Coco CLI](coco-cli.md) 和 [Coco 安全](coco-security.md) 说明 Coco 的行为；如与下方继承的 Pi 页面冲突，以它们为准。其余页面是继承的 Pi 参考资料，其中可能包含 Coco 已更改或禁用的命令、提供商、路径、项目资源或更新行为。
+CoCo Agent 是 Pi 的下游发行版。[CoCo CLI](coco-cli.md) 和 [CoCo 安全](coco-security.md) 说明 CoCo 的行为；如与下方继承的 Pi 页面冲突，以它们为准。其余页面是继承的 Pi 参考资料，其中可能包含 CoCo 已更改或禁用的命令、提供商、路径、项目资源或更新行为。
 
 Pi 是一个精简的终端编码框架。它的核心保持小巧，并通过 TypeScript 扩展、技能、提示词模板、主题和 pi 包进行扩展。
 

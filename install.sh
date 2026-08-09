@@ -447,7 +447,7 @@ main() {
   detect_platform; prepare_node; download; install_coco; write_config; verify_config; link_binary
   COMMITTED=1
   rm -rf "$ROLLBACK_DIR"
-  info "Installed coco v${COCO_VERSION}"
+  info "Installed CoCo v${COCO_VERSION}"
 }
 
 main "$@"

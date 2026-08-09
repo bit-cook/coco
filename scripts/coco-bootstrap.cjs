@@ -27,7 +27,7 @@ const ROOTS = ["bin", "dist", "docs", "examples", "resources", "scripts", "CHANG
 const CORE_ROOT = "node_modules/@earendil-works/pi-coding-agent";
 // Warm verification is trusted-local change detection, not an adversarial
 // same-user sandbox. Installation and COCO_INTEGRITY_FULL retain full hashing;
-// startup checks Coco code plus the pinned Pi core to avoid scanning SDK trees.
+// startup checks CoCo code plus the pinned Pi core to avoid scanning SDK trees.
 const FAST_ROOTS = ["bin", "dist", "resources", "scripts", "package.json", `${CORE_ROOT}/dist`, `${CORE_ROOT}/package.json`];
 
 const MANIFEST_ENTRY = "resources/runtime-integrity-manifest.v1.json";

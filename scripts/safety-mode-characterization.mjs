@@ -9,7 +9,7 @@ export function registerSafetyModeCharacterization(pi, transcript) {
     if (event.toolName !== "bash" || event.input?.command !== "coco-safety-confirm-probe") return undefined;
     if (!ctx?.hasUI || !ctx.ui || typeof ctx.ui.confirm !== "function") return { block: true, reason: "SAFETY_CONFIRM_UNAVAILABLE" };
     try {
-      const allowed = await ctx.ui.confirm("Coco safety characterization", "Allow the harmless characterization probe?");
+      const allowed = await ctx.ui.confirm("CoCo safety characterization", "Allow the harmless characterization probe?");
       transcript.push({ callback: typeof allowed === "boolean", decision: allowed === true ? "allow" : "deny", handler: "tool_call" });
       return allowed === true ? undefined : { block: true, reason: "SAFETY_CONFIRM_DENIED" };
     } catch {

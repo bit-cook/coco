@@ -1,35 +1,35 @@
-# Coco User Manual
+# CoCo User Manual
 
-This manual explains Coco from installation through daily interactive use, automation, customization, diagnostics, and safe removal.
+This manual explains CoCo from installation through daily interactive use, automation, customization, diagnostics, and safe removal.
 
-Coco is a downstream distribution of Pi Coding Agent. It keeps Pi's coding and terminal workflow while adding managed providers, persistent goals, an offline startup policy, runtime integrity checks, and stricter resource trust rules.
+CoCo is a downstream distribution of Pi Coding Agent. It keeps Pi's coding and terminal workflow while adding managed providers, persistent goals, an offline startup policy, runtime integrity checks, and stricter resource trust rules.
 
-Terminal commands in this manual start with `coco`. Commands beginning with `/` are entered inside Coco's interactive editor.
+Terminal commands in this manual start with `coco`. Commands beginning with `/` are entered inside CoCo's interactive editor.
 
 ## Documentation Scope And Precedence
 
-This repository contains both Coco-specific pages and inherited Pi documentation.
+This repository contains both CoCo-specific pages and inherited Pi documentation.
 
 When they disagree, use this order of authority:
 
-1. The behavior and error output of the installed Coco runtime.
-2. This manual, [Coco CLI](coco-cli.md), and [Coco security](coco-security.md).
-3. The inherited Pi pages for features that Coco forwards unchanged.
+1. The behavior and error output of the installed CoCo runtime.
+2. This manual, [CoCo CLI](coco-cli.md), and [CoCo security](coco-security.md).
+3. The inherited Pi pages for features that CoCo forwards unchanged.
 
-Important Coco differences are:
+Important CoCo differences are:
 
 - Start the program with `coco`, not `pi`.
 - Global state normally lives under `~/.coco/agent/`, not `~/.pi/agent/`.
-- `--api-key` and `--api-key=<value>` are rejected. Use Coco's credential management commands or environment variables.
+- `--api-key` and `--api-key=<value>` are rejected. Use CoCo's credential management commands or environment variables.
 - `coco update` is rejected. Upgrade by running the approved installer again.
 - Project-local settings, extensions, skills, prompt templates, themes, and system prompt files are not loaded.
-- Coco's guard is best-effort protection, not a sandbox.
+- CoCo's guard is best-effort protection, not a sandbox.
 
 ## Requirements
 
 The release installer supports macOS and Linux on `arm64` and `amd64` systems.
 
-Coco requires Node.js `>=22.19.0`. If the system Node is absent or too old, the release installer can install a verified private Node runtime inside the Coco installation.
+CoCo requires Node.js `>=22.19.0`. If the system Node is absent or too old, the release installer can install a verified private Node runtime inside the CoCo installation.
 
 ## Install And Upgrade
 
@@ -61,7 +61,7 @@ Default locations are:
 
 Installation locations can be changed with `COCO_INSTALL_DIR`, `COCO_BIN_DIR`, and `COCO_AGENT_DIR`. `COCO_CODING_AGENT_DIR` is also accepted for the agent directory.
 
-On a fresh installation, Coco defaults to provider `agnes`, model `agnes/agnes-2.5-flash`, and thinking level `max`.
+On a fresh installation, CoCo defaults to provider `agnes`, model `agnes/agnes-2.5-flash`, and thinking level `max`.
 
 To upgrade, run the stable installer command again. Existing `settings.json`, `models.json`, and `auth.json` are preserved during a normal reinstall.
 
@@ -77,7 +77,7 @@ If the shell cannot find `coco` after installation, open a new terminal or add t
 
 ### Offline And Intranet Installation
 
-For disconnected Linux or macOS hosts, use a platform-specific Coco offline ZIP built on a connected release machine. The ZIP contains the complete Coco package, bundled dependencies, a verified private Node runtime, checksums, and `offline-install.sh`; the target host does not run npm or download components.
+For disconnected Linux or macOS hosts, use a platform-specific CoCo offline ZIP built on a connected release machine. The ZIP contains the complete CoCo package, bundled dependencies, a verified private Node runtime, checksums, and `offline-install.sh`; the target host does not run npm or download components.
 
 After transferring the ZIP to the intranet, extract it and run:
 
@@ -144,7 +144,7 @@ coco manage auth status
 
 ## Startup Network Policy
 
-Unless `PI_OFFLINE` is already set, Coco sets `PI_OFFLINE=1` before Pi loads.
+Unless `PI_OFFLINE` is already set, CoCo sets `PI_OFFLINE=1` before Pi loads.
 
 This prevents startup-time update checks and downloads of missing optional `fd` and `ripgrep` binaries. It does not isolate the process from the network and does not disable model or provider API calls made during use.
 
@@ -156,14 +156,14 @@ PI_OFFLINE=0 coco
 
 Model catalog synchronization and provider connectivity checks still require a working network connection. While offline, `coco core check` skips its remote registry comparison but can still verify the local runtime.
 
-## Native Coco Commands
+## Native CoCo Commands
 
-These commands are handled by Coco itself:
+These commands are handled by CoCo itself:
 
 | Command | Purpose | Main options |
 |---|---|---|
-| `coco --help` | Show Coco help | `-h`, `help` |
-| `coco --version` | Show Coco version | `-v` |
+| `coco --help` | Show CoCo help | `-h`, `help` |
+| `coco --version` | Show CoCo version | `-v` |
 | `coco manage auth set <provider>` | Store a provider credential | `--stdin`, `--json` |
 | `coco manage auth status [provider]` | Report credential availability and source | `--json` |
 | `coco manage auth remove <provider>` | Remove a stored credential | `--yes`, `--json` |
@@ -176,11 +176,11 @@ These commands are handled by Coco itself:
 
 Unknown native syntax returns `NATIVE_USAGE`. State-changing commands require `--yes` in a noninteractive environment unless they are dry runs.
 
-Other supported arguments are forwarded to the bundled Pi runtime with Coco's guard and persistent-goal extension injected.
+Other supported arguments are forwarded to the bundled Pi runtime with CoCo's guard and persistent-goal extension injected.
 
 ## Managed Providers
 
-Coco manages exactly five providers:
+CoCo manages exactly five providers:
 
 - `agnes`
 - `idepub`
@@ -188,7 +188,7 @@ Coco manages exactly five providers:
 - `stepfun`
 - `deepseek`
 
-Managed means that Coco can store credentials and synchronize model metadata for the provider. It does not mean that Coco supplies your private provider credential in source.
+Managed means that CoCo can store credentials and synchronize model metadata for the provider. It does not mean that CoCo supplies your private provider credential in source.
 
 ### Store A Credential
 
@@ -295,9 +295,9 @@ Forwarded model options include:
 
 Thinking levels are `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`. A model may support only a subset.
 
-Do not use `--api-key`; Coco rejects it with `API_KEY_ARG_FORBIDDEN`.
+Do not use `--api-key`; CoCo rejects it with `API_KEY_ARG_FORBIDDEN`.
 
-Custom providers and models can be configured globally in `~/.coco/agent/models.json`. See [custom models](models.md) and [custom providers](custom-provider.md). Coco's five managed-provider commands do not replace the broader compatible model configuration format.
+Custom providers and models can be configured globally in `~/.coco/agent/models.json`. See [custom models](models.md) and [custom providers](custom-provider.md). CoCo's five managed-provider commands do not replace the broader compatible model configuration format.
 
 ## Interactive Interface
 
@@ -350,11 +350,32 @@ Frequently used inherited commands include:
 | `/hotkeys` | Show shortcuts |
 | `/quit` | Exit |
 
-Some inherited commands can expose upstream provider or package behavior. Coco's credential, update, and project-resource rules still take precedence.
+Some inherited commands can expose upstream provider or package behavior. CoCo's credential, update, and project-resource rules still take precedence.
+
+## Scheduled Loops
+
+`/loop` creates a recurring prompt for the current saved session. It is entered in the interactive editor, not run in a shell or as a top-level `coco` option.
+
+```text
+/loop
+/loop check deploy
+/loop 5m check deploy
+/loop check deploy every 2 hours
+/loop list
+/loop cancel <id>
+```
+
+ Loops persist in `~/.coco/agent/loops.json`, are bound to the exact session file, and run only while that matching CoCo process/session remains open. On resume, missed due times are advanced to the next future interval, with no catch-up burst. A session may have 50 active loops; each has an 8-character ID and expires after seven days. An open matching session receives one final fire at expiry, even before its next regular due time; expired tasks found on resume are removed silently.
+
+`/loop list` and `/loop status` show the current session's loops. `/loop cancel <id>` accepts an unambiguous ID prefix and rejects ambiguous prefixes.
+
+Durations accept compact leading `s`, `m`, `h`, or `d` and trailing natural seconds, minutes, hours, or days. Seconds round up and the minimum interval is one minute. Fixed intervals deliberately use elapsed interval semantics rather than Claude cron normalization.
+
+Bare or interval-only loops load only global `~/.coco/agent/loop.md` on every fire, capped at 25,000 bytes and rejected if it is a symlink or nonregular file. They otherwise use a conservative built-in maintenance prompt. Project-local `.claude/loop.md` and `.coco/loop.md` are never loaded. Prompt-only loops start at 10 minutes and may use `loop_wakeup` to delay 1 minute through 1 hour with a reason, or stop. Without a tool call they get one approximately 20-minute fallback, then stop after the next unrescheduled fallback. Scheduled turns inherit existing CoCo guard and permissions; a prompt beginning `/` remains text.
 
 ## Language Switching And Language Packs
 
-Coco includes English (`en`) and Simplified Chinese (`zh-CN`). The default is English. Switch interactively with:
+CoCo includes English (`en`) and Simplified Chinese (`zh-CN`). The default is English. Switch interactively with:
 
 ```text
 /language
@@ -366,7 +387,7 @@ Coco includes English (`en`) and Simplified Chinese (`zh-CN`). The default is En
 
 `/language` opens a selector in interactive UI mode. A successful choice is stored in `~/.coco/agent/language.json` and survives restarts. When `COCO_CODING_AGENT_DIR` is set, the selection and language-pack directory follow that agent directory.
 
-The selected language applies to Coco-owned commands and messages, including `/language`, `/goal`, safety confirmation labels, and the instruction asking the model to respond in that language. Command names, code, identifiers, paths, API names, and quoted source remain unchanged. Some inherited Pi core screens are not yet exposed to Coco's translation layer and can remain in English. Model response language is guidance: an explicit user request for another language takes priority.
+The selected language applies to CoCo-owned commands and messages, including `/language`, `/goal`, safety confirmation labels, and the instruction asking the model to respond in that language. Command names, code, identifiers, paths, API names, and quoted source remain unchanged. Some inherited Pi core screens are not yet exposed to CoCo's translation layer and can remain in English. Model response language is guidance: an explicit user request for another language takes priority.
 
 ### Create A Language Pack
 
@@ -376,7 +397,7 @@ User language packs are inert JSON files in:
 ~/.coco/agent/languages/<locale>.json
 ```
 
-They are global user data. Coco does not load project-local language packs, download packs, or execute code from a pack.
+They are global user data. CoCo does not load project-local language packs, download packs, or execute code from a pack.
 
 Example `~/.coco/agent/languages/es.json`:
 
@@ -409,10 +430,10 @@ Pack rules:
 - `messages` is a flat object of string keys and string values.
 - A user pack may translate only some keys; missing keys fall back to built-in English.
 - Files larger than 1 MiB, symbolic links, unknown message keys, non-string values, NUL bytes, and terminal escape characters are rejected.
-- Invalid packs are ignored and cannot prevent Coco from starting.
+- Invalid packs are ignored and cannot prevent CoCo from starting.
 - Placeholders such as `{locale}`, `{name}`, `{status}`, `{completed}`, `{total}`, `{goal}`, and `{locales}` must be preserved where they appear in the English source message.
 
-Supported message keys can be copied from `resources/languages/en.json` in the installed Coco runtime. That file is the authoritative template; `resources/languages/zh-CN.json` is a complete example. To update a pack safely:
+Supported message keys can be copied from `resources/languages/en.json` in the installed CoCo runtime. That file is the authoritative template; `resources/languages/zh-CN.json` is a complete example. To update a pack safely:
 
 1. Copy `resources/languages/en.json` outside the installation.
 2. Change `locale` and `name`.
@@ -462,7 +483,7 @@ The model receives a `goal` tool with `status`, `set_steps`, `activate_step`, `b
 
 Goal snapshots are appended to session history and restored from the active branch. A forked branch can therefore have a different latest goal state. Active goal context is regenerated after compaction before the next agent turn.
 
-A goal is guidance, not authorization. The current user instruction and Coco safety policy take priority.
+A goal is guidance, not authorization. The current user instruction and CoCo safety policy take priority.
 
 ## Built-In Tools And Guard Behavior
 
@@ -487,13 +508,13 @@ coco --no-builtin-tools "Use only extension tools"
 coco --no-tools -p "Give advice without tools"
 ```
 
-Coco injects a guard that classifies some shell commands and file writes. It may allow, ask for confirmation, or block an operation. In modes without interactive confirmation, confirmation-required actions fail closed.
+CoCo injects a guard that classifies some shell commands and file writes. It may allow, ask for confirmation, or block an operation. In modes without interactive confirmation, confirmation-required actions fail closed.
 
-Tool restrictions and guard checks reduce risk, but they are not process isolation. Tools and extensions run with the permissions of the user who launched Coco.
+Tool restrictions and guard checks reduce risk, but they are not process isolation. Tools and extensions run with the permissions of the user who launched CoCo.
 
 ## Sessions, Trees, Forks, And Clones
 
-Coco sessions are append-only JSONL trees organized by working directory.
+CoCo sessions are append-only JSONL trees organized by working directory.
 
 Common startup options are:
 
@@ -580,6 +601,7 @@ The default state root is `~/.coco/agent/`. Set `COCO_CODING_AGENT_DIR` to use a
 | `~/.coco/agent/settings.json` | Model, UI, retry, queue, and session settings |
 | `~/.coco/agent/models.json` | Managed and custom model metadata |
 | `~/.coco/agent/auth.json` | Stored credentials (`0600`) |
+| `~/.coco/agent/loops.json` | Saved-session recurring loops |
 | `~/.coco/agent/ownership.json` | Ownership metadata for managed files |
 | `~/.coco/agent/migration.json` | Migration and rotation state |
 | `~/.coco/agent/catalogs/` | Current and previous provider catalogs |
@@ -592,11 +614,11 @@ The default state root is `~/.coco/agent/`. Set `COCO_CODING_AGENT_DIR` to use a
 
 Use `/settings` for common interactive preferences. Direct JSON editing is also supported for user-owned settings. Do not commit credentials or managed state to source control.
 
-See [settings](settings.md), but translate inherited `~/.pi/agent` examples to Coco's global directory and ignore project-local loading instructions.
+See [settings](settings.md), but translate inherited `~/.pi/agent` examples to CoCo's global directory and ignore project-local loading instructions.
 
 ## Extensions, Skills, Templates, And Themes
 
-Coco uses a `global-only` project-resource policy.
+CoCo uses a `global-only` project-resource policy.
 
 Automatically discovered user resources belong under the global agent directory:
 
@@ -620,7 +642,7 @@ Explicit compatible options remain available for reviewed resources:
 
 Disable discovery with `--no-extensions`, `--no-skills`, `--no-prompt-templates`, or `--no-themes`.
 
-Extensions execute code with your user permissions. Review them before use. See [extensions](extensions.md), [skills](skills.md), [prompt templates](prompt-templates.md), and [themes](themes.md), applying Coco's global-only rule.
+Extensions execute code with your user permissions. Review them before use. See [extensions](extensions.md), [skills](skills.md), [prompt templates](prompt-templates.md), and [themes](themes.md), applying CoCo's global-only rule.
 
 ## Diagnostics And State Maintenance
 
@@ -649,7 +671,7 @@ coco core check
 PI_OFFLINE=0 coco core check
 ```
 
-`core status` is local. `core check` adds a remote registry comparison when startup networking is enabled. Neither command updates Coco.
+`core status` is local. `core check` adds a remote registry comparison when startup networking is enabled. Neither command updates CoCo.
 
 Preview or apply managed-state bootstrap:
 
@@ -669,15 +691,15 @@ Migration can move legacy credentials out of `models.json`, mark them for rotati
 
 ## Security And Trust Boundary
 
-Coco's packaged resources are integrity-checked. The runtime rejects unexpected or modified governed runtime files before normal startup.
+CoCo's packaged resources are integrity-checked. The runtime rejects unexpected or modified governed runtime files before normal startup.
 
-The `global-only` policy prevents repositories from automatically supplying executable configuration to Coco. It does not make repository content trustworthy: source files, documentation, generated files, prompts, and tool output can all contain malicious or misleading instructions.
+The `global-only` policy prevents repositories from automatically supplying executable configuration to CoCo. It does not make repository content trustworthy: source files, documentation, generated files, prompts, and tool output can all contain malicious or misleading instructions.
 
-The guard is best-effort and not a sandbox. Coco, Pi tools, shell commands, and extensions run with the invoking user's operating-system permissions.
+The guard is best-effort and not a sandbox. CoCo, Pi tools, shell commands, and extensions run with the invoking user's operating-system permissions.
 
 For untrusted repositories, unattended work, or valuable credentials, use a container, VM, micro-VM, or remote sandbox. Give the isolated environment only the workspace, credentials, network access, and host mounts it needs.
 
-Read [Coco security](coco-security.md) before high-risk use.
+Read [CoCo security](coco-security.md) before high-risk use.
 
 ## Troubleshooting
 
@@ -693,9 +715,9 @@ Read [Coco security](coco-security.md) before high-risk use.
 | `AUTH_PROVIDER_INVALID` | Provider is not managed | Use `agnes`, `idepub`, `achai`, `stepfun`, or `deepseek` |
 | Model absent from `/model` | Registration or auth is missing | Check auth status and `coco --list-models`; synchronize if needed |
 | `EMPTY_CATALOG_REJECTED` | Sync returned no models | Fix provider/network problems; use `--allow-empty` only intentionally |
-| Project extension does not load | Coco blocks project-local resources | Install a reviewed extension globally or pass it explicitly |
+| Project extension does not load | CoCo blocks project-local resources | Install a reviewed extension globally or pass it explicitly |
 | Registry check is skipped | Startup is offline | Use `PI_OFFLINE=0 coco core check` for a remote comparison |
-| Tool action is blocked | Coco guard rejected or could not confirm it | Review the action; use real isolation for sensitive work |
+| Tool action is blocked | CoCo guard rejected or could not confirm it | Review the action; use real isolation for sensitive work |
 | Integrity or ownership failure | Runtime or managed state differs from its contract | Run `coco doctor`; repair with approved installer/bootstrap paths |
 
 Diagnostic JSON is designed not to reveal credential values, but review paths and project metadata before sharing it.
@@ -765,15 +787,15 @@ Interactive essentials:
 
 ## Detailed Local References
 
-- [Coco CLI](coco-cli.md): normative Coco installation, native CLI, offline, auth, and goal behavior.
-- [Coco security](coco-security.md): resource policy, guard limitations, and goal trust boundary.
+- [CoCo CLI](coco-cli.md): normative CoCo installation, native CLI, offline, auth, and goal behavior.
+- [CoCo security](coco-security.md): resource policy, guard limitations, and goal trust boundary.
 - [Settings](settings.md): compatible UI, queue, retry, compaction, and model settings.
 - [Models](models.md): custom provider/model configuration.
 - [Sessions](sessions.md): resume picker, trees, branches, forks, and clones.
 - [Compaction](compaction.md): context compaction and branch summaries.
 - [Keybindings](keybindings.md): shortcuts and customization.
-- [Extensions](extensions.md): extension API, subject to Coco's global-only policy.
-- [Skills](skills.md): skill format and invocation, subject to Coco's global-only policy.
+- [Extensions](extensions.md): extension API, subject to CoCo's global-only policy.
+- [Skills](skills.md): skill format and invocation, subject to CoCo's global-only policy.
 - [Prompt templates](prompt-templates.md): template syntax and invocation.
 - [Themes](themes.md): theme files and selection.
 - [JSON mode](json.md): JSONL event format.
@@ -781,4 +803,4 @@ Interactive essentials:
 - [Containerization](containerization.md): real isolation for untrusted work.
 - [Terminal setup](terminal-setup.md): terminal compatibility and shortcut setup.
 
-Use `coco --help` to confirm the native grammar of the installed version. For forwarded features, use the corresponding inherited reference only where it does not conflict with Coco's CLI and security contracts.
+Use `coco --help` to confirm the native grammar of the installed version. For forwarded features, use the corresponding inherited reference only where it does not conflict with CoCo's CLI and security contracts.

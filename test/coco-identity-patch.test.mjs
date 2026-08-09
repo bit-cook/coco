@@ -374,7 +374,7 @@ test("Given supported upstream artifacts, when patched twice, then the second ap
   }
 });
 
-test("Given an older or duplicated Coco wordmark block, when patched, then it fails closed", async () => {
+test("Given an older or duplicated CoCo wordmark block, when patched, then it fails closed", async () => {
   const root = await createFixture();
   try {
     const interactivePath = join(root, "node_modules", "@earendil-works", "pi-coding-agent", "dist", "modes", "interactive", "interactive-mode.js");
@@ -453,7 +453,8 @@ test("Given the offline tool notice anchor drifts, when patch preflight runs, th
     const originalTools = await readFile(tools, "utf8");
     const driftedTools = originalTools
       .replace("        if (!silent) {\n\n        }", "        if (!silent) {\n            console.log(\"offline notice drifted\");\n        }")
-      .replace("        // Coco keeps optional-tool discovery silent while startup is offline.", "        console.log(\"offline notice drifted\");");
+      .replace("        // Coco keeps optional-tool discovery silent while startup is offline.", "        console.log(\"offline notice drifted\");")
+      .replace("        // CoCo keeps optional-tool discovery silent while startup is offline.", "        console.log(\"offline notice drifted\");");
     assert.notEqual(driftedTools, originalTools);
     await writeFile(tools, driftedTools);
     await assert.rejects(applyCocoIdentityPatch({ root }), { message: /COCO_PATCH_UNKNOWN_ANCHOR/ });

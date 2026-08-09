@@ -3,10 +3,10 @@ import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 import { classifyPath, classifyShell, SAFETY_OUTCOMES } from "../scripts/safety-classifier.mjs";
 import { translate } from "./coco-language.mjs";
 
-const DISCLAIMER = "Coco safety guard is best-effort, not a sandbox.";
+const DISCLAIMER = "CoCo safety guard is best-effort, not a sandbox.";
 
 function reasonFor(classification) {
-  return `Coco safety: ${classification.reason}.`;
+  return `CoCo safety: ${classification.reason}.`;
 }
 
 function block(classification, suffix = "Blocked.") {

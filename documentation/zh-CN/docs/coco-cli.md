@@ -1,6 +1,6 @@
-# Coco CLI
+# CoCo CLI
 
-本页是 Coco 的操作参考。如与继承的 Pi 文档冲突，以本页为准。
+本页是 CoCo Agent 的操作参考。如与继承的 Pi 文档冲突，以本页为准。
 
 ## 安装与升级
 
@@ -27,7 +27,7 @@ coco -p "hello"
 coco --list-models
 ```
 
-除非已设置 `PI_OFFLINE`，Coco 会以 `PI_OFFLINE=1` 启动。因此启动时不会检查更新，也不会下载缺失的 `fd` 和 `ripgrep` 二进制文件。这不会禁用模型或提供商 API 调用。如需仅为一次运行启用 Pi 启动网络行为：
+除非已设置 `PI_OFFLINE`，CoCo 会以 `PI_OFFLINE=1` 启动。因此启动时不会检查更新，也不会下载缺失的 `fd` 和 `ripgrep` 二进制文件。这不会禁用模型或提供商 API 调用。如需仅为一次运行启用 Pi 启动网络行为：
 
 ```bash
 PI_OFFLINE=0 coco
@@ -59,17 +59,37 @@ PI_OFFLINE=0 coco
 
 目标状态会追加到会话历史中，并从当前分支恢复，因此分叉或恢复的分支拥有各自最新的目标状态，而不是共享全局目标。上下文压缩期间，活动目标上下文会在下一次代理回合前重新生成；压缩后可使用 `/goal status` 查看已持久保存的目标和计划。
 
-模型拥有 `goal` 工具，用于读取和更新当前目标的计划及进度。其操作为 `status`、`set_steps`、`activate_step`、`block_step`、`reopen_step`、`complete_step` 和 `complete`；模型必须使用 `set_steps` 保存有序计划，且不得在工作和验证完成前完成步骤。目标用于引导工作，但不会覆盖当前用户指令或 Coco 安全策略。
+模型拥有 `goal` 工具，用于读取和更新当前目标的计划及进度。其操作为 `status`、`set_steps`、`activate_step`、`block_step`、`reopen_step`、`complete_step` 和 `complete`；模型必须使用 `set_steps` 保存有序计划，且不得在工作和验证完成前完成步骤。目标用于引导工作，但不会覆盖当前用户指令或 CoCo 安全策略。
+
+## 循环任务
+
+`/loop` 为当前已保存会话安排循环代理提示，不是 shell 命令或顶层 `coco` 参数。
+
+```text
+/loop
+/loop 检查部署
+/loop 5m 检查部署
+/loop 检查部署 every 2 hours
+/loop list
+/loop cancel <id>
+```
+
+- 时长支持前置紧凑 `s`、`m`、`h`、`d`，以及后置自然语言 `seconds`、`minutes`、`hours`、`days`（单复数）。最短一分钟；秒会向上取整到一分钟。固定循环使用经过时间间隔，不使用 Claude cron 归一化。
+- 任务按精确保存会话文件保存于 `~/.coco/agent/loops.json`，每会话最多 50 个活动任务，ID 为 8 字符，七天后过期。打开的匹配会话会在过期时最终触发一次，即使在下一个常规到期时间之前；恢复时发现的过期任务会被静默删除。恢复时会把错过的时间推进到未来，不补跑也不突发。
+- `list` 和 `status` 显示此会话的循环任务。`cancel` 接受无歧义的 ID 前缀；有歧义的前缀会被拒绝。
+- 空提示和仅时长任务每次触发只读取全局 `~/.coco/agent/loop.md`（普通非符号链接文件，最多 25,000 字节），否则使用保守的内置维护提示；绝不读取项目本地 loop 文件。
+- 仅提示的动态循环初始为 10 分钟。结果回合可用 `loop_wakeup` 带理由重排 1 分钟至 1 小时，或停止；未调用会约 20 分钟后回退一次，再次未重排即停止。固定循环无需工具调用。
+- 结果回合继承 CoCo 现有 guard 和权限。以 `/` 开始的计划提示作为文本发送，不执行扩展命令。
 
 ## 语言
 
-使用 `/language`、`/language en` 或 `/language zh-CN` 选择内置语言。`/language status` 显示当前选择，`/language list` 会列出有效的用户语言包。选择会在全局持久保存。自定义纯 JSON 语言包放在 `~/.coco/agent/languages/`；语言包结构、支持的消息键、校验规则和制作流程见 [Coco 用户手册](manual.md#多语言切换与语言包)。
+使用 `/language`、`/language en` 或 `/language zh-CN` 选择内置语言。`/language status` 显示当前选择，`/language list` 会列出有效的用户语言包。选择会在全局持久保存。自定义纯 JSON 语言包放在 `~/.coco/agent/languages/`；语言包结构、支持的消息键、校验规则和制作流程见 [CoCo 用户手册](manual.md#多语言切换与语言包)。
 
-语言选择会本地化 Coco 自有命令与模型回复引导。部分继承的 Pi 核心界面仍为英文，当前用户明确提出的语言要求优先。
+语言选择会本地化 CoCo 自有命令与模型回复引导。部分继承的 Pi 核心界面仍为英文，当前用户明确提出的语言要求优先。
 
 ## 受管理提供商与认证
 
-Coco 仅管理以下提供商：`agnes`、`idepub`、`achai`、`stepfun` 和 `deepseek`。全新安装会将 Agnes 设为默认提供商（`agnes/agnes-2.5-flash`，思考级别为 `max`）；源码不捆绑提供商凭据。
+CoCo 仅管理以下提供商：`agnes`、`idepub`、`achai`、`stepfun` 和 `deepseek`。全新安装会将 Agnes 设为默认提供商（`agnes/agnes-2.5-flash`，思考级别为 `max`）；源码不捆绑提供商凭据。
 
 不要在命令行传入凭据：`--api-key` 会被拒绝。使用不会回显密钥的交互命令存储密钥，避免泄露到 shell 历史：
 
@@ -94,4 +114,4 @@ coco manage auth remove idepub
 
 ## 配置范围
 
-Coco 使用 `~/.coco/agent/` 下的全局资源，包括 `settings.json`、`models.json`、`auth.json`、`skills/`、`prompts/` 和 `extensions/`。不会加载项目本地设置、扩展、技能、提示词或系统提示文件。请参阅 [Coco 安全](coco-security.md)。
+CoCo 使用 `~/.coco/agent/` 下的全局资源，包括 `settings.json`、`models.json`、`auth.json`、`skills/`、`prompts/` 和 `extensions/`。不会加载项目本地设置、扩展、技能、提示词或系统提示文件。请参阅 [CoCo 安全](coco-security.md)。

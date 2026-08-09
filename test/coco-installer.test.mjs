@@ -68,7 +68,7 @@ async function fixture() {
   await mkdir(server);
   await writeFile(join(packageRoot, "bin", "coco"), "#!/usr/bin/env bash\nif [ \"$1\" = \"--version\" ]; then exit 0; fi\n");
   await writeFile(join(packageRoot, "resources", "provider-registry.v1.json"), JSON.stringify({ providers: Object.fromEntries(Object.entries(publicBaseUrls).map(([provider, baseUrl]) => [provider, { api: "openai-completions", authHeader: true, baseUrl, compat: provider === "deepseek" ? { supportsDeveloperRole: false, supportsReasoningEffort: true } : {} }])), schemaVersion: 1 }));
-  await writeFile(join(packageRoot, "resources", "append-system-v1.md"), "Coco managed prompt.\n");
+  await writeFile(join(packageRoot, "resources", "append-system-v1.md"), "CoCo managed prompt.\n");
   await chmod(join(packageRoot, "bin", "coco"), 0o755);
   await exec("tar", ["-czf", tarball, "package"], { cwd: root });
   await writeChecksum(tarball);
@@ -199,7 +199,7 @@ for (const installer of installers) {
     }
   });
 
-  test(`Given an existing OpenCode Achai secret, when ${installer} installs, then Coco imports it without user configuration`, async () => {
+  test(`Given an existing OpenCode Achai secret, when ${installer} installs, then CoCo imports it without user configuration`, async () => {
     const setup = await fixture();
     const secret = join(setup.root, ".config", "opencode", "secrets", "achai-api-key");
     try {
@@ -433,7 +433,7 @@ for (const installer of installers) {
   });
 }
 
-test("Given a custom binary directory, when Coco is uninstalled, then its launcher and runtime are both removed", async () => {
+test("Given a custom binary directory, when CoCo is uninstalled, then its launcher and runtime are both removed", async () => {
   const setup = await fixture();
   try {
     assert.equal(await runInstaller(installers[0], { ...setup.environment, COCO_INSTALL_TEST_MODE: "0" }), 0);
@@ -446,7 +446,7 @@ test("Given a custom binary directory, when Coco is uninstalled, then its launch
   }
 });
 
-test("Given a legacy default v0.1.7 install, when Coco is uninstalled, then its runtime and managed launcher are removed", async () => {
+test("Given a legacy default v0.1.7 install, when CoCo is uninstalled, then its runtime and managed launcher are removed", async () => {
   const setup = await fixture();
   const install = join(setup.root, ".coco");
   const agent = join(install, "agent");
@@ -462,7 +462,7 @@ test("Given a legacy default v0.1.7 install, when Coco is uninstalled, then its 
   }
 });
 
-test("Given destructive or unrecognized install paths, when Coco is uninstalled, then they are preserved", async () => {
+test("Given destructive or unrecognized install paths, when CoCo is uninstalled, then they are preserved", async () => {
   const setup = await fixture();
   const unrelated = join(setup.root, "unrelated");
   const agentParent = join(setup.root, "agent-parent");
@@ -485,7 +485,7 @@ test("Given destructive or unrecognized install paths, when Coco is uninstalled,
   }
 });
 
-test("Given an unrelated launcher, when Coco is uninstalled, then the launcher is preserved", async () => {
+test("Given an unrelated launcher, when CoCo is uninstalled, then the launcher is preserved", async () => {
   const setup = await fixture();
   const launcher = join(setup.bin, "coco");
   try {

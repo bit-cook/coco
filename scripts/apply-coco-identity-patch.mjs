@@ -8,9 +8,11 @@ const agentPath = (projectRoot) => join(projectRoot, "node_modules", "@earendil-
 
 const identityReplacements = [
   ["https://pi.dev", "https://coco.local"],
-  ["Pi documentation", "Coco documentation"],
+  ["Pi documentation", "CoCo documentation"],
+  ["Coco documentation", "CoCo documentation"],
   ["inside pi", "inside coco"],
-  ["extend Pi", "extend Coco"],
+  ["extend Pi", "extend CoCo"],
+  ["extend Coco", "extend CoCo"],
 ];
 
 const tuiImportAnchor = `import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, ProcessTerminal, Spacer, setKeybindings, Text, TruncatedText, TUI, visibleWidth, } from "@earendil-works/pi-tui";`;
@@ -81,7 +83,7 @@ const patchedExpandableText = `${expandableTextAnchor}
 ${responsiveStartupWordmark}`;
 const headerAnchor = `this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\`, () => \`\${logo}\\n\${expandedInstructions}\`, this.getStartupExpansionState(), 1, 0);`;
 const compactOnboardingAnchor = `            const compactOnboarding = theme.fg("dim", \`Press \${keyText("app.tools.expand")} to show full startup help and loaded resources.\`);`;
-const onboardingAnchor = `            const onboarding = theme.fg("dim", \`Pi can explain its own features and look up its docs. Ask it how to use or extend Coco.\`);`;
+const onboardingAnchor = `            const onboarding = theme.fg("dim", \`Pi can explain its own features and look up its docs. Ask it how to use or extend CoCo.\`);`;
 const cleanInstallHeaderAnchor = `this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\\n\${compactOnboarding}\\n\\n\${onboarding}\`, () => \`\${logo}\\n\${expandedInstructions}\\n\\n\${onboarding}\`, this.getStartupExpansionState(), 1, 0);`;
 const patchedHeader = `this.builtInHeader = new ResponsiveStartupWordmark(this.getStartupExpansionState(), this.version, compactInstructions, expandedInstructions);`;
 const quietHeaderAnchor = `this.builtInHeader = new Text("", 0, 0);`;
@@ -124,7 +126,8 @@ const patchedAnthropicWarning = `        if (this.options.verbose && modelFallba
         }
         if (this.options.verbose) void this.maybeWarnAboutAnthropicSubscriptionAuth();`;
 const systemPromptIdentityAnchor = `You are an expert coding assistant operating inside coco, a coding agent harness. You help users by reading files, executing commands, editing code, and writing new files.`;
-const patchedSystemPromptIdentity = `You are Coco, a general AI assistant with strong coding and terminal capabilities. You help users with general questions and tasks, including reading files, executing commands, editing code, and writing new files.`;
+const legacyPatchedSystemPromptIdentity = `You are Coco, a general AI assistant with strong coding and terminal capabilities. You help users with general questions and tasks, including reading files, executing commands, editing code, and writing new files.`;
+const patchedSystemPromptIdentity = `You are CoCo Agent, a general AI assistant with strong coding and terminal capabilities. You help users with general questions and tasks, including reading files, executing commands, editing code, and writing new files.`;
 const helpIdentityAnchor = `${"${chalk.bold(APP_NAME)}"} - AI coding assistant with read, bash, edit, write tools`;
 const patchedHelpIdentity = `${"${chalk.bold(APP_NAME)}"} - General AI assistant with read, bash, edit, write tools`;
 const helpPromptAnchor = `System prompt (default: coding assistant prompt)`;
@@ -143,8 +146,12 @@ const legacyPatchedToolsManagerOffline = `    if (isOfflineModeEnabled()) {
         }
         return undefined;
     }`;
-const patchedToolsManagerOffline = `    if (isOfflineModeEnabled()) {
+const legacyBrandedToolsManagerOffline = `    if (isOfflineModeEnabled()) {
         // Coco keeps optional-tool discovery silent while startup is offline.
+        return undefined;
+    }`;
+const patchedToolsManagerOffline = `    if (isOfflineModeEnabled()) {
+        // CoCo keeps optional-tool discovery silent while startup is offline.
         return undefined;
     }`;
 const scrollbackAnchor = `                buffer += "\\x1b[2J\\x1b[H\\x1b[3J"; // Clear screen, home, then clear scrollback`;
@@ -377,19 +384,20 @@ function replaceOwnedResponsiveStartupWordmark(source) {
 }
 
 function replaceOfflineToolNotice(source) {
-  const variants = [toolsManagerOfflineAnchor, legacyPatchedToolsManagerOffline, patchedToolsManagerOffline];
+  const variants = [toolsManagerOfflineAnchor, legacyPatchedToolsManagerOffline, legacyBrandedToolsManagerOffline, patchedToolsManagerOffline];
   const counts = variants.map((variant) => count(source, variant));
   const matches = counts.reduce((total, value) => total + value, 0);
   if (matches > 1) {
     throw patchError("COCO_PATCH_DUPLICATE_ANCHOR");
   }
-  if (counts[2] === 1) {
+  if (counts[3] === 1) {
     return source;
   }
   if (matches === 0) {
     throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
   }
-  return source.replace(counts[0] === 1 ? toolsManagerOfflineAnchor : legacyPatchedToolsManagerOffline, patchedToolsManagerOffline);
+  const previous = counts[0] === 1 ? toolsManagerOfflineAnchor : counts[1] === 1 ? legacyPatchedToolsManagerOffline : legacyBrandedToolsManagerOffline;
+  return source.replace(previous, patchedToolsManagerOffline);
 }
 
 function replaceOwnedHeader(source) {
@@ -507,7 +515,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   if (!patched[7].endsWith("\n")) patched[7] += "\n";
   patched[0] = replaceExact(patched[0], helpIdentityAnchor, patchedHelpIdentity);
   patched[0] = replaceExact(patched[0], helpPromptAnchor, patchedHelpPrompt);
-  patched[6] = replaceExact(patched[6], systemPromptIdentityAnchor, patchedSystemPromptIdentity);
+  patched[6] = replaceUpgrade(patched[6], systemPromptIdentityAnchor, legacyPatchedSystemPromptIdentity, patchedSystemPromptIdentity);
   patched[9] = replaceExact(patched[9], firstTimeSetupAnchor, patchedFirstTimeSetup);
   patched[10] = replaceOfflineToolNotice(patched[10]);
   patched.push(replaceExact(originals.at(-1), scrollbackAnchor, patchedScrollback));

@@ -96,12 +96,12 @@ extract_candidate() {
   local package_extract="$TMP/package" node_extract="$TMP/node"
   mkdir -p -- "$package_extract" "$node_extract"
   tar --no-same-owner --no-same-permissions -xzf "$SCRIPT_DIR/coco-package.tgz" -C "$package_extract"
-  [ -d "$package_extract/package" ] || die "Invalid Coco package archive"
+  [ -d "$package_extract/package" ] || die "Invalid CoCo package archive"
   mv -- "$package_extract/package" "$CANDIDATE"
   mkdir -p -- "$CANDIDATE/runtime/node"
   tar --no-same-owner --no-same-permissions -xzf "$SCRIPT_DIR/node-runtime.tar.gz" -C "$CANDIDATE/runtime/node"
   [ -x "$CANDIDATE/runtime/node/bin/node" ] || die "Bundled Node runtime is missing"
-  [ -x "$CANDIDATE/bin/coco" ] || die "Coco executable is missing"
+  [ -x "$CANDIDATE/bin/coco" ] || die "CoCo executable is missing"
   [ -d "$CANDIDATE/node_modules" ] || die "Bundled dependencies are missing"
   PI_OFFLINE=1 "$CANDIDATE/runtime/node/bin/node" "$CANDIDATE/bin/coco" --version >/dev/null || die "Candidate startup verification failed"
   printf '%s\n' 'coco-install-v1' > "$CANDIDATE/.coco-install-owner"
@@ -148,7 +148,7 @@ install_launcher() {
 main() {
   validate_paths; validate_bundle; extract_candidate; swap_runtime; configure_state; install_launcher
   COMMITTED=1; rm -rf -- "$ROLLBACK"
-  info "Installed Coco from the offline bundle"
+  info "Installed CoCo from the offline bundle"
   [ -z "${COCO_INTRANET_BASE_URL:-}" ] || info "Configured ${COCO_INTRANET_PROVIDER:-intranet}/${COCO_INTRANET_MODEL_ID}"
   info "Run: $COCO_BIN_DIR/coco"
 }

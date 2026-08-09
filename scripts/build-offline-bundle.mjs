@@ -105,7 +105,7 @@ export async function buildOfflineBundle({ nodeArchive, outputDirectory = join(r
     await copyFile(join(root, "uninstall.sh"), join(bundle, "uninstall.sh"));
     await chmod(join(bundle, "uninstall.sh"), 0o755);
     await writeFile(join(bundle, "platform.txt"), `${target}\n`);
-    await writeFile(join(bundle, "README.txt"), `Coco ${version} offline bundle for ${target}\n\n1. Extract this ZIP.\n2. Optionally set COCO_INTRANET_BASE_URL and COCO_INTRANET_MODEL_ID.\n3. Run: bash offline-install.sh\n\nSee the bundled Coco manuals after installation.\n`);
+    await writeFile(join(bundle, "README.txt"), `CoCo ${version} offline bundle for ${target}\n\n1. Extract this ZIP.\n2. Optionally set COCO_INTRANET_BASE_URL and COCO_INTRANET_MODEL_ID.\n3. Run: bash offline-install.sh\n\nSee the bundled CoCo manuals after installation.\n`);
     const checksummed = ["coco-package.tgz", "node-runtime.tar.gz", "offline-install.sh", "uninstall.sh", "platform.txt", "README.txt"];
     const lines = [];
     for (const name of checksummed) lines.push(`${sha256(await readFile(join(bundle, name)))}  ${name}`);

@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { chmod, lstat, mkdtemp, symlink, unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+import { createLoopStateStore, emptyLoopState, loopId, validLoopState } from "../scripts/loop-state.mjs";
+const task = (overrides = {}) => ({ createdAt: "2026-01-01T00:00:00.000Z", dynamic: false, expiresAt: "2026-01-08T00:00:00.000Z", fallbacks: 0, id: "abcdefgh", intervalMs: 60000, nextDueAt: "2026-01-01T00:01:00.000Z", prompt: "check", sessionFile: "/tmp/session.jsonl", ...overrides });
+test("loop state has a strict bounded schema and base64url IDs", () => { assert.deepEqual(emptyLoopState(), { revision: 0, schemaVersion: 1, tasks: [] }); assert.match(loopId(() => Buffer.from([0, 1, 2, 3, 4, 5])), /^[A-Za-z0-9_-]{8}$/); assert.equal(validLoopState({ revision: 0, schemaVersion: 1, tasks: [task()] }), true); assert.equal(validLoopState({ revision: 0, schemaVersion: 1, tasks: [task({ prompt: "\n" })] }), false); });
+test("loop state rejects actual loops.json symlinks and uses secure permissions", async () => { const directory = await mkdtemp(join(tmpdir(), "coco-loop-")); const store = createLoopStateStore({ agentDir: directory }); await store.update((state) => { state.tasks.push(task()); return state; }); if (process.platform !== "win32") assert.equal((await lstat(store.path)).mode & 0o777, 0o600); await unlink(store.path); const target = join(directory, "target.json"); await symlink(target, store.path); await assert.rejects(store.load(), /LOOP_STATE_ENTRY_INVALID/); });
+test("independent stores do not silently lose concurrent updates", async () => { const directory = await mkdtemp(join(tmpdir(), "coco-loop-")); const a = createLoopStateStore({ agentDir: directory }); const b = createLoopStateStore({ agentDir: directory }); await Promise.all([a.update((state) => { state.tasks.push(task({ id: "abcdefgh" })); return state; }), b.update((state) => { state.tasks.push(task({ id: "ijklmnop" })); return state; })]); assert.deepEqual((await a.load()).tasks.map((x) => x.id).sort(), ["abcdefgh", "ijklmnop"]); });

@@ -4,8 +4,8 @@
 
 ### Added
 
-- Added native `coco --help`, `coco -h`, and `coco help` output for Coco commands, managed providers, credentials, offline behavior, project-resource policy, and Pi compatibility.
-- Added concise English and Simplified Chinese Coco CLI and security guides that take precedence over inherited Pi operational documentation.
+- Added native `coco --help`, `coco -h`, and `coco help` output for CoCo commands, managed providers, credentials, offline behavior, project-resource policy, and Pi compatibility.
+- Added concise English and Simplified Chinese CoCo CLI and security guides that take precedence over inherited Pi operational documentation.
 - Added trustworthy doctor checks for the default provider, catalog hashes, sessions, prompt ownership, trust policy, and the packaged guard.
 
 ### Security

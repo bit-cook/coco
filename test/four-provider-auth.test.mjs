@@ -50,7 +50,7 @@ test("Given each canonical provider, when auth is set, inspected, resolved, and 
   }
 });
 
-test("Given a fresh agent directory, when Coco bootstraps public provider state, then all canonical providers are available without credential fields", async () => {
+test("Given a fresh agent directory, when CoCo bootstraps public provider state, then all canonical providers are available without credential fields", async () => {
   const root = await mkdtemp(join(tmpdir(), "coco-four-provider-bootstrap-"));
   const agentDir = join(root, "agent");
   const cocoRoot = new URL("..", import.meta.url).pathname;

@@ -1,12 +1,12 @@
-# Coco Terminal UI Design Contract
+# CoCo Terminal UI Design Contract
 
-This document binds all Coco interactive-TUI fixes and extensions. Coco uses the
+This document binds all CoCo interactive-TUI fixes and extensions. CoCo uses the
 existing pi-tui component model: components render width-bounded ANSI lines,
 receive theme semantics, and invalidate cached themed output on a theme change.
 
 ## 1. Product Intent And Layout
 
-- Coco is a quiet, compact general AI assistant with strong coding and terminal
+- CoCo is a quiet, compact general AI assistant with strong coding and terminal
   capabilities, not a transcript viewer.
 - Startup opens directly to the editor with a compact Responsive Startup
   Wordmark, editor, and footer chrome. It does not print onboarding, help,
@@ -77,7 +77,7 @@ title, and border color continue to express tool state.
 ## 4. Typography And Density
 
 - Typography is the terminal's inherited monospace font, size, weight, line
-  height, and fallback behavior. Coco sets no web font, custom font size, or
+  height, and fallback behavior. CoCo sets no web font, custom font size, or
   graphical type scale.
 - Use normal terminal text for content, ANSI bold only for labels that improve
   scanability, and semantic foreground color for hierarchy. Do not use color as
@@ -89,7 +89,7 @@ title, and border color continue to express tool state.
 ## 5. Component Contracts
 
 - **Responsive Startup Wordmark:** the header's named identity primitive. It is
-  static, ASCII-only, original to Coco, and has at most four rows. It must not
+  static, ASCII-only, original to CoCo, and has at most four rows. It must not
   reproduce another product's letterforms, compact mark, or composition.
   `render(width)` selects a four-row original CoCo wordmark only when the
   supplied render width includes its one-cell component padding; otherwise it
@@ -105,7 +105,7 @@ title, and border color continue to express tool state.
   `cyan` and the optional version is `dim`.
 - **Transcript and terminal scrollback:** conversation and tool output render
   in normal terminal flow. The terminal emulator owns scrollback, selection,
-  copy behavior, and history navigation. Coco creates no mouse-reporting mode,
+  copy behavior, and history navigation. CoCo creates no mouse-reporting mode,
   in-app transcript viewport, scrollbar, or alternate scrollback model.
 - **Editor border:** the editor remains a stable bottom region. Use
   `borderMuted` when idle, `borderAccent` for focus/selection, the configured
@@ -141,7 +141,7 @@ title, and border color continue to express tool state.
 - Every interactive action must remain discoverable by keyboard and preserve
   terminal and IME cursor behavior. Key hints must be plain text and concise.
 - Netcatty is a first-class terminal constraint: startup stays quiet, the
-  emulator retains native scrollback, and Coco avoids mouse protocol/reporting
+  emulator retains native scrollback, and CoCo avoids mouse protocol/reporting
   and any internal transcript viewport that would capture ordinary scrolling.
 - Support truecolor where available and pi-tui's terminal color fallback where
   it is not. Never assume a specific terminal font, cell size, cursor shape, or
@@ -149,18 +149,18 @@ title, and border color continue to express tool state.
 
 ## 8. Accepted Debt And Delivery Boundaries
 
-- Coco depends on upstream Bun/pi-tui generated artifacts. Targeted fixes may
+- CoCo depends on upstream Bun/pi-tui generated artifacts. Targeted fixes may
   patch or wrap the shipped artifacts, but regeneration and upstream source
   ownership are outside this contract until a maintained source pipeline exists.
 - Native terminal scrollback is intentionally delegated to the terminal emulator.
-  Coco cannot normalize scrollback capacity, retention, selection behavior, or
+  CoCo cannot normalize scrollback capacity, retention, selection behavior, or
   terminal-specific redraw quirks; it must only avoid defeating them.
 - No web-only design primitives, mouse-driven transcript controls, graphical
   scrollbars, or custom font assumptions belong in this TUI contract.
 
 ---
 
-# Coco Web Site Design Contract Extension
+# CoCo Web Site Design Contract Extension
 
 This extension governs the static GitHub Pages install site only. It preserves
 the TUI's quiet Solarized terminal character while adapting it for a responsive,

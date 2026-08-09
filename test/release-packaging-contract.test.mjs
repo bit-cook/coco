@@ -33,7 +33,7 @@ test("Given public release metadata, when the Pages launcher runs, then it execu
   }
 });
 
-test("Given the public package contract, when Coco is packed, then only release-safe files are included", async () => {
+test("Given the public package contract, when CoCo is packed, then only release-safe files are included", async () => {
   const output = await mkdtemp(join(tmpdir(), "coco-release-package-"));
   try {
     const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));

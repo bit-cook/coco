@@ -1,4 +1,4 @@
-# coco documentation
+# CoCo Documentation
 
 Choose a language:
 

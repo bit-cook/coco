@@ -9,7 +9,7 @@ const MANAGED_PROVIDERS = new Set(["idepub", "achai", "agnes", "deepseek", "step
 const NATIVE_COMMANDS = new Set(["manage", "doctor", "core"]);
 
 function help() {
-  process.stdout.write(`Coco ${COCO_VERSION}
+  process.stdout.write(`CoCo ${COCO_VERSION}
 
 Usage:
   coco [Pi arguments...]
@@ -41,6 +41,13 @@ Interactive language:
   /language <locale>        Switch language and persist the selection
   /language status|list     Show current or available languages
 
+Interactive loops:
+  /loop [prompt]             Create a dynamic recurring loop
+  /loop <duration> [prompt]  Create a fixed recurring loop
+  /loop [prompt] every <duration>
+  /loop list|status          List loops for this saved session
+  /loop cancel <id>          Cancel a loop by ID or unique prefix
+
 Managed providers:
   idepub, achai, agnes, deepseek, stepfun
 
@@ -50,17 +57,17 @@ Credentials:
   command line. "auth status" reports availability and source, never a value.
 
 Offline and resources:
-  Coco starts offline unless PI_OFFLINE is explicitly set. Network-dependent
+  CoCo starts offline unless PI_OFFLINE is explicitly set. Network-dependent
   checks and model sync require an enabled connection. Packaged resources are
   integrity-checked; executable project resources are not trusted.
 
 Security:
-  Coco safety guardrails are best-effort and are not a sandbox. "coco update"
-  is prohibited; update Coco through its approved installation process.
+  CoCo safety guardrails are best-effort and are not a sandbox. "coco update"
+  is prohibited; update CoCo through its approved installation process.
 
 Pi compatibility:
   Commands outside this native grammar are forwarded to bundled Pi ${CORE_VERSION}
-  with Coco's guard. Pi options and commands remain compatible.
+  with CoCo's guard. Pi options and commands remain compatible.
 `);
   return { exitCode: 0, kind: "native" };
 }
@@ -239,10 +246,11 @@ export async function dispatchCoco({ argv = process.argv.slice(2), root }) {
     return { exitCode: 0, kind: "native" };
   }
   if (NATIVE_COMMANDS.has(argv[0])) return native(argv, root);
+  const language = join(root, "resources", "coco-language.mjs");
   const guard = join(root, "resources", "coco-guard.mjs");
   const goal = join(root, "resources", "coco-goal.mjs");
-  const language = join(root, "resources", "coco-language.mjs");
-  if (argv.includes("--help") || argv.includes("-h")) process.stderr.write("coco: safety guardrails are best-effort and not a sandbox.\n");
-  process.argv.splice(2, process.argv.length - 2, "-e", language, "-e", guard, "-e", goal, ...argv);
-  return { goal, guard, kind: "forward", language };
+  const loop = join(root, "resources", "coco-loop.mjs");
+  if (argv.includes("--help") || argv.includes("-h")) process.stderr.write("coco: CoCo safety guardrails are best-effort and not a sandbox.\n");
+  process.argv.splice(2, process.argv.length - 2, "-e", language, "-e", guard, "-e", goal, "-e", loop, ...argv);
+  return { goal, guard, kind: "forward", language, loop };
 }

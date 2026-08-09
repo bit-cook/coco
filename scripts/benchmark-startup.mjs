@@ -25,7 +25,7 @@ function run(agentDir, full = false) {
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.once("error", reject);
     child.once("close", (code) => {
-      if (code !== 0) reject(new Error(stderr.trim() || `Coco exited with ${code}`));
+      if (code !== 0) reject(new Error(stderr.trim() || `CoCo exited with ${code}`));
       else resolveRun(performance.now() - started);
     });
   });

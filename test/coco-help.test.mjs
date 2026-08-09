@@ -18,11 +18,11 @@ async function nativeHelp(argv) {
   }
 }
 
-test("Coco help forms are native and document the active native grammar", async () => {
+test("CoCo help forms are native and document the active native grammar", async () => {
   for (const argv of [["--help"], ["-h"], ["help"]]) {
     const { result, stdout } = await nativeHelp(argv);
     assert.deepEqual(result, { exitCode: 0, kind: "native" });
-    assert.match(stdout, new RegExp(`^Coco ${COCO_VERSION.replaceAll(".", "\\.")}$`, "m"));
+    assert.match(stdout, new RegExp(`^CoCo ${COCO_VERSION.replaceAll(".", "\\.")}$`, "m"));
     assert.match(stdout, /coco manage auth set <provider> \[--stdin\] \[--json\]/);
     assert.match(stdout, /coco manage models sync \[--provider <provider>\] \[--allow-empty\] \[--yes\] \[--json\]/);
     assert.match(stdout, /coco manage migrate \[--dry-run\] \[--json\] \[--yes\]/);
@@ -43,11 +43,11 @@ test("Coco help forms are native and document the active native grammar", async 
   }
 });
 
-test("Coco help states credential, offline, resource, security, and update policy without upstream API-key flags", async () => {
+test("CoCo help states credential, offline, resource, security, and update policy without upstream API-key flags", async () => {
   const { stdout } = await nativeHelp(["--help"]);
   assert.match(stdout, /Do not put credentials on the\n  command line\./);
   assert.match(stdout, /auth status.*never a value/);
-  assert.match(stdout, /Coco starts offline unless PI_OFFLINE is explicitly set\./);
+  assert.match(stdout, /CoCo starts offline unless PI_OFFLINE is explicitly set\./);
   assert.match(stdout, /Packaged resources are\n  integrity-checked; executable project resources are not trusted\./);
   assert.match(stdout, /best-effort and are not a sandbox/);
   assert.match(stdout, /"coco update"\n  is prohibited/);
