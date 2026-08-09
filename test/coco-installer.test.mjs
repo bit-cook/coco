@@ -16,7 +16,7 @@ const publicBaseUrls = {
   idepub: "https://api.ide.pub/v1",
   stepfun: "https://api.stepfun.com/step_plan/v1",
 };
-const agnesAssetUrl = "https://github.com/aithernexus/coco/releases/download/installer-v0.1.1.1/agnes.key";
+const agnesAssetUrl = "https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key";
 const agnesAssetDigest = "4d78028a0a60a7d752e6e57cbcb3113e9de99ab81bde608a0b9610a83cd42f6e";
 const syntheticAgnesKey = "a".repeat(51);
 
