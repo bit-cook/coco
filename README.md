@@ -39,6 +39,15 @@ coco -p "hello"
 coco --list-models
 ```
 
+## Documentation
+
+- User manual: [English](documentation/en/docs/manual.md) | [简体中文](documentation/zh-CN/docs/manual.md)
+- Operational reference: [CoCo CLI](documentation/en/docs/coco-cli.md) | [CoCo security](documentation/en/docs/coco-security.md)
+- Language packs: [English instructions](documentation/en/docs/manual.md#language-switching-and-language-packs) | [中文说明](documentation/zh-CN/docs/manual.md#多语言切换与语言包)
+- Documentation index: [English](documentation/en/README.md) | [简体中文](documentation/zh-CN/README.md)
+
+CoCo-specific documentation takes precedence over inherited Pi documentation when they differ.
+
 ## Core workflows
 
 Use the built-in interactive `/goal` command to set and track a goal for the current session branch. Goals and plans persist with that branch, survive context compaction, and guide the agent without overriding the current user instruction or CoCo safety policy. See [CoCo CLI](documentation/en/docs/coco-cli.md#persistent-goals) for the command grammar and [CoCo security](documentation/en/docs/coco-security.md#goal-instruction-and-safety-boundary) for the trust boundary.
@@ -94,15 +103,6 @@ PI_OFFLINE=0 coco
 ```
 
 Offline and intranet deployment is supported through a platform-specific self-contained ZIP; see [English instructions](documentation/en/docs/manual.md#offline-and-intranet-installation) or [中文说明](documentation/zh-CN/docs/manual.md#离线与内网安装).
-
-## Documentation
-
-- User manual: [English](documentation/en/docs/manual.md) | [简体中文](documentation/zh-CN/docs/manual.md)
-- Operational reference: [CoCo CLI](documentation/en/docs/coco-cli.md) | [CoCo security](documentation/en/docs/coco-security.md)
-- Language packs: [English instructions](documentation/en/docs/manual.md#language-switching-and-language-packs) | [中文说明](documentation/zh-CN/docs/manual.md#多语言切换与语言包)
-- Documentation index: [English](documentation/en/README.md) | [简体中文](documentation/zh-CN/README.md)
-
-CoCo-specific documentation takes precedence over inherited Pi documentation when they differ.
 
 ## Licensing and upstream
 
