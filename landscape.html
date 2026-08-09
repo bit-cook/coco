@@ -103,7 +103,7 @@
               <li>自动文件 checkpoint 与一键 rewind</li>
               <li>VS Code / JetBrains 原生扩展</li>
               <li>GitHub PR、review、issue-to-PR 自动化</li>
-              <li>云端后台任务、定时任务与企业控制台</li>
+              <li>云端后台任务、事件自动化与企业控制台</li>
             </ul>
           </div>
         </div>
@@ -136,7 +136,7 @@
               <tr><th scope="row">原生 IDE 扩展</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="no">—</td><td class="partial">◐</td></tr>
               <tr><th scope="row">GitHub PR / Review</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="no">—</td><td class="partial">◐</td></tr>
               <tr><th scope="row">后台 / 云端任务</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="yes">●</td></tr>
-              <tr><th scope="row">定时与事件自动化</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="partial">◐</td><td class="yes">●</td></tr>
+              <tr><th scope="row">定时与事件自动化</th><td class="partial coco">◐</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="partial">◐</td><td class="partial">◐</td><td class="yes">●</td></tr>
               <tr><th scope="row">远程 / 移动端控制</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="partial">◐</td><td class="yes">●</td></tr>
               <tr><th scope="row">企业策略与分析</th><td class="no coco">—</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="partial">◐</td></tr>
             </tbody>
@@ -158,7 +158,7 @@
           <article><span>06 · P1</span><h3>GitHub 工作流</h3><p>Codex、Copilot 等产品已把接收任务、代码审查、CI 修复或产出 PR 纳入 GitHub 工作流；Claude 与 Cursor 也覆盖其中部分环节。</p></article>
           <article><span>07 · P1</span><h3>IDE 原生体验</h3><p>竞品可以读取 selection/open tabs、展示内联 diff、计划审批和历史。CoCo 的集成面仍是终端、RPC 与外部编辑器。</p></article>
           <article><span>08 · P1</span><h3>后台任务</h3><p>用户关闭窗口后，Codex cloud、Claude web、Copilot agent 与 Cursor cloud 仍可持续执行并回传结果。</p></article>
-          <article><span>09 · P2</span><h3>定时与事件触发</h3><p>Codex Automations、Claude Routines、Copilot Automations 与 Cursor Automations 支持 schedule、webhook 和 GitHub 事件。</p></article>
+          <article><span>09 · P2</span><h3>定时与事件触发</h3><p>CoCo 已有会话级 `/loop` 定时提示，但仍要求对应会话保持运行；Codex Automations、Claude Routines、Copilot Automations 与 Cursor Automations 进一步支持持久 schedule、webhook 或 GitHub 事件。</p></article>
           <article><span>10 · P2</span><h3>远程控制</h3><p>Codex、Claude 与 Cursor 都提供远程或云端任务入口；具体能否接管本地主机会因客户端、套餐和运行模式而异。</p></article>
           <article><span>11 · P2</span><h3>浏览器 / 视觉验证</h3><p>部分头部产品已提供浏览器交互或视觉产物；Cursor Cloud 明确支持截图、录屏和远程桌面，形成实现后的验证线索。</p></article>
           <article><span>12 · P2</span><h3>企业治理</h3><p>团队采购通常要求集中策略、身份管理、审计、可观测性、集成治理和留存控制；CoCo 尚未形成对应的管理平面。OpenClaw 虽有策略与 OTel，但官方仍定位为单操作者边界。</p></article>
@@ -210,7 +210,7 @@
           <section><h3>其他产品</h3><a href="https://geminicli.com/docs/">Gemini CLI</a><a href="https://geminicli.com/docs/cli/checkpointing/">Gemini Checkpointing</a><a href="https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-coding-agent">Copilot Coding Agent</a><a href="https://cursor.com/cloud">Cursor Cloud</a><a href="https://cursor.com/bugbot">Cursor Bugbot</a><a href="https://aider.chat/docs/git.html">Aider Git</a></section>
           <section><h3>Pi Coding Agent</h3><a href="https://github.com/earendil-works/pi/tree/main/packages/coding-agent">Overview</a><a href="https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/security.md">Security</a><a href="https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/llama-cpp.md">Local models</a><a href="https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions">Extensions</a></section>
           <section><h3>OpenClaw</h3><a href="https://docs.openclaw.ai/">Overview</a><a href="https://docs.openclaw.ai/gateway/sandboxing">Sandboxing</a><a href="https://docs.openclaw.ai/tools/mcp">MCP</a><a href="https://docs.openclaw.ai/tools/subagents">Subagents</a><a href="https://docs.openclaw.ai/concepts/managed-worktrees">Worktrees</a><a href="https://docs.openclaw.ai/automation/cron-jobs">Automation</a><a href="https://docs.openclaw.ai/gateway/security">Security scope</a></section>
-          <section><h3>CoCo 证据</h3><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/usage.md">Usage</a><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/coco-security.md">Security</a><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/rpc.md">RPC</a><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/sdk.md">SDK</a><a href="https://github.com/bit-cook/coco/blob/main/resources/coco-goal.mjs">Goal</a><a href="https://github.com/bit-cook/coco/blob/main/offline-install.sh">Offline installer</a></section>
+          <section><h3>CoCo 证据</h3><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/usage.md">Usage</a><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/coco-security.md">Security</a><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/rpc.md">RPC</a><a href="https://github.com/bit-cook/coco/blob/main/documentation/en/docs/sdk.md">SDK</a><a href="https://github.com/bit-cook/coco/blob/main/resources/coco-goal.mjs">Goal</a><a href="https://github.com/bit-cook/coco/blob/main/resources/coco-loop.mjs">Loop</a><a href="https://github.com/bit-cook/coco/blob/main/offline-install.sh">Offline installer</a></section>
         </div>
       </section>
     </main>
