@@ -32,7 +32,7 @@ coco control status
 
 打开返回的本机地址并输入令牌。后台可以创建需要审批的 worktree 任务、查看历史和活跃 Agent、取消单个任务或完全终止全部任务。它不会暴露原始 RPC、Provider 凭据、任意会话路径或直接 Shell 接口。
 
-远程监听默认关闭。只有通过可信加密隧道或反向代理时，才应设置 `COCO_ALLOW_REMOTE_CONTROL=1` 并传入 `--host`。内置服务使用 HTTP，不负责 TLS 终止。
+控制服务只接受 loopback 监听。远程访问时保持监听 `127.0.0.1`，并使用经过认证的 SSH 隧道或保持源站私有的 TLS 终止隧道。内置服务使用 HTTP，不负责 TLS 终止。
 
 ## MCP
 

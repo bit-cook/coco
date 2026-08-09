@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.1] - 2026-08-09
+
+### Security
+
+- Bound persisted Agent, runner, and control-service PIDs to operating-system process identities before signalling, preventing stale PID reuse from terminating unrelated processes.
+- Made task cancellation wait for concurrent Agent launch publication and verified process-tree termination before reporting success.
+- Restricted the control service to loopback listeners; remote access now requires an encrypted SSH or TLS tunnel.
+- Made project-local Subagents fail closed when interactive approval is unavailable, and terminated cancelled Subagent process groups including descendants.
+
+### Fixed
+
+- Recovered safely from stale `control.json` after crashes or restarts.
+- Isolated MCP server startup failures so one unavailable server does not prevent other approved servers from loading.
+- Added direct approval of blocked tasks in the VS Code client and made VSIX source builds portable across platforms.
+- Clarified the published Linux x64 offline scope and required external ZIP checksum verification.
+
 ## [0.2.0] - 2026-08-09
 
 ### Added

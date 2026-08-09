@@ -44,8 +44,8 @@ The stable launcher selects the newest non-prerelease release and runs that rele
 To install an explicitly reviewed release, download the installer for that exact tag and pass the matching version:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.2.0/install.sh
-COCO_VERSION=0.2.0 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.2.1/install.sh
+COCO_VERSION=0.2.1 bash install.sh
 ```
 
 The installer verifies checksums and archive structure before replacing an installation. It uses a candidate-and-rollback process so a failed update does not intentionally destroy a working installation.
@@ -77,9 +77,15 @@ If the shell cannot find `coco` after installation, open a new terminal or add t
 
 ### Offline And Intranet Installation
 
-For disconnected Linux or macOS hosts, use a platform-specific CoCo offline ZIP built on a connected release machine. The ZIP contains the complete CoCo package, bundled dependencies, a verified private Node runtime, checksums, and `offline-install.sh`; the target host does not run npm or download components.
+The official release currently publishes a self-contained offline ZIP for Linux x64. Other platforms can use the online installer, or build and verify a platform-specific bundle from a trusted connected machine. The ZIP contains the complete CoCo package, bundled dependencies, a private Node runtime, checksums, and `offline-install.sh`; the target host does not run npm or download components.
 
-After transferring the ZIP to the intranet, extract it and run:
+Before transferring or extracting, download the ZIP and its external sidecar from the same exact release and verify it outside the archive:
+
+```bash
+sha256sum --check coco-0.2.1-offline-linux-x64.zip.sha256
+```
+
+The inner `SHA256SUMS` detects corruption after extraction but does not authenticate the ZIP by itself. After external verification and transfer, extract it and run:
 
 ```bash
 bash offline-install.sh

@@ -28,6 +28,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { processIdentity, terminateProcessTree } from "../../../scripts/task-process.mjs";
 import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.ts";
 
 const MAX_PARALLEL_TASKS = 8;
@@ -335,11 +336,15 @@ async function runSingleAgent(
 			const invocation = getPiInvocation(args);
 			const proc = spawn(invocation.command, invocation.args, {
 				cwd: cwd ?? defaultCwd,
+				detached: process.platform !== "win32",
 				env: { ...process.env, COCO_SUBAGENT_DEPTH: String(Number(process.env.COCO_SUBAGENT_DEPTH || "0") + 1) },
 				shell: false,
 				stdio: ["ignore", "pipe", "pipe"],
 			});
 			let buffer = "";
+			let abortTermination: Promise<unknown> | null = null;
+			const identity = processIdentity(proc.pid!);
+			let killProc: (() => void) | null = null;
 
 			const processLine = (line: string) => {
 				if (!line.trim()) return;
@@ -389,22 +394,27 @@ async function runSingleAgent(
 				currentResult.stderr += data.toString();
 			});
 
-			proc.on("close", (code) => {
+			proc.on("close", async (code) => {
+				if (signal && killProc) signal.removeEventListener("abort", killProc);
 				if (buffer.trim()) processLine(buffer);
+				if (abortTermination) await abortTermination;
 				resolve(code ?? 0);
 			});
 
-			proc.on("error", () => {
+			proc.on("error", async () => {
+				if (signal && killProc) signal.removeEventListener("abort", killProc);
+				if (abortTermination) await abortTermination;
 				resolve(1);
 			});
 
 			if (signal) {
-				const killProc = () => {
+				killProc = () => {
 					wasAborted = true;
-					proc.kill("SIGTERM");
-					setTimeout(() => {
-						if (!proc.killed) proc.kill("SIGKILL");
-					}, 5000);
+					abortTermination ??= identity.then((value) => {
+						if (value) return terminateProcessTree(proc.pid!, { graceMs: 5000, identity: value });
+						if (proc.exitCode === null) proc.kill("SIGTERM");
+						return new Promise((done) => setTimeout(() => { if (proc.exitCode === null) proc.kill("SIGKILL"); done(undefined); }, 5000));
+					});
 				};
 				if (signal.aborted) killProc();
 				else signal.addEventListener("abort", killProc, { once: true });
@@ -479,7 +489,6 @@ export default function (pi: ExtensionAPI) {
 			const agentScope: AgentScope = params.agentScope ?? "user";
 			const discovery = discoverAgents(ctx.cwd, agentScope);
 			const agents = discovery.agents;
-			const confirmProjectAgents = params.confirmProjectAgents ?? true;
 
 			const hasChain = (params.chain?.length ?? 0) > 0;
 			const hasTasks = (params.tasks?.length ?? 0) > 0;
@@ -508,7 +517,7 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 
-			if ((agentScope === "project" || agentScope === "both") && confirmProjectAgents && ctx.hasUI) {
+			if (agentScope === "project" || agentScope === "both") {
 				const requestedAgentNames = new Set<string>();
 				if (params.chain) for (const step of params.chain) requestedAgentNames.add(step.agent);
 				if (params.tasks) for (const t of params.tasks) requestedAgentNames.add(t.agent);
@@ -519,6 +528,16 @@ export default function (pi: ExtensionAPI) {
 					.filter((a): a is AgentConfig => a?.source === "project");
 
 				if (projectAgentsRequested.length > 0) {
+					if (!ctx.hasUI) return {
+						content: [{ type: "text", text: "Blocked: project-local agents require interactive approval." }],
+						details: makeDetails(hasChain ? "chain" : hasTasks ? "parallel" : "single")([]),
+						isError: true,
+					};
+					if (params.confirmProjectAgents === false) return {
+						content: [{ type: "text", text: "Blocked: project-local agent approval cannot be disabled." }],
+						details: makeDetails(hasChain ? "chain" : hasTasks ? "parallel" : "single")([]),
+						isError: true,
+					};
 					const names = projectAgentsRequested.map((a) => a.name).join(", ");
 					const dir = discovery.projectAgentsDir ?? "(unknown)";
 					const ok = await ctx.ui.confirm(

@@ -16,22 +16,28 @@ export default function cocoMcp(pi) {
     for (const [serverName, server] of Object.entries(config.servers)) {
       if (!server.enabled || server.approval === "deny") continue;
       if (server.approval === "ask" && (!ctx.hasUI || !await ctx.ui.confirm("Enable MCP server?", `${serverName}: ${server.command} ${server.args.join(" ")}`))) continue;
-      const transport = new StdioClientTransport({ args: server.args, command: server.command, cwd: ctx.cwd, stderr: "pipe" });
-      const client = new Client({ name: "coco", version: "0.2.0" });
-      await client.connect(transport);
-      clients.push({ client, transport });
-      const listed = await client.listTools();
-      for (const tool of listed.tools) {
-        pi.registerTool({
-          description: `[MCP ${serverName}] ${tool.description ?? tool.name}`,
-          label: `${serverName}: ${tool.name}`,
-          name: `mcp__${safe(serverName)}__${safe(tool.name)}`,
-          parameters: tool.inputSchema,
-          async execute(_id, args, signal) {
-            const result = await client.callTool({ arguments: args, name: tool.name }, undefined, { signal });
-            return { content: text(result), details: { server: serverName, tool: tool.name }, isError: result.isError === true };
-          },
-        });
+      let client;
+      try {
+        const transport = new StdioClientTransport({ args: server.args, command: server.command, cwd: ctx.cwd, stderr: "pipe" });
+        client = new Client({ name: "coco", version: "0.2.1" });
+        await client.connect(transport);
+        const listed = await client.listTools();
+        clients.push({ client, transport });
+        for (const tool of listed.tools) {
+          pi.registerTool({
+            description: `[MCP ${serverName}] ${tool.description ?? tool.name}`,
+            label: `${serverName}: ${tool.name}`,
+            name: `mcp__${safe(serverName)}__${safe(tool.name)}`,
+            parameters: tool.inputSchema,
+            async execute(_id, args, signal) {
+              const result = await client.callTool({ arguments: args, name: tool.name }, undefined, { signal });
+              return { content: text(result), details: { server: serverName, tool: tool.name }, isError: result.isError === true };
+            },
+          });
+        }
+      } catch (error) {
+        await client?.close().catch(() => {});
+        if (ctx.hasUI) ctx.ui.notify(`MCP server ${serverName} unavailable: ${error instanceof Error ? error.message : "connection failed"}`, "warning");
       }
     }
   });

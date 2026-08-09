@@ -41,12 +41,14 @@ jobs:
       - working-directory: release
         run: sha256sum coco-*.tgz > coco-$(node -p "require('../package.json').version").tgz.sha256
       - working-directory: release
-        run: sha256sum install.sh uninstall.sh coco-*.tgz coco-*.tgz.sha256 coco-*-offline-*.zip coco-*-offline-*.zip.sha256 coco-agent-*.vsix > SHA256SUMS
+        run: sha256sum coco-agent-*.vsix > coco-agent-$(node -p "require('../package.json').version").vsix.sha256
+      - working-directory: release
+        run: sha256sum install.sh uninstall.sh coco-*.tgz coco-*.tgz.sha256 coco-*-offline-*.zip coco-*-offline-*.zip.sha256 coco-agent-*.vsix coco-agent-*.vsix.sha256 > SHA256SUMS
       - run: node scripts/publication-secret-scanner.mjs release
       - run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
-      - run: gh release upload "$GITHUB_REF_NAME" --clobber release/install.sh release/uninstall.sh release/coco-*.tgz release/coco-*.tgz.sha256 release/coco-*-offline-*.zip release/coco-*-offline-*.zip.sha256 release/coco-agent-*.vsix release/SHA256SUMS
+      - run: gh release upload "$GITHUB_REF_NAME" --clobber release/install.sh release/uninstall.sh release/coco-*.tgz release/coco-*.tgz.sha256 release/coco-*-offline-*.zip release/coco-*-offline-*.zip.sha256 release/coco-agent-*.vsix release/coco-agent-*.vsix.sha256 release/SHA256SUMS
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Verify released assets and package lifecycle
@@ -56,7 +58,7 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$GITHUB_REF_NAME"
            trap 'rm -rf "$release_dir" "$sandbox"' EXIT
-          for asset in install.sh uninstall.sh "coco-$version.tgz" "coco-$version.tgz.sha256" "coco-$version-offline-linux-x64.zip" "coco-$version-offline-linux-x64.zip.sha256" "coco-agent-$version.vsix" SHA256SUMS; do
+          for asset in install.sh uninstall.sh "coco-$version.tgz" "coco-$version.tgz.sha256" "coco-$version-offline-linux-x64.zip" "coco-$version-offline-linux-x64.zip.sha256" "coco-agent-$version.vsix" "coco-agent-$version.vsix.sha256" SHA256SUMS; do
             curl -fsSL --retry 5 --retry-delay 2 "$base_url/$asset" -o "$release_dir/$asset"
           done
           (cd "$release_dir" && sha256sum --check SHA256SUMS)

@@ -32,7 +32,7 @@ coco control status
 
 Open the reported loopback URL and enter the token. The dashboard can create approval-gated worktree tasks, show history and live Agents, cancel one task, or completely terminate all tasks. It does not expose raw RPC, provider credentials, arbitrary session paths, or a direct shell endpoint.
 
-Remote binding is disabled by default. Set `COCO_ALLOW_REMOTE_CONTROL=1` and pass `--host` only behind a trusted encrypted tunnel or reverse proxy. The built-in server is HTTP and does not terminate TLS.
+The control server only accepts loopback listeners. For remote access, keep it on `127.0.0.1` and use an authenticated SSH tunnel or a TLS-terminating tunnel that keeps the origin private. The built-in server is HTTP and does not terminate TLS.
 
 ## MCP
 

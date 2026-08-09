@@ -30,6 +30,11 @@ async function createTask(context) {
 async function showTasks(context) {
   const { tasks } = await api(context, "/v1/tasks");
   const selected = await vscode.window.showQuickPick(tasks.toReversed().map((task) => ({ description: task.status, detail: task.result || task.lastError || task.cwd, label: task.prompt, task })), { placeHolder: "CoCo task history" });
+  if (selected?.task.status === "blocked" && selected.task.trigger === "manual") {
+    const action = await vscode.window.showWarningMessage(`Approve CoCo task ${selected.task.id}?`, { modal: true }, "Approve");
+    if (action === "Approve") { await api(context, `/v1/tasks/${selected.task.id}/approve`, { method: "POST" }); vscode.window.showInformationMessage(`CoCo task ${selected.task.id} approved.`); }
+    return;
+  }
   if (selected?.task.result) { const document = await vscode.workspace.openTextDocument({ content: selected.task.result, language: "markdown" }); await vscode.window.showTextDocument(document, { preview: true }); }
 }
 async function diffActive() {

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] - 2026-08-09
+
+- Bound persisted process IDs to process identities, closed the launch/cancel race, and restricted control listeners to loopback.
+- Made headless project Subagents fail closed, isolated MCP startup failures, and added VS Code task approval.
+- Clarified Linux x64 offline support and external release checksum verification.
+
 ## [0.2.0] - 2026-08-09
 
 - Added native subagents, persistent background and worktree tasks, schedules, authenticated webhooks, and GitHub event triggers.

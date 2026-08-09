@@ -15,13 +15,42 @@ export async function processAlive(pid) {
   try { process.kill(pid, 0); return true; } catch (error) { return error?.code === "EPERM"; }
 }
 
+export async function processIdentity(pid) {
+  if (!await processAlive(pid)) return null;
+  if (process.platform === "linux") {
+    try {
+      const stat = await readFile(`/proc/${pid}/stat`, "utf8");
+      const end = stat.lastIndexOf(")");
+      const fields = stat.slice(end + 2).split(" ");
+      return `linux:${fields[19]}`;
+    } catch { return null; }
+  }
+  try {
+    if (process.platform === "win32") {
+      const { stdout } = await execute("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `(Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToUniversalTime().Ticks`]);
+      return `win32:${stdout.trim()}`;
+    }
+    const { stdout } = await execute("ps", ["-o", "lstart=", "-p", String(pid)]);
+    return `${process.platform}:${stdout.trim()}`;
+  } catch { return null; }
+}
+
+export async function processMatches(pid, identity) {
+  return typeof identity === "string" && identity.length > 0 && await processIdentity(pid) === identity;
+}
+
 async function groupAlive(pid) {
   if (process.platform === "win32") return processAlive(pid);
   try { process.kill(-pid, 0); return true; } catch (error) { return error?.code === "EPERM"; }
 }
 
-export async function terminateProcessTree(pid, { graceMs = 3000 } = {}) {
+export async function terminateProcessTree(pid, { graceMs = 3000, identity } = {}) {
   if (!Number.isSafeInteger(pid) || pid < 1 || pid === process.pid) return { pid, status: "absent" };
+  if (identity !== undefined) {
+    const currentIdentity = await processIdentity(pid);
+    if (currentIdentity === null) return { pid, status: "absent" };
+    if (currentIdentity !== identity) return { pid, status: "identity-mismatch" };
+  }
   if (process.platform === "win32") {
     try { await execute("taskkill", ["/PID", String(pid), "/T"]); } catch {}
     for (let elapsed = 0; elapsed < graceMs && await processAlive(pid); elapsed += 50) await delay(50);

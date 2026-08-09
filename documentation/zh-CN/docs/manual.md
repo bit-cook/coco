@@ -39,8 +39,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 如果需要审阅一个特定发布版，下载该标签对应的安装程序，并显式指定同一版本：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.2.0/install.sh
-COCO_VERSION=0.2.0 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.2.1/install.sh
+COCO_VERSION=0.2.1 bash install.sh
 ```
 
 安装程序会校验发行包；更新或重装时会保留既有的 `~/.coco/agent` 配置。
@@ -63,9 +63,15 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 
 ### 离线与内网安装
 
-对于无法访问公网的 Linux 或 macOS 主机，可在联网的发布构建机上生成对应平台的 CoCo 离线 ZIP。ZIP 内含 CoCo 完整软件本体、全部捆绑依赖、已校验的私有 Node 运行时、校验文件和 `offline-install.sh`；目标机不会运行 npm，也不会下载组件。
+正式发布目前只提供 Linux x64 自包含离线 ZIP。其他平台可使用在线安装器，或在可信联网机器上自行构建并验证对应平台包。ZIP 内含 CoCo 完整软件本体、全部捆绑依赖、私有 Node 运行时、校验文件和 `offline-install.sh`；目标机不会运行 npm，也不会下载组件。
 
-将 ZIP 传入内网并解压后运行：
+传输或解压前，从同一个精确 Release 下载 ZIP 及其外部 sidecar，并在归档外验证：
+
+```bash
+sha256sum --check coco-0.2.1-offline-linux-x64.zip.sha256
+```
+
+ZIP 内部的 `SHA256SUMS` 只能检测解压后的损坏，不能单独认证 ZIP。完成外部验证和传输后，解压并运行：
 
 ```bash
 bash offline-install.sh

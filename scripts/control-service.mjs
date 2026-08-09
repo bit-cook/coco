@@ -10,12 +10,14 @@ import { StateError } from "./state-schema.mjs";
 import { agentDirectory, ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { atomicReplace } from "./state-transaction.mjs";
 import { createTaskStore } from "./task-state.mjs";
-import { startDetachedRunner, stopRunner } from "./task-runner.mjs";
-import { processAlive, terminateProcessTree } from "./task-process.mjs";
+import { cancelTask, startDetachedRunner, stopRunner } from "./task-runner.mjs";
+import { processAlive, processIdentity, processMatches, terminateProcessTree } from "./task-process.mjs";
 
 const MAX_BODY = 1024 * 1024;
 const TYPES = { ".css": "text/css; charset=utf-8", ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml" };
 function fail(code) { throw new StateError(code); }
+function requireLoopback(host) { if (host !== "127.0.0.1" && host !== "::1") fail("CONTROL_LOOPBACK_REQUIRED"); }
+function controlUrl(host, port) { return `http://${host === "::1" ? `[${host}]` : host}:${port}`; }
 function cleanTask({ webhookSecret: _secret, pid: _pid, ...task }) { return task; }
 function json(response, status, body) { const bytes = Buffer.from(JSON.stringify(body)); response.writeHead(status, { "cache-control": "no-store", "content-length": bytes.length, "content-type": "application/json; charset=utf-8", "x-content-type-options": "nosniff" }); response.end(bytes); }
 async function body(request) {
@@ -43,11 +45,12 @@ async function state(agentDir) {
 }
 export async function controlStatus(agentDir) {
   const value = await state(agentDir);
-  return value && await processAlive(value.pid) ? { host: value.host, pid: value.pid, port: value.port, status: "running", url: `http://${value.host}:${value.port}` } : { status: "stopped" };
+  const running = value && (value.processIdentity ? await processMatches(value.pid, value.processIdentity) : await processAlive(value.pid));
+  return running ? { host: value.host, legacyIdentity: !value.processIdentity, pid: value.pid, port: value.port, status: "running", url: controlUrl(value.host, value.port) } : { status: "stopped" };
 }
 export async function startDetachedControl({ agentDir, host = "127.0.0.1", port = 3210, root }) {
   const current = await controlStatus(agentDir); if (current.status === "running") return current;
-  if (host !== "127.0.0.1" && host !== "::1" && process.env.COCO_ALLOW_REMOTE_CONTROL !== "1") fail("REMOTE_CONTROL_NOT_ENABLED");
+  requireLoopback(host);
   await ensureAgentDirectory(agentDir); const logs = join(agentDir, "logs"); await mkdir(logs, { recursive: true, mode: 0o700 });
   const output = await open(join(logs, "control.log"), "a", 0o600);
   const child = spawn(process.execPath, [join(root, "scripts", "control-service-main.mjs"), "--agent-dir", agentDir, "--root", root, "--host", host, "--port", String(port)], { detached: true, env: { ...process.env, COCO_CODING_AGENT_DIR: agentDir }, stdio: ["ignore", output.fd, output.fd] });
@@ -57,12 +60,15 @@ export async function startDetachedControl({ agentDir, host = "127.0.0.1", port 
 }
 export async function stopControl(agentDir) {
   const current = await state(agentDir); if (!current || !await processAlive(current.pid)) return { status: "stopped" };
-  process.kill(current.pid, "SIGTERM"); return { status: "stopping" };
+  if (!current.processIdentity) return { status: "identity-unavailable" };
+  if (!await processMatches(current.pid, current.processIdentity)) return { status: "identity-mismatch" };
+  const result = await terminateProcessTree(current.pid, { identity: current.processIdentity }); return { status: result.status === "terminated" ? "stopped" : result.status };
 }
 
 export async function runControlServer({ agentDir, host, port, root, signal }) {
+  requireLoopback(host);
   await ensureAgentDirectory(agentDir);
-  const previous = await state(agentDir); if (previous && previous.pid !== process.pid && alive(previous.pid)) fail("CONTROL_ALREADY_RUNNING");
+  const previous = await state(agentDir); if (previous && previous.pid !== process.pid && (previous.processIdentity ? await processMatches(previous.pid, previous.processIdentity) : await processAlive(previous.pid))) fail("CONTROL_ALREADY_RUNNING");
   const token = randomBytes(32).toString("base64url");
   const store = createTaskStore({ agentDir }); const publicRoot = join(root, "control", "public");
   const server = createServer(async (request, response) => {
@@ -90,7 +96,7 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
       if (request.method === "GET" && url.pathname === "/v1/tasks") return json(response, 200, { tasks: (await store.load()).tasks.map(cleanTask) });
       if (request.method === "GET" && url.pathname === "/v1/agents") {
         const active = (await store.load()).tasks.filter((task) => task.status === "running" && task.pid);
-        return json(response, 200, { agents: await Promise.all(active.map(async (task) => ({ ...cleanTask(task), alive: await processAlive(task.pid), pid: task.pid }))) });
+        return json(response, 200, { agents: await Promise.all(active.map(async (task) => ({ ...cleanTask(task), alive: await processMatches(task.pid, task.processIdentity), pid: task.pid }))) });
       }
       if (request.method === "POST" && url.pathname === "/v1/tasks") {
         const input = JSON.parse((await body(request)).toString("utf8"));
@@ -106,18 +112,13 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
       const cancel = /^\/v1\/tasks\/([a-z0-9_-]{12})\/cancel$/.exec(url.pathname);
       if (request.method === "POST" && cancel) {
         const snapshot = await store.load(); const task = snapshot.tasks.find(({ id }) => id === cancel[1]); if (!task) fail("TASK_NOT_FOUND");
-        if (task.pid && (await terminateProcessTree(task.pid)).status === "alive") return json(response, 500, { error: "TASK_PROCESS_STILL_ALIVE" });
-        await store.update((value) => { const target = value.tasks.find(({ id }) => id === cancel[1]); target.status = "cancelled"; target.pid = null; target.updatedAt = new Date().toISOString(); target.finishedAt = target.updatedAt; target.lastError = "TERMINATED_BY_USER"; return value; });
+        await cancelTask(store, task.id);
         return json(response, 200, { cancelled: true });
       }
       if (request.method === "POST" && url.pathname === "/v1/tasks/stop-all") {
         const snapshot = await store.load(); const running = snapshot.tasks.filter(({ pid, status }) => pid || status === "running");
-        const ids = new Set(running.map(({ id }) => id));
-        const results = await Promise.all(running.filter(({ pid }) => pid).map(({ pid }) => terminateProcessTree(pid)));
-        if (results.some(({ status }) => status === "alive")) return json(response, 500, { error: "TASK_PROCESS_STILL_ALIVE" });
-        await stopRunner(agentDir);
-        const at = new Date().toISOString();
-        await store.update((value) => { for (const task of value.tasks) if (ids.has(task.id)) { task.status = "cancelled"; task.pid = null; task.updatedAt = at; task.finishedAt = at; task.lastError = "TERMINATED_BY_USER"; } return value; });
+        const result = await stopRunner(agentDir);
+        if (result.status !== "stopped") return json(response, 500, { error: "TASK_PROCESS_STILL_ALIVE" });
         return json(response, 200, { status: "terminated", stopped: running.length });
       }
       return json(response, 404, { error: "NOT_FOUND" });
@@ -125,7 +126,7 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
   });
   await new Promise((done, reject) => { server.once("error", reject); server.listen(port, host, done); });
   const address = server.address(); const selectedPort = typeof address === "object" && address ? address.port : port;
-  await atomicReplace({ agentDir, containsSecret: true, path: statePaths(agentDir).control, bytes: canonicalJson({ host, pid: process.pid, port: selectedPort, schemaVersion: 1, startedAt: new Date().toISOString(), token }) });
+  await atomicReplace({ agentDir, containsSecret: true, path: statePaths(agentDir).control, bytes: canonicalJson({ host, pid: process.pid, port: selectedPort, processIdentity: await processIdentity(process.pid), schemaVersion: 1, startedAt: new Date().toISOString(), token }) });
   const close = () => server.close(); process.once("SIGINT", close); process.once("SIGTERM", close); signal?.addEventListener("abort", close, { once: true });
   await new Promise((done) => server.once("close", done));
   process.removeListener("SIGINT", close); process.removeListener("SIGTERM", close); signal?.removeEventListener("abort", close);
@@ -136,7 +137,7 @@ export async function controlCommand(argv, { agentDir, root }) {
   const [action, ...args] = argv;
   if (action === "status") { process.stdout.write(`${JSON.stringify(await controlStatus(agentDir))}\n`); return { exitCode: 0, kind: "native" }; }
   if (action === "stop") { process.stdout.write(`${JSON.stringify(await stopControl(agentDir))}\n`); return { exitCode: 0, kind: "native" }; }
-  if (action === "token") { const value = await state(agentDir); if (!value || !await processAlive(value.pid)) fail("CONTROL_NOT_RUNNING"); process.stdout.write(`${value.token}\n`); return { exitCode: 0, kind: "native" }; }
+  if (action === "token") { const value = await state(agentDir); if (!value || !(value.processIdentity ? await processMatches(value.pid, value.processIdentity) : await processAlive(value.pid))) fail("CONTROL_NOT_RUNNING"); process.stdout.write(`${value.token}\n`); return { exitCode: 0, kind: "native" }; }
   if (action === "start") {
     const hostIndex = args.indexOf("--host"); const portIndex = args.indexOf("--port"); const host = hostIndex === -1 ? "127.0.0.1" : args[hostIndex + 1]; const port = portIndex === -1 ? 3210 : Number(args[portIndex + 1]);
     if (!Number.isSafeInteger(port) || port < 0 || port > 65535) fail("CONTROL_PORT_INVALID");

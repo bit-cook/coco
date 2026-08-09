@@ -3,8 +3,8 @@ import { cwd as currentDirectory } from "node:process";
 
 import { agentDirectory } from "./state-paths.mjs";
 import { createTaskStore } from "./task-state.mjs";
-import { createTaskRunner, getRunnerStatus, startDetachedRunner, stopRunner } from "./task-runner.mjs";
-import { processAlive, terminateProcessTree } from "./task-process.mjs";
+import { cancelTask, createTaskRunner, getRunnerStatus, startDetachedRunner, stopRunner } from "./task-runner.mjs";
+import { processMatches } from "./task-process.mjs";
 
 function fail(code) { const error = new Error(code); error.code = code; throw error; }
 function output(value, json) {
@@ -16,24 +16,19 @@ function duration(value) {
   if (!match) fail("SCHEDULE_INVALID");
   return Number(match[1]) * ({ m: 60000, h: 3600000, d: 86400000 })[match[2]];
 }
-
 export async function taskCommand(argv, root) {
   const agentDir = agentDirectory(); const store = createTaskStore({ agentDir });
   const [action, ...args] = argv; const json = args.includes("--json");
   if (action === "list") return output((await store.load()).tasks.map(({ webhookSecret: _secret, ...task }) => task), json);
   if (action === "active") {
     const tasks = (await store.load()).tasks.filter((task) => task.status === "running" && task.pid).map(({ webhookSecret: _secret, ...task }) => task);
-    return output({ agents: await Promise.all(tasks.map(async (task) => ({ ...task, alive: await processAlive(task.pid) }))), runner: await getRunnerStatus(agentDir) }, true);
+    return output({ agents: await Promise.all(tasks.map(async (task) => ({ ...task, alive: await processMatches(task.pid, task.processIdentity) }))), runner: await getRunnerStatus(agentDir) }, true);
   }
   if (action === "stop-all") {
     const state = await store.load();
-    const active = state.tasks.filter(({ pid, status }) => pid || status === "running"); const ids = new Set(active.map(({ id }) => id));
-    const results = await Promise.all(active.filter(({ pid }) => pid).map(({ pid }) => terminateProcessTree(pid)));
-    await stopRunner(agentDir);
-    const at = new Date().toISOString();
-    await store.update((value) => { for (const task of value.tasks) if (ids.has(task.id)) { task.status = "cancelled"; task.pid = null; task.finishedAt = at; task.updatedAt = at; task.lastError = "TERMINATED_BY_USER"; } return value; });
-    if (results.some(({ status }) => status === "alive")) fail("TASK_PROCESS_STILL_ALIVE");
-    return output({ stopped: results.length, status: "terminated" }, true);
+    const active = state.tasks.filter(({ pid, status }) => pid || status === "running");
+    const result = await stopRunner(agentDir);
+    return output({ stopped: active.length, status: result.status === "stopped" ? "terminated" : result.status }, true);
   }
   if (action === "show") {
     const task = (await store.load()).tasks.find(({ id }) => id === args[0] || id.startsWith(args[0] ?? ""));
@@ -42,8 +37,7 @@ export async function taskCommand(argv, root) {
   if (action === "cancel") {
     const id = args[0]; let target;
     const snapshot = await store.load(); target = snapshot.tasks.find((task) => task.id === id || task.id.startsWith(id ?? "")); if (!target) fail("TASK_NOT_FOUND");
-    if (target.pid) { const result = await terminateProcessTree(target.pid); if (result.status === "alive") fail("TASK_PROCESS_STILL_ALIVE"); }
-    await store.update((state) => { target = state.tasks.find((task) => task.id === id || task.id.startsWith(id ?? "")); target.status = "cancelled"; target.finishedAt = new Date().toISOString(); target.updatedAt = target.finishedAt; target.pid = null; target.lastError = "TERMINATED_BY_USER"; return state; });
+    target = await cancelTask(store, target.id);
     const { webhookSecret: _secret, ...visible } = target; return output(visible, true);
   }
   if (action === "run") { await createTaskRunner({ agentDir, root }).run({ once: true }); return output("task runner: completed", json); }
