@@ -122,10 +122,10 @@ download() {
   local filename="coco-${COCO_VERSION}.tgz" sidecar line expected actual
   TARBALL="${TMPDIR_install}/${filename}"; sidecar="${TARBALL}.sha256"
   if command -v curl >/dev/null 2>&1; then
-    curl -fSL --retry 3 --retry-delay 2 -o "$TARBALL" "${COCO_RELEASE_BASE}/${filename}"
-    curl -fSL --retry 3 --retry-delay 2 -o "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256"
+    curl -fSL --retry 3 --retry-delay 2 -o "$TARBALL" "${COCO_RELEASE_BASE}/${filename}?v=${COCO_VERSION}"
+    curl -fSL --retry 3 --retry-delay 2 -o "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256?v=${COCO_VERSION}"
   elif command -v wget >/dev/null 2>&1; then
-    wget -q --tries=3 -O "$TARBALL" "${COCO_RELEASE_BASE}/${filename}"; wget -q --tries=3 -O "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256"
+    wget -q --tries=3 -O "$TARBALL" "${COCO_RELEASE_BASE}/${filename}?v=${COCO_VERSION}"; wget -q --tries=3 -O "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256?v=${COCO_VERSION}"
   else die "Neither curl nor wget found. Install one and retry."; fi
   line="$(cat "$sidecar")"
   printf '%s\n' "$line" | grep -Eq "^[0-9a-fA-F]{64}  ${filename}$" || die "Invalid SHA-256 sidecar for ${filename}"

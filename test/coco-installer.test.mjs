@@ -73,7 +73,7 @@ async function fixture() {
   await exec("tar", ["-czf", tarball, "package"], { cwd: root });
   await writeChecksum(tarball);
   await writeFile(agnesAsset, `${syntheticAgnesKey}\n`);
-  const downloader = "#!/usr/bin/env bash\nset -euo pipefail\nfor ((i = 1; i <= $#; i += 1)); do\n  if [ \"${!i}\" = \"-o\" ] || [ \"${!i}\" = \"-O\" ]; then\n    next=$((i + 1))\n    target=\"${!next}\"\n    url=\"${!#}\"\n    printf '%s\\n' \"$url\" >> \"$COCO_TEST_DOWNLOAD_LOG\"\n    case \"$url\" in\n      *agnes.key) [ \"${COCO_TEST_FAIL_AGNES_DOWNLOAD:-0}\" != 1 ] && cp \"$COCO_TEST_AGNES_ASSET\" \"$target\" ;;\n      *.sha256) cp \"$COCO_TEST_SIDECAR\" \"$target\" ;;\n      *) cp \"$COCO_TEST_TARBALL\" \"$target\" ;;\n    esac\n    exit 0\n  fi\ndone\nexit 1\n";
+  const downloader = "#!/usr/bin/env bash\nset -euo pipefail\nfor ((i = 1; i <= $#; i += 1)); do\n  if [ \"${!i}\" = \"-o\" ] || [ \"${!i}\" = \"-O\" ]; then\n    next=$((i + 1))\n    target=\"${!next}\"\n    url=\"${!#}\"\n    printf '%s\\n' \"$url\" >> \"$COCO_TEST_DOWNLOAD_LOG\"\n    case \"$url\" in\n      *agnes.key) [ \"${COCO_TEST_FAIL_AGNES_DOWNLOAD:-0}\" != 1 ] && cp \"$COCO_TEST_AGNES_ASSET\" \"$target\" ;;\n      *.sha256*) cp \"$COCO_TEST_SIDECAR\" \"$target\" ;;\n      *) cp \"$COCO_TEST_TARBALL\" \"$target\" ;;\n    esac\n    exit 0\n  fi\ndone\nexit 1\n";
   await writeFile(join(bin, "curl"), downloader);
   await chmod(join(bin, "curl"), 0o755);
   await writeFile(join(bin, "wget"), downloader);
