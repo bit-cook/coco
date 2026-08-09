@@ -1,5 +1,10 @@
 (() => {
   const status = document.querySelector('#copy-status');
+  const messages = {
+    copied: document.body.dataset.copySuccess,
+    error: document.body.dataset.copyError,
+    errorHelp: document.body.dataset.copyErrorHelp,
+  };
 
   const copyText = async (text) => {
     if (navigator.clipboard?.writeText) {
@@ -33,13 +38,13 @@
 
       try {
         await copyText(target.textContent);
-        button.textContent = 'Copied';
+        button.textContent = messages.copied;
         button.dataset.state = 'copied';
-        status.textContent = `${button.getAttribute('aria-label')} copied.`;
+        status.textContent = `${button.getAttribute('aria-label')}: ${messages.copied}.`;
       } catch {
-        button.textContent = 'Copy failed';
+        button.textContent = messages.error;
         button.dataset.state = 'error';
-        status.textContent = 'Copy failed. Select the command text and copy it manually.';
+        status.textContent = `${messages.error}. ${messages.errorHelp}`;
       }
 
       window.setTimeout(() => {
