@@ -23,10 +23,18 @@ test("CoCo brand assets are self-contained, accessible, and integrated in public
     assert.doesNotMatch(svg, /<script\b|<image\b|https?:\/\/(?!www\.w3\.org\/2000\/svg)/i, `${name} must be self-contained`);
   }
   assert.match(logo, /id="coco-mark"/);
+  assert.match(logo, /<rect width="64" height="64" rx="12" fill="#fffdf8"\/>/);
+  assert.match(logo, /<path fill="#17202a" fill-rule="evenodd"/);
+  assert.match(logo, /<path fill="#ff6b35"/);
+  assert.doesNotMatch(logo, /currentColor/);
+  assert.match(favicon, /<rect width="64" height="64" rx="12" fill="#17202a"\/>/);
+  assert.match(favicon, /<path fill="#ff6b35" fill-rule="evenodd"/);
+  assert.match(favicon, /<path fill="#fffdf8"/);
   assert.match(homepage, /<svg class="brand-mark"[^>]*aria-hidden="true"[^>]*><use href="logo\.svg#coco-mark"/);
   assert.match(landscape, /<svg class="brand-mark"[^>]*aria-hidden="true"[^>]*><use href="logo\.svg#coco-mark"/);
   assert.match(readme, /<img src="site\/logo\.svg" alt="CoCo Agent"/);
-  assert.match(readme, /The full name is \*\*CoCo Agent\*\*; use \*\*CoCo\*\* as the short name\./);
+  assert.doesNotMatch(readme, /^## Brand assets$/m);
+  assert.doesNotMatch(readme, /The full name is \*\*CoCo Agent\*\*; use \*\*CoCo\*\* as the short name\./);
   assert.match(homepageCss, /\.brand-lockup/);
   assert.match(landscapeCss, /\.brand-mark/);
 });

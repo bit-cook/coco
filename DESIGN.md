@@ -163,7 +163,7 @@ title, and border color continue to express tool state.
 # CoCo Web Site Design Contract Extension
 
 This extension governs the static GitHub Pages install site only. It preserves
-the TUI's quiet Solarized terminal character while adapting it for a responsive,
+the TUI's quiet terminal character while adapting it as a warm, responsive,
 keyboard-first document surface. It does not alter the TUI contract above.
 
 ## W1. Site Intent And Composition
@@ -171,9 +171,9 @@ keyboard-first document surface. It does not alter the TUI contract above.
 - The page is an installation document first and a marketing surface second:
   identity, install command, defaults, compatibility, and source link must be
   visible without scrolling on a typical desktop viewport.
-- The hero is one dimensional terminal window, not a collection of SaaS cards.
-  Low-contrast Solarized field depth and an offset shadow establish atmosphere;
-  content remains sparse and functional.
+- The hero is one dark ink terminal inset, not a collection of SaaS cards.
+  Report-style radius and a restrained shadow establish depth; content remains
+  sparse and functional.
 - The layout has one centered reading column, a terminal hero, an information
   strip, and an uninstall disclosure. No testimonials, pricing, decorative
   illustrations, or feature-card grid is permitted.
@@ -181,21 +181,23 @@ keyboard-first document surface. It does not alter the TUI contract above.
 ## W2. Web Tokens
 
 Colors, spacing, typography, and reusable form values in site CSS must use named
-custom properties. Raw canonical Solarized values may appear only in root token
-definitions; one-off responsive geometry may remain local to its media rule.
+custom properties. Raw palette values may appear only in root token definitions;
+one-off responsive geometry may remain local to its media rule.
 
 | Token group | Tokens | Contract |
 |---|---|---|
-| Color | `--color-base03`, `--color-base02`, `--color-base01`, `--color-base00`, `--color-base0`, `--color-base1`, `--color-base3`, `--color-cyan`, `--color-blue`, `--color-green`, `--color-yellow`, `--color-red` | Canonical Solarized values from section 2. |
-| Semantic color | `--page-bg`, `--surface`, `--surface-raised`, `--text`, `--muted`, `--line`, `--accent`, `--link`, `--success`, `--warning`, `--danger` | Site code consumes semantic aliases, not palette values. |
+| Color | `--paper`, `--ink`, `--muted`, `--surface`, `--line`, `--orange`, `--orange-soft`, `--mint`, `--mint-strong`, `--blue`, `--blue-soft`, `--yellow` | Warm editorial palette: `#fffdf8`, `#17202a`, `#667085`, `#ffffff`, `#dce3e8`, `#ff6b35`, `#fff0e8`, `#dff7ec`, `#147d64`, `#2563eb`, `#e9f0ff`, and `#ffe272`. |
+| Terminal semantic color | `--terminal-bg`, `--terminal-slate`, `--terminal-text`, `--terminal-border`, `--terminal-success` | Dark ink inset with warm text, orange command border/action, and mint success state. |
 | Space | `--space-1` through `--space-10` | Four-pixel baseline: 0.25rem, 0.5rem, 0.75rem, 1rem, 1.5rem, 2rem, 3rem, 4rem, 6rem, 8rem. |
-| Type | `--font-mono`, `--text-xs`, `--text-sm`, `--text-base`, `--text-lg`, `--text-xl`, `--text-2xl`, `--leading-tight`, `--leading-normal` | Inherited system monospace stack; a restrained, fluid scale using `clamp()` only in token definitions. |
-| Form | `--radius-sm`, `--radius-md`, `--border-width`, `--shadow-terminal`, `--shadow-atmosphere`, `--duration-fast`, `--duration-base`, `--focus-ring` | Square-leaning terminal geometry, layered depth, and short opacity/transform-only transitions. |
+| Type | `--sans`, `--mono` | System sans-serif for prose and headings; system monospace only for the brand, metadata, and terminal. |
+| Form | `--radius-sm`, `--radius`, `--shadow`, `--focus-ring` | Report-style geometry, restrained depth, and a blue visible focus ring. |
 
 ## W3. Site Components And States
 
-- **Masthead:** compact wordmark and external repository link. The link has an
-  explicit accessible name and is never icon-only.
+- **Masthead:** compact wordmark, product report, external repository link, and
+  compact EN / 中文 language switch. The current language uses
+  `aria-current="page"`; links have explicit accessible names and are never
+  icon-only.
 - **Terminal hero:** a labelled `section` containing a title bar, output, and
   command row. The install command is selectable text; the adjacent copy button
   remains usable with keyboard or pointer.
@@ -225,3 +227,9 @@ definitions; one-off responsive geometry may remain local to its media rule.
   `prefers-reduced-motion: reduce` disables transition and animation.
 - No external fonts, images, analytics, dependencies, or network assets are
   permitted. The page must remain complete with JavaScript unavailable.
+- The English homepage is canonical at `https://bit-cook.github.io/coco/`; the
+  complete static Simplified Chinese homepage is canonical at
+  `https://bit-cook.github.io/coco/zh-CN.html`. Both pages share the stylesheet
+  and behavior script, declare `en`, `zh-CN`, and `x-default` hreflang links,
+  and translate all visible and accessible page copy while retaining product
+  names, commands, model IDs, URLs, and `coco` literals.
