@@ -37,6 +37,22 @@ async function waitForFile(path) {
 
 function dead(pid) { try { process.kill(pid, 0); return false; } catch (error) { return error?.code === "ESRCH"; } }
 
+async function waitForTermination(pid) {
+  const deadline = Date.now() + 2_000;
+  while (Date.now() < deadline) {
+    if (dead(pid)) return true;
+    try {
+      const stat = await readFile(`/proc/${pid}/stat`, "utf8");
+      if (stat.slice(stat.lastIndexOf(") ") + 2).startsWith("Z ")) return true;
+    } catch (error) {
+      if (error?.code === "ENOENT") return true;
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  return dead(pid);
+}
+
 function fixtureContainment(root, afterKill = async () => {}) {
   const group = join(root, "containment");
   async function pids() {
@@ -286,7 +302,7 @@ test("Given a TERM-ignoring process tree, when installation times out, then TERM
     const pids = JSON.parse(await waitForFile(join(root, "pids")));
     const result = await bootstrapping;
     assert.equal(result.code, "NPM_BOOTSTRAP_TIMEOUT");
-    for (const pid of pids) assert.equal(dead(pid), true);
+    for (const pid of pids) assert.equal(await waitForTermination(pid), true);
     await absent(join(root, "package-lock.json"));
     await absent(join(root, "node_modules"));
   });
