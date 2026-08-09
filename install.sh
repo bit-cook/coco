@@ -5,7 +5,7 @@ umask 077
 
 COCO_VERSION="${COCO_VERSION:-0.1.8}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
-COCO_RELEASE_BASE="https://github.com/aithernexus/coco/releases/download/v${COCO_VERSION}"
+COCO_RELEASE_BASE="https://github.com/bit-cook/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/aithernexus/coco/releases/download/installer-v0.1.1.1/agnes.key"
 AGNES_KEY_SIZE=52
 AGNES_KEY_SHA256="4d78028a0a60a7d752e6e57cbcb3113e9de99ab81bde608a0b9610a83cd42f6e"
@@ -269,6 +269,8 @@ write_config() {
   chmod 700 "$COCO_AGENT_DIR"
   mkdir -p "$COCO_AGENT_DIR/sessions"
   chmod 700 "$COCO_AGENT_DIR/sessions"
+  mkdir -p "$COCO_AGENT_DIR/languages"
+  chmod 700 "$COCO_AGENT_DIR/languages"
   validate_regular_path "$COCO_AGENT_DIR/models.json" "models configuration"
   validate_regular_path "$COCO_AGENT_DIR/auth.json" "auth configuration"
   validate_regular_path "$COCO_AGENT_DIR/settings.json" "settings configuration"

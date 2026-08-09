@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -26,7 +26,7 @@ test("Given an unauthenticated explicitly declared model, when the runtime proje
   try {
     await Promise.all([
       writeFile(authPath, "{}\n"),
-      writeFile(modelsPath, `${JSON.stringify({ providers: { idepub: { api: "openai-completions", authHeader: true, baseUrl: "https://ai.ide.pub/v1", models: [declaredModel] } } })}\n`),
+      writeFile(modelsPath, `${JSON.stringify({ providers: { idepub: { api: "openai-completions", authHeader: true, baseUrl: "https://api.ide.pub/v1", models: [declaredModel] } } })}\n`),
     ]);
     const runtime = await ModelRuntime.create({ allowModelNetwork: false, authPath, modelsPath });
 
@@ -119,4 +119,29 @@ test("Given visible ready and unauthenticated models, when --list-models renders
   assert.match(output.join("\n"), /status/);
   assert.match(output.join("\n"), /agnes\s+agnes-2\.5-flash[\s\S]*ready/);
   assert.match(output.join("\n"), /idepub\s+gpt-5\.6[\s\S]*login-required/);
+});
+
+test("custom models.json providers support API-key login under their arbitrary provider ID", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coco-custom-login-"));
+  const modelsPath = join(root, "models.json");
+  const authPath = join(root, "auth.json");
+  try {
+    await writeFile(modelsPath, `${JSON.stringify({ providers: { "custom-first": {
+      api: "openai-completions",
+      authHeader: true,
+      baseUrl: "http://127.0.0.1:9/v1",
+      models: [{ id: "custom-model" }],
+      name: "Zeta Custom",
+    } } })}\n`);
+    await writeFile(authPath, "{}\n");
+    const runtime = await ModelRuntime.create({ authPath, modelsPath });
+    assert.equal(runtime.isCustomProvider("custom-first"), true);
+    assert.equal(runtime.isCustomProvider("openai"), false);
+    assert.equal(runtime.isCustomProvider("idepub"), false);
+    assert.equal(typeof runtime.getProvider("custom-first")?.auth.apiKey?.login, "function");
+    await runtime.login("custom-first", "api_key", { notify() {}, prompt: async () => "custom-secret" });
+    assert.deepEqual(JSON.parse(await readFile(authPath, "utf8"))["custom-first"], { key: "custom-secret", type: "api_key" });
+    assert.equal(runtime.hasConfiguredAuth("custom-first"), true);
+    assert.deepEqual(await runtime.listCredentials(), [{ providerId: "custom-first", type: "api_key" }]);
+  } finally { await rm(root, { force: true, recursive: true }); }
 });

@@ -13,7 +13,7 @@ const publicBaseUrls = {
   achai: "https://www.achai.cc/v1",
   agnes: "https://apihub.agnes-ai.com/v1",
   deepseek: "https://api.deepseek.com",
-  idepub: "https://ai.ide.pub/v1",
+  idepub: "https://api.ide.pub/v1",
   stepfun: "https://api.stepfun.com/step_plan/v1",
 };
 const agnesAssetUrl = "https://github.com/aithernexus/coco/releases/download/installer-v0.1.1.1/agnes.key";
@@ -95,7 +95,7 @@ async function fixture() {
       COCO_TEST_SIDECAR: join(server, "coco-0.1.8.tgz.sha256"),
       COCO_TEST_TARBALL: tarball,
       HOME: root,
-      PATH: `${bin}:${process.env.PATH}`,
+      PATH: `${bin}:/usr/bin:/bin`,
     },
     install,
     root,
@@ -122,7 +122,7 @@ for (const installer of installers) {
   test(`Given ${installer}, when its source is inspected, then it contains neither model API-key fields nor credential-bearing auth defaults`, async () => {
     const source = await readFile(installer, "utf8");
     assert.equal(source.includes("apiKey"), false);
-    assert.match(source, /https:\/\/github\.com\/aithernexus\/coco\/releases\/download\/v\$\{COCO_VERSION\}/);
+    assert.match(source, /https:\/\/github\.com\/bit-cook\/coco\/releases\/download\/v\$\{COCO_VERSION\}/);
     assert.equal(source.includes(agnesAssetUrl), true);
     assert.equal(source.includes(agnesAssetDigest), true);
   });

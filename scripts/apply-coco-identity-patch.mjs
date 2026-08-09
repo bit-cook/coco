@@ -155,6 +155,10 @@ const modelRuntimeVisibleAnchor = `    getAvailableSnapshot() {
 const patchedModelRuntimeVisible = `    getAvailableSnapshot() {
         return this.snapshot.available;
     }
+    isCustomProvider(providerId) {
+        return this.config.getProvider(providerId) !== undefined && !this.builtins.has(providerId) &&
+            !["agnes", "idepub", "achai", "stepfun", "deepseek"].includes(providerId);
+    }
     getVisible() {
         return this.snapshot.all.filter((model) => this.snapshot.configuredProviders.has(model.provider) ||
             this.config.getProvider(model.provider)?.models?.some((declared) => declared.id === model.id));
@@ -162,10 +166,34 @@ const patchedModelRuntimeVisible = `    getAvailableSnapshot() {
     getVisibleSnapshot() {
         return this.getVisible();
     }`;
+const intermediatePatchedModelRuntimeVisible = `    getAvailableSnapshot() {
+        return this.snapshot.available;
+    }
+    isConfiguredProvider(providerId) {
+        return this.config.getProvider(providerId) !== undefined;
+    }
+    getVisible() {
+        return this.snapshot.all.filter((model) => this.snapshot.configuredProviders.has(model.provider) ||
+            this.config.getProvider(model.provider)?.models?.some((declared) => declared.id === model.id));
+    }
+    getVisibleSnapshot() {
+        return this.getVisible();
+    }`;
+const legacyPatchedModelRuntimeVisible = intermediatePatchedModelRuntimeVisible.replace(`    isConfiguredProvider(providerId) {
+        return this.config.getProvider(providerId) !== undefined;
+    }
+`, "");
 const modelRuntimeDeclarationAnchor = `    getAvailableSnapshot(): readonly Model<Api>[];`;
 const patchedModelRuntimeDeclaration = `    getAvailableSnapshot(): readonly Model<Api>[];
+    isCustomProvider(providerId: string): boolean;
     getVisible(): readonly Model<Api>[];
     getVisibleSnapshot(): readonly Model<Api>[];`;
+const intermediatePatchedModelRuntimeDeclaration = `    getAvailableSnapshot(): readonly Model<Api>[];
+    isConfiguredProvider(providerId: string): boolean;
+    getVisible(): readonly Model<Api>[];
+    getVisibleSnapshot(): readonly Model<Api>[];`;
+const legacyPatchedModelRuntimeDeclaration = intermediatePatchedModelRuntimeDeclaration.replace(`    isConfiguredProvider(providerId: string): boolean;
+`, "");
 const listModelsVisibleAnchor = `    const models = [...(await modelRuntime.getAvailable())];`;
 const patchedListModelsVisible = `    const models = [...modelRuntime.getVisible()];`;
 const listModelsRowsAnchor = `        images: m.input.includes("image") ? "yes" : "no",
@@ -238,6 +266,46 @@ const patchedInteractiveModelSelector = `            const selector = new ModelS
                     return;
                 }
                 try {`;
+const loginCompletionOptionAnchor = `        byId.set(provider.id, {
+            id: provider.id,
+            name: provider.name,
+            authTypes: [provider.authType],
+        });`;
+const patchedLoginCompletionOption = `        byId.set(provider.id, {
+            id: provider.id,
+            name: provider.name,
+            authTypes: [provider.authType],
+            custom: provider.custom,
+        });`;
+const loginCompletionSortAnchor = `    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));`;
+const patchedLoginCompletionSort = `    return Array.from(byId.values()).sort((a, b) => Number(b.custom) - Number(a.custom) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`;
+const loginOptionsAnchor = `    getLoginProviderOptions(authType) {
+        const options = [];
+        for (const provider of this.session.modelRuntime.getProviders()) {`;
+const patchedLoginOptions = `    getLoginProviderOptions(authType) {
+        const options = [];
+        for (const provider of this.session.modelRuntime.getProviders()) {
+            const custom = this.session.modelRuntime.isCustomProvider(provider.id);`;
+const intermediatePatchedLoginOptions = `    getLoginProviderOptions(authType) {
+        const options = [];
+        for (const provider of this.session.modelRuntime.getProviders()) {
+            const custom = this.session.modelRuntime.isConfiguredProvider(provider.id);`;
+const loginOauthOptionAnchor = `                    authType: "oauth",
+                    method: provider.auth.oauth,
+                    status,`;
+const patchedLoginOauthOption = `                    authType: "oauth",
+                    custom,
+                    method: provider.auth.oauth,
+                    status,`;
+const loginApiKeyOptionAnchor = `                    authType: "api_key",
+                    method: provider.auth.apiKey,
+                    status,`;
+const patchedLoginApiKeyOption = `                    authType: "api_key",
+                    custom,
+                    method: provider.auth.apiKey,
+                    status,`;
+const loginOptionsSortAnchor = `        return options.sort((a, b) => a.name.localeCompare(b.name));`;
+const patchedLoginOptionsSort = `        return options.sort((a, b) => Number(b.custom) - Number(a.custom) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`;
 
 function patchError(code) {
   return new Error(code);
@@ -276,6 +344,12 @@ function replaceExact(source, anchor, replacement) {
     throw patchError("COCO_PATCH_DUPLICATE_ANCHOR");
   }
   throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+}
+
+function replaceUpgrade(source, anchor, legacy, replacement) {
+  if (count(source, replacement) === 1) return source;
+  for (const candidate of Array.isArray(legacy) ? legacy : [legacy]) if (count(source, candidate) === 1) return source.replace(candidate, replacement);
+  return replaceExact(source, anchor, replacement);
 }
 
 function replaceOwnedResponsiveStartupWordmark(source) {
@@ -401,8 +475,8 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[1] = replaceExact(patched[1], listModelsWidthsAnchor, patchedListModelsWidths);
   patched[1] = replaceExact(patched[1], listModelsHeaderLineAnchor, patchedListModelsHeaderLine);
   patched[1] = replaceExact(patched[1], listModelsLineAnchor, patchedListModelsLine);
-  patched[2] = replaceExact(patched[2], modelRuntimeVisibleAnchor, patchedModelRuntimeVisible);
-  patched[3] = replaceExact(patched[3], modelRuntimeDeclarationAnchor, patchedModelRuntimeDeclaration);
+  patched[2] = replaceUpgrade(patched[2], modelRuntimeVisibleAnchor, [legacyPatchedModelRuntimeVisible, intermediatePatchedModelRuntimeVisible], patchedModelRuntimeVisible);
+  patched[3] = replaceUpgrade(patched[3], modelRuntimeDeclarationAnchor, [legacyPatchedModelRuntimeDeclaration, intermediatePatchedModelRuntimeDeclaration], patchedModelRuntimeDeclaration);
   patched[4] = replaceExact(patched[4], selectorVisibleAnchor, patchedSelectorVisible);
   patched[4] = replaceExact(patched[4], selectorLoginMarkerAnchor, patchedSelectorLoginMarker);
   patched[4] = replaceExact(patched[4], selectorLoginMarkerElseAnchor, patchedSelectorLoginMarkerElse);
@@ -424,6 +498,12 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[7] = replaceExact(patched[7], migratedProvidersAnchor, patchedMigratedProviders);
   patched[7] = replaceExact(patched[7], anthropicWarningAnchor, patchedAnthropicWarning);
   patched[7] = replaceExact(patched[7], interactiveModelSelectorAnchor, patchedInteractiveModelSelector);
+  patched[7] = replaceExact(patched[7], loginCompletionOptionAnchor, patchedLoginCompletionOption);
+  patched[7] = replaceExact(patched[7], loginCompletionSortAnchor, patchedLoginCompletionSort);
+  patched[7] = replaceUpgrade(patched[7], loginOptionsAnchor, intermediatePatchedLoginOptions, patchedLoginOptions);
+  patched[7] = replaceExact(patched[7], loginOauthOptionAnchor, patchedLoginOauthOption);
+  patched[7] = replaceExact(patched[7], loginApiKeyOptionAnchor, patchedLoginApiKeyOption);
+  patched[7] = replaceExact(patched[7], loginOptionsSortAnchor, patchedLoginOptionsSort);
   if (!patched[7].endsWith("\n")) patched[7] += "\n";
   patched[0] = replaceExact(patched[0], helpIdentityAnchor, patchedHelpIdentity);
   patched[0] = replaceExact(patched[0], helpPromptAnchor, patchedHelpPrompt);

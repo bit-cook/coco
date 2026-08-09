@@ -4,7 +4,13 @@ Coco 是通用 AI 助手，具备强大的编码和终端能力。它作为 [Pi 
 
 [English](../en/README.md) | [简体中文](README.md) | [文档索引](docs/index.md)
 
+完整用户手册：[简体中文](docs/manual.md) | [English](../en/docs/manual.md)
+
 操作参考：[Coco CLI](docs/coco-cli.md) | [Coco 安全](docs/coco-security.md)。如与继承的 Pi 文档冲突，以 Coco 专用文档为准。
+
+## 持久目标
+
+使用内置交互式 `/goal` 命令为当前会话分支设置并跟踪目标。目标和计划会随该分支持久保存，在上下文压缩后仍会保留，并用于引导代理，但不会覆盖当前用户指令或 Coco 安全策略。命令语法请参阅 [Coco CLI](docs/coco-cli.md#持久目标)，信任边界请参阅 [Coco 安全](docs/coco-security.md#目标的指令与安全边界)。
 
 ## 要求
 
@@ -16,13 +22,13 @@ Coco 是通用 AI 助手，具备强大的编码和终端能力。它作为 [Pi 
 通过稳定的 Pages 启动器安装最新稳定版本：
 
 ```bash
-curl -fsSL https://aithernexus.github.io/coco/install.sh | bash
+curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 ```
 
 或者安装经过明确审阅的固定版本：
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.8/install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.1.8/install.sh
 COCO_VERSION=0.1.8 bash install.sh
 ```
 

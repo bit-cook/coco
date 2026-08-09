@@ -175,6 +175,7 @@ test("Given the v0.1.8 release contract, when public release surfaces are inspec
   assert.equal(releaseWorkflow.includes("releases/latest/download"), false);
   assert.equal(releaseWorkflow.includes("agnes.key"), false);
   assert.match(releaseWorkflow, /releases\/download\/\$GITHUB_REF_NAME/);
-  assert.match(releaseWorkflow, /sha256sum install\.sh uninstall\.sh coco-\*\.tgz coco-\*\.tgz\.sha256 > SHA256SUMS/);
+  assert.match(releaseWorkflow, /sha256sum install\.sh uninstall\.sh coco-\*\.tgz coco-\*\.tgz\.sha256 coco-\*-offline-\*\.zip coco-\*-offline-\*\.zip\.sha256 > SHA256SUMS/);
+  assert.match(releaseWorkflow, /npm run build:offline/);
   assert.match(releaseWorkflow, /release\/SHA256SUMS/);
 });

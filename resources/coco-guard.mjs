@@ -1,6 +1,7 @@
 import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 
 import { classifyPath, classifyShell, SAFETY_OUTCOMES } from "../scripts/safety-classifier.mjs";
+import { translate } from "./coco-language.mjs";
 
 const DISCLAIMER = "Coco safety guard is best-effort, not a sandbox.";
 
@@ -24,7 +25,7 @@ async function guardToolCall(event, ctx) {
   if (!ctx.hasUI || typeof ctx.ui?.confirm !== "function") return block(classification, "Blocked because confirmation is unavailable in this mode.");
 
   try {
-    const allowed = await ctx.ui.confirm("Coco safety confirmation", `${reasonFor(classification)} Allow this command?`);
+    const allowed = await ctx.ui.confirm(translate("guard.confirmationTitle"), `${reasonFor(classification)} ${translate("guard.allow")}`);
     return allowed === true ? undefined : block(classification, "Blocked because confirmation was denied.");
   } catch {
     return block(classification, "Blocked because confirmation is unavailable.");

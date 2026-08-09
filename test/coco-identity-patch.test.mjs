@@ -122,6 +122,45 @@ const interactiveModelSelectionSource = `    showModelSelector(initialSearchInpu
     async handleLoginCommand(providerRef) {
         await this.session.modelRuntime.getAvailable();
     }`;
+const interactiveLoginSource = `function getLoginProviderCompletionOptions(providerOptions) {
+    const byId = new Map();
+    for (const provider of providerOptions) {
+        const existing = byId.get(provider.id);
+        if (existing) continue;
+        byId.set(provider.id, {
+            id: provider.id,
+            name: provider.name,
+            authTypes: [provider.authType],
+        });
+    }
+    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+    getLoginProviderOptions(authType) {
+        const options = [];
+        for (const provider of this.session.modelRuntime.getProviders()) {
+            const authStatus = this.session.modelRuntime.getProviderAuthStatus(provider.id);
+            const status = authStatus.configured ? { type: "api_key", source: authStatus.source } : undefined;
+            if ((!authType || authType === "oauth") && provider.auth.oauth) {
+                options.push({
+                    id: provider.id,
+                    name: provider.name,
+                    authType: "oauth",
+                    method: provider.auth.oauth,
+                    status,
+                });
+            }
+            if ((!authType || authType === "api_key") && provider.auth.apiKey) {
+                options.push({
+                    id: provider.id,
+                    name: provider.name,
+                    authType: "api_key",
+                    method: provider.auth.apiKey,
+                    status,
+                });
+            }
+        }
+        return options.sort((a, b) => a.name.localeCompare(b.name));
+    }`;
 const repositoryRoot = new URL("..", import.meta.url).pathname;
 const patchTargets = [
   "dist/cli/args.js",
@@ -161,7 +200,7 @@ async function createFixture() {
   await writeFile(join(agent, "dist/cli/list-models.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/cli/list-models.js"), "utf8"));
   await writeFile(join(agent, "dist/modes/interactive/components/model-selector.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/model-selector.js"), "utf8"));
   await writeFile(join(agent, "dist/modes/interactive/components/model-selector.d.ts"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/model-selector.d.ts"), "utf8"));
-  await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `${await readFile(join(agent, "dist/modes/interactive/interactive-mode.js"), "utf8")}\n${interactiveModelSelectionSource}`);
+  await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `${await readFile(join(agent, "dist/modes/interactive/interactive-mode.js"), "utf8")}\n${interactiveModelSelectionSource}\n${interactiveLoginSource}`);
   await writeFile(join(tui, "dist/tui.js"), tuiSource);
   return root;
 }
@@ -370,6 +409,8 @@ test("Given supported model artifacts, when patched, then declared models are vi
     const selector = await readPatched(root, "dist/modes/interactive/components/model-selector.js");
     const interactive = await readPatched(root, "dist/modes/interactive/interactive-mode.js");
     assert.match(runtime, /getVisible\(\)/);
+    assert.match(runtime, /isCustomProvider\(providerId\)/);
+    assert.match(declaration, /isCustomProvider\(providerId: string\): boolean/);
     assert.match(runtime, /this\.config\.getProvider\(model\.provider\)\?\.models\?\.some/);
     assert.match(declaration, /getVisible\(\): readonly Model<Api>\[\]/);
     assert.match(list, /modelRuntime\.getVisible\(\)/);
@@ -379,6 +420,10 @@ test("Given supported model artifacts, when patched, then declared models are vi
     assert.match(selector, /const loginRequired = !this\.modelRuntime\.hasConfiguredAuth\(model\.provider\);/);
     assert.match(selector, /onSelectCallback\(model, loginRequired\)/);
     assert.match(interactive, /if \(loginRequired\) \{\s*done\(\);\s*await this\.handleLoginCommand\(model\.provider\);/);
+    assert.match(interactive, /const custom = this\.session\.modelRuntime\.isCustomProvider\(provider\.id\);/);
+    assert.equal(interactive.match(/const custom = this\.session\.modelRuntime\.isCustomProvider\(provider\.id\);/g)?.length, 1);
+    assert.doesNotMatch(interactive, /const custom = this\.session\.modelRuntime\.isConfiguredProvider\(provider\.id\);/);
+    assert.match(interactive, /Number\(b\.custom\) - Number\(a\.custom\)/);
   } finally {
     await rm(root, { force: true, recursive: true });
   }

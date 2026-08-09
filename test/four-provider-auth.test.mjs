@@ -22,7 +22,7 @@ const publicEndpoints = {
   achai: { baseUrl: "https://www.achai.cc/v1", chatPath: "/v1/chat/completions", modelsPath: "/v1/models", origin: "https://www.achai.cc" },
   agnes: { baseUrl: "https://apihub.agnes-ai.com/v1", chatPath: "/v1/chat/completions", modelsPath: "/v1/models", origin: "https://apihub.agnes-ai.com" },
   deepseek: { baseUrl: "https://api.deepseek.com", chatPath: "/chat/completions", modelsPath: "/models", origin: "https://api.deepseek.com" },
-  idepub: { baseUrl: "https://ai.ide.pub/v1", chatPath: "/v1/chat/completions", modelsPath: "/v1/models", origin: "https://ai.ide.pub" },
+  idepub: { baseUrl: "https://api.ide.pub/v1", chatPath: "/v1/chat/completions", modelsPath: "/v1/models", origin: "https://api.ide.pub" },
   stepfun: { baseUrl: "https://api.stepfun.com/step_plan/v1", chatPath: "/step_plan/v1/chat/completions", modelsPath: "/step_plan/v1/models", origin: "https://api.stepfun.com" },
 };
 

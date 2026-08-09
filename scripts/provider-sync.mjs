@@ -10,7 +10,7 @@ import { StateError, ownedProviderPointers, parseStrictJson, resolveCredential, 
 import { inspectRegular, statePaths } from "./state-paths.mjs";
 import { applyStateTransaction } from "./state-transaction.mjs";
 
-export const PROVIDER_REGISTRY_SHA256 = "6da33abba5fe501f2e92b2c2621f3c14c49cbe95300a7cc97ab8afc1396b42c1";
+export const PROVIDER_REGISTRY_SHA256 = "1ca4283d560af09b9301de2e260fc8b9a73587a71110822a8bc214409cf30da1";
 export const PROVIDER_TRANSFORMATIONS_SHA256 = "f79110eab47af63e59309af68a9bc28a8b6ba24f2cabb32b0e6a44f3d968014c";
 const PROVIDERS = ["achai", "agnes", "deepseek", "idepub", "stepfun"];
 const MAX_BODY_BYTES = 2 * 1024 * 1024;

@@ -24,6 +24,23 @@ Usage:
   coco doctor [--json] [--connectivity]
   coco core <status|check> [--json]
 
+Interactive goals:
+  /goal [status]            Show goal and step progress
+  /goal <description>       Set a persistent goal for this session branch
+  /goal set <description>   Explicitly set a new goal
+  /goal plan                Ask the agent to create and store a plan
+  /goal pause|resume        Pause or resume goal context
+  /goal done <step>         Mark a verified step complete
+  /goal active|block|reopen <step>
+                            Change the state of a planned step
+  /goal continue            Resume and ask the agent to continue
+  /goal complete|clear      Complete or remove the goal
+
+Interactive language:
+  /language                 Select from installed languages
+  /language <locale>        Switch language and persist the selection
+  /language status|list     Show current or available languages
+
 Managed providers:
   idepub, achai, agnes, deepseek, stepfun
 
@@ -223,7 +240,9 @@ export async function dispatchCoco({ argv = process.argv.slice(2), root }) {
   }
   if (NATIVE_COMMANDS.has(argv[0])) return native(argv, root);
   const guard = join(root, "resources", "coco-guard.mjs");
+  const goal = join(root, "resources", "coco-goal.mjs");
+  const language = join(root, "resources", "coco-language.mjs");
   if (argv.includes("--help") || argv.includes("-h")) process.stderr.write("coco: safety guardrails are best-effort and not a sandbox.\n");
-  process.argv.splice(2, process.argv.length - 2, "-e", guard, ...argv);
-  return { guard, kind: "forward" };
+  process.argv.splice(2, process.argv.length - 2, "-e", language, "-e", guard, "-e", goal, ...argv);
+  return { goal, guard, kind: "forward", language };
 }

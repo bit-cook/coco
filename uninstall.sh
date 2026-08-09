@@ -41,8 +41,10 @@ is_managed_launcher() {
     [ "$(readlink -- "$path")" = "$target" ]
     return
   fi
-  [ -f "$path" ] && [ -x "$COCO_INSTALL_DIR/runtime/node/bin/node" ] || return 1
-  printf '%s\n' '#!/usr/bin/env bash' "exec \"$COCO_INSTALL_DIR/runtime/node/bin/node\" \"$target\" \"\$@\"" | cmp -s - "$path"
+  [ -f "$path" ] || return 1
+  if printf '%s\n' '#!/usr/bin/env bash' "exec \"$COCO_INSTALL_DIR/runtime/node/bin/node\" \"$target\" \"\$@\"" | cmp -s - "$path"; then return 0; fi
+  printf '#!/usr/bin/env bash\nexport PI_OFFLINE=1\nexport COCO_CODING_AGENT_DIR=%q\nexec %q %q "$@"\n' \
+    "$COCO_AGENT_DIR" "$COCO_INSTALL_DIR/runtime/node/bin/node" "$target" | cmp -s - "$path"
 }
 
 remove_managed_launcher() {

@@ -2,9 +2,19 @@
 
 Coco is a general AI assistant with strong coding and terminal capabilities, built as a downstream distribution of [Pi Coding Agent](https://github.com/earendil-works/pi) with `agnes/agnes-2.5-flash` at `max` thinking as the default model. Coco includes no provider credentials in source.
 
-[English](https://github.com/aithernexus/coco/blob/main/README.md) | [简体中文](https://github.com/aithernexus/coco/blob/main/documentation/zh-CN/README.md) | [Documentation](https://github.com/aithernexus/coco/tree/main/documentation)
+[English](https://github.com/bit-cook/coco/blob/main/README.md) | [简体中文](https://github.com/bit-cook/coco/blob/main/documentation/zh-CN/README.md) | [Documentation](https://github.com/bit-cook/coco/tree/main/documentation)
+
+Complete user manuals: [English](documentation/en/docs/manual.md) | [简体中文](documentation/zh-CN/docs/manual.md)
+
+Offline and intranet deployment is supported through a platform-specific self-contained ZIP; see [English instructions](documentation/en/docs/manual.md#offline-and-intranet-installation) or [中文说明](documentation/zh-CN/docs/manual.md#离线与内网安装).
+
+Coco includes English and Simplified Chinese language switching through `/language`. Additional languages can be installed as global JSON language packs; see [English language-pack instructions](documentation/en/docs/manual.md#language-switching-and-language-packs) or [中文语言包制作说明](documentation/zh-CN/docs/manual.md#多语言切换与语言包).
 
 Operational reference: [Coco CLI](documentation/en/docs/coco-cli.md) | [Coco security](documentation/en/docs/coco-security.md). Coco-specific documentation takes precedence over inherited Pi documentation when they differ.
+
+## Persistent goals
+
+Use the built-in interactive `/goal` command to set and track a goal for the current session branch. Goals and plans persist with that branch, survive context compaction, and guide the agent without overriding the current user instruction or Coco safety policy. See [Coco CLI](documentation/en/docs/coco-cli.md#persistent-goals) for the command grammar and [Coco security](documentation/en/docs/coco-security.md#goal-instruction-and-safety-boundary) for the trust boundary.
 
 ## Requirements
 
@@ -16,13 +26,13 @@ Operational reference: [Coco CLI](documentation/en/docs/coco-cli.md) | [Coco sec
 Install the newest stable release through the stable Pages launcher:
 
 ```bash
-curl -fsSL https://aithernexus.github.io/coco/install.sh | bash
+curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 ```
 
 Or install an explicitly reviewed release:
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.8/install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.1.8/install.sh
 COCO_VERSION=0.1.8 bash install.sh
 ```
 
@@ -78,9 +88,10 @@ Alternatively, supply credentials only for the current process with these enviro
 | `~/.coco/agent/skills/` | Skills |
 | `~/.coco/agent/prompts/` | Prompt templates |
 | `~/.coco/agent/extensions/` | TypeScript extensions |
+| `~/.coco/agent/languages/` | Data-only user language packs |
 
 Coco applies a global-only trust policy for project resources. Project-local settings, extensions, skills, prompts, and system prompt files are not loaded; `resources/project-resource-policy.v1.json` enforces this policy.
 
 ## Licensing and upstream
 
-Coco is MIT licensed. It is a downstream distribution of `@earendil-works/pi-coding-agent`, authored upstream by Mario Zechner and earendil-works under the MIT License. See [LICENSE](https://github.com/aithernexus/coco/blob/main/LICENSE) and [NOTICE](https://github.com/aithernexus/coco/blob/main/NOTICE).
+Coco is MIT licensed. It is a downstream distribution of `@earendil-works/pi-coding-agent`, authored upstream by Mario Zechner and earendil-works under the MIT License. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

@@ -2,9 +2,15 @@
 
 Coco is a general AI assistant with strong coding and terminal capabilities, built as a downstream distribution of [Pi Coding Agent](https://github.com/earendil-works/pi) with `agnes/agnes-2.5-flash` at `max` thinking as the default model. Coco includes no provider credentials in source.
 
-[English](https://github.com/aithernexus/coco/blob/main/README.md) | [简体中文](https://github.com/aithernexus/coco/blob/main/documentation/zh-CN/README.md) | [Documentation](https://github.com/aithernexus/coco/tree/main/documentation)
+[English](https://github.com/bit-cook/coco/blob/main/README.md) | [简体中文](https://github.com/bit-cook/coco/blob/main/documentation/zh-CN/README.md) | [Documentation](https://github.com/bit-cook/coco/tree/main/documentation)
+
+Complete user manual: [English](docs/manual.md) | [简体中文](../zh-CN/docs/manual.md)
 
 Operational reference: [Coco CLI](docs/coco-cli.md) | [Coco security](docs/coco-security.md). Coco-specific documentation takes precedence over inherited Pi documentation when they differ.
+
+## Persistent goals
+
+Use the built-in interactive `/goal` command to set and track a goal for the current session branch. Goals and plans persist with that branch, survive context compaction, and guide the agent without overriding the current user instruction or Coco safety policy. See [Coco CLI](docs/coco-cli.md#persistent-goals) for the command grammar and [Coco security](docs/coco-security.md#goal-instruction-and-safety-boundary) for the trust boundary.
 
 ## Requirements
 
@@ -16,13 +22,13 @@ Operational reference: [Coco CLI](docs/coco-cli.md) | [Coco security](docs/coco-
 Install the newest stable release through the stable Pages launcher:
 
 ```bash
-curl -fsSL https://aithernexus.github.io/coco/install.sh | bash
+curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 ```
 
 Or install an explicitly reviewed release:
 
 ```bash
-curl -fsSLO https://github.com/aithernexus/coco/releases/download/v0.1.8/install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.1.8/install.sh
 COCO_VERSION=0.1.8 bash install.sh
 ```
 
@@ -83,4 +89,4 @@ Coco applies a global-only trust policy for project resources. Project-local set
 
 ## Licensing and upstream
 
-Coco is MIT licensed. It is a downstream distribution of `@earendil-works/pi-coding-agent`, authored upstream by Mario Zechner and earendil-works under the MIT License. See [LICENSE](https://github.com/aithernexus/coco/blob/main/LICENSE) and [NOTICE](https://github.com/aithernexus/coco/blob/main/NOTICE).
+Coco is MIT licensed. It is a downstream distribution of `@earendil-works/pi-coding-agent`, authored upstream by Mario Zechner and earendil-works under the MIT License. See [LICENSE](../../LICENSE) and [NOTICE](../../NOTICE).
