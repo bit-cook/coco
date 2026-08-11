@@ -6,6 +6,7 @@ const TRANSITIONS = new Map([
   ["completed", new Set()],
   ["failed", new Set()],
 ]);
+import { canonicalJson } from "./canonical-json.mjs";
 import { createHash } from "node:crypto";
 
 const fail = (code) => { const error = new Error(code); error.code = code; throw error; };
@@ -34,7 +35,7 @@ export function transitionPlanEditVerify(current, next, { verification = null } 
 
 export function receiptVerification(receipt, receiptRef) {
   if (!receipt || typeof receiptRef !== "string" || !receiptRef.startsWith("task-receipts/")) fail("PLAN_RECEIPT_INVALID");
-  const receiptSha256 = createHash("sha256").update(`${JSON.stringify(receipt)}\n`).digest("hex");
+  const receiptSha256 = createHash("sha256").update(canonicalJson(receipt)).digest("hex");
   return { receiptRef, receiptSha256, verdict: receipt.verdict };
 }
 

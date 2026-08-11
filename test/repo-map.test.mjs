@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -29,6 +29,15 @@ test("repo map fails closed at file and byte budgets", async () => {
     await writeFile(join(root, "two.ts"), "export const two = 2;\n");
     await assert.rejects(buildRepoMap({ root, maxFiles: 1 }), /REPO_MAP_FILE_LIMIT_EXCEEDED/);
     await assert.rejects(buildRepoMap({ root, maxBytes: 1 }), /REPO_MAP_BYTE_LIMIT_EXCEEDED/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("repo map rejects source symlinks", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coco-repo-map-link-"));
+  try {
+    await writeFile(join(root, "real.js"), "export const real = 1;\n");
+    await symlink("real.js", join(root, "linked.js"));
+    await assert.rejects(buildRepoMap({ root }), /REPO_MAP_SYMLINK_FORBIDDEN/);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 

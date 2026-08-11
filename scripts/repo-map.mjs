@@ -67,10 +67,10 @@ async function collectFiles(root, directory, state) {
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
     if (IGNORED.has(entry.name)) continue;
     const path = join(directory, entry.name);
+    if (entry.isSymbolicLink()) fail("REPO_MAP_SYMLINK_FORBIDDEN");
     if (entry.isDirectory()) await collectFiles(root, path, state);
     else if (entry.isFile() && EXTENSIONS.has(sourceExtension(entry.name))) {
       const info = await lstat(path);
-      if (info.isSymbolicLink()) fail("REPO_MAP_SYMLINK_FORBIDDEN");
       if (state.files.length >= state.maxFiles) fail("REPO_MAP_FILE_LIMIT_EXCEEDED");
       const bytes = await readFile(path);
       state.bytes += bytes.length;

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import { createPlanEditVerifyState, receiptVerification, transitionPlanEditVerify } from "../scripts/plan-edit-verify.mjs";
+import { canonicalJson } from "../scripts/canonical-json.mjs";
 
 test("plan edit verify accepts only an evidenced completion", () => {
   let state = createPlanEditVerifyState({ taskId: "task-1" });
@@ -23,5 +25,6 @@ test("receipt verification produces a stable content binding", () => {
   const receipt = { runId: "run", verdict: "passed" };
   const binding = receiptVerification(receipt, "task-receipts/task/run.json");
   assert.equal(binding.verdict, "passed"); assert.match(binding.receiptSha256, /^[0-9a-f]{64}$/);
+  assert.notEqual(binding.receiptSha256, ""); assert.equal(binding.receiptSha256, createHash("sha256").update(canonicalJson(receipt)).digest("hex"));
   assert.deepEqual(binding, receiptVerification(receipt, binding.receiptRef));
 });
