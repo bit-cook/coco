@@ -8,13 +8,13 @@ test("plan edit verify accepts only an evidenced completion", () => {
   state = transitionPlanEditVerify(state, "editing");
   state = transitionPlanEditVerify(state, "verifying");
   assert.throws(() => transitionPlanEditVerify(state, "completed"), /PLAN_COMPLETION_UNVERIFIED/);
-  state = transitionPlanEditVerify(state, "completed", { verification: { verdict: "passed" } });
+  state = transitionPlanEditVerify(state, "completed", { verification: { receiptRef: "task-receipts/task-1/run.json", receiptSha256: "a".repeat(64), verdict: "passed" } });
   assert.equal(state.state, "completed"); assert.equal(state.revision, 3);
 });
 
 test("plan edit verify rejects skips and mutation after terminal state", () => {
   const planned = createPlanEditVerifyState({ taskId: "task-2" });
   assert.throws(() => transitionPlanEditVerify(planned, "verifying"), /PLAN_TRANSITION_FORBIDDEN/);
-  const failed = transitionPlanEditVerify(planned, "failed", { verification: { verdict: "failed" } });
+  const failed = transitionPlanEditVerify(planned, "failed", { verification: { receiptRef: "task-receipts/task-2/run.json", receiptSha256: "b".repeat(64), verdict: "failed" } });
   assert.throws(() => transitionPlanEditVerify(failed, "editing"), /PLAN_TRANSITION_FORBIDDEN/);
 });

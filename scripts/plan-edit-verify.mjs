@@ -7,11 +7,12 @@ const TRANSITIONS = new Map([
   ["failed", new Set()],
 ]);
 const fail = (code) => { const error = new Error(code); error.code = code; throw error; };
+const SHA256 = /^[0-9a-f]{64}$/;
 
 function valid(value) {
   return value && value.schemaVersion === 1 && typeof value.taskId === "string" && value.taskId.length > 0
     && STATES.includes(value.state) && typeof value.revision === "number" && Number.isSafeInteger(value.revision) && value.revision >= 0
-    && (value.verification === null || (value.verification && typeof value.verification.verdict === "string" && ["passed", "failed"].includes(value.verification.verdict)))
+    && (value.verification === null || (value.verification && typeof value.verification.verdict === "string" && ["passed", "failed"].includes(value.verification.verdict) && typeof value.verification.receiptRef === "string" && value.verification.receiptRef.startsWith("task-receipts/") && SHA256.test(value.verification.receiptSha256)))
     && Object.keys(value).sort().join(",") === "revision,schemaVersion,state,taskId,verification";
 }
 
