@@ -4,6 +4,7 @@ import test from "node:test";
 import { createExecutionProviderDescriptor, preflightExecutionRequest, verifyExecutionBinding } from "../scripts/execution-provider.mjs";
 import { evaluateExecutionMatrix } from "../scripts/execution-matrix.mjs";
 import { createExecutionMatrixEvidence, verifyExecutionMatrixEvidence } from "../scripts/execution-matrix-evidence.mjs";
+import { verifyExecutionEvidenceChain } from "../scripts/execution-evidence-chain.mjs";
 
 const isolated = { capabilities: { isolated: true, networkControl: true, secretsControl: true, workspaceRead: true, workspaceWrite: true }, id: "linux-bwrap" };
 
@@ -56,4 +57,15 @@ test("execution matrix evidence binds provider descriptor and exact cases", () =
   assert.equal(verifyExecutionMatrixEvidence(evidence, { cases, descriptor }).status, "verified");
   assert.throws(() => verifyExecutionMatrixEvidence(evidence, { cases: cases.slice(0, 1), descriptor }), /EXECUTION_MATRIX_EVIDENCE_MISMATCH/);
   assert.throws(() => verifyExecutionMatrixEvidence(evidence, { cases, descriptor: { ...descriptor, id: "other" } }), /EXECUTION_MATRIX_EVIDENCE_MISMATCH/);
+});
+
+test("execution evidence chain verifies matrix, binding, and passed receipt together", () => {
+  const cases = [{ mode: "isolated-required" }]; const descriptor = createExecutionProviderDescriptor(isolated);
+  const preflight = preflightExecutionRequest(isolated, cases[0]);
+  const binding = { providerId: preflight.providerId, requestSha256: preflight.requestSha256, schemaVersion: 1, status: "approved" };
+  const matrixEvidence = createExecutionMatrixEvidence({ cases, descriptor, providerId: descriptor.id, results: evaluateExecutionMatrix(isolated, cases) });
+  const receipt = { exitCode: 0, runId: "018f47a0-7b20-7cc5-8a33-111111111111", schemaVersion: 1, verdict: "passed" };
+  const chain = verifyExecutionEvidenceChain({ binding, cases, descriptor, matrixEvidence, preflight, receipt });
+  assert.equal(chain.status, "verified"); assert.equal(chain.providerId, "linux-bwrap");
+  assert.throws(() => verifyExecutionEvidenceChain({ binding, cases, descriptor, matrixEvidence, preflight, receipt: { ...receipt, verdict: "failed" } }), /EXECUTION_RECEIPT_INVALID/);
 });
