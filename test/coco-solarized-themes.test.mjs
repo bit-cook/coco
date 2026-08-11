@@ -105,3 +105,12 @@ test("Given the footer design contract, when its source is inspected, then it ap
 
   assert.doesNotMatch(footer, /theme\.bg\s*\(/);
 });
+
+test("CoCo's default theme uses a vivid orange accent system", async () => {
+  const theme = await readTheme("coco-orange");
+  assert.equal(theme.name, "coco-orange");
+  assert.equal(theme.colors.accent, "orangeBright");
+  assert.equal(theme.colors.borderAccent, "orangeBright");
+  assert.equal(theme.colors.bashMode, "orangeBright");
+  assert.equal(theme.vars.orangeBright, "#ffb15c");
+});

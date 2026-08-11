@@ -285,7 +285,7 @@ const patchedLoginCompletionOption = `        byId.set(provider.id, {
             custom: provider.custom,
         });`;
 const loginCompletionSortAnchor = `    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));`;
-const patchedLoginCompletionSort = `    return Array.from(byId.values()).sort((a, b) => Number(b.custom) - Number(a.custom) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`;
+const patchedLoginCompletionSort = `    return Array.from(byId.values()).sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`;
 const loginOptionsAnchor = `    getLoginProviderOptions(authType) {
         const options = [];
         for (const provider of this.session.modelRuntime.getProviders()) {`;
@@ -312,7 +312,9 @@ const patchedLoginApiKeyOption = `                    authType: "api_key",
                     method: provider.auth.apiKey,
                     status,`;
 const loginOptionsSortAnchor = `        return options.sort((a, b) => a.name.localeCompare(b.name));`;
-const patchedLoginOptionsSort = `        return options.sort((a, b) => Number(b.custom) - Number(a.custom) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`;
+const patchedLoginOptionsSort = `        return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`;
+const defaultThemeAnchor = `currentTheme: this.settingsManager.getThemeSetting() || "dark",`;
+const patchedDefaultTheme = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",`;
 
 function patchError(code) {
   return new Error(code);
@@ -455,6 +457,19 @@ async function ensureVersion(path) {
   }
 }
 
+async function patchRuntimeDefaultTheme(projectRoot) {
+  const path = join(projectRoot, "dist", "modes", "interactive", "interactive-mode.js");
+  let source;
+  try { source = await readFile(path, "utf8"); }
+  catch (error) { if (error?.code === "ENOENT") return; throw error; }
+  const anchor = `currentTheme: this.settingsManager.getThemeSetting() || "dark",`;
+  const replacement = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",`;
+  if (source.includes(replacement)) return;
+  if (!source.includes(anchor)) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+  source = source.replace(anchor, replacement);
+  await writeFile(path, source, "utf8");
+}
+
 export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) {
   const agent = agentPath(projectRoot);
   const tui = join(agent, "node_modules", "@earendil-works", "pi-tui");
@@ -507,11 +522,12 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[7] = replaceExact(patched[7], anthropicWarningAnchor, patchedAnthropicWarning);
   patched[7] = replaceExact(patched[7], interactiveModelSelectorAnchor, patchedInteractiveModelSelector);
   patched[7] = replaceExact(patched[7], loginCompletionOptionAnchor, patchedLoginCompletionOption);
-  patched[7] = replaceExact(patched[7], loginCompletionSortAnchor, patchedLoginCompletionSort);
+  patched[7] = replaceUpgrade(patched[7], loginCompletionSortAnchor, [`    return Array.from(byId.values()).sort((a, b) => Number(b.custom) - Number(a.custom) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`, `    return Array.from(byId.values()).sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`], patchedLoginCompletionSort);
   patched[7] = replaceUpgrade(patched[7], loginOptionsAnchor, intermediatePatchedLoginOptions, patchedLoginOptions);
   patched[7] = replaceExact(patched[7], loginOauthOptionAnchor, patchedLoginOauthOption);
   patched[7] = replaceExact(patched[7], loginApiKeyOptionAnchor, patchedLoginApiKeyOption);
-  patched[7] = replaceExact(patched[7], loginOptionsSortAnchor, patchedLoginOptionsSort);
+  patched[7] = replaceUpgrade(patched[7], loginOptionsSortAnchor, [`        return options.sort((a, b) => Number(b.custom) - Number(a.custom) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`, `        return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`], patchedLoginOptionsSort);
+  patched[7] = replaceExact(patched[7], defaultThemeAnchor, patchedDefaultTheme);
   if (!patched[7].endsWith("\n")) patched[7] += "\n";
   patched[0] = replaceExact(patched[0], helpIdentityAnchor, patchedHelpIdentity);
   patched[0] = replaceExact(patched[0], helpPromptAnchor, patchedHelpPrompt);
@@ -520,6 +536,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[10] = replaceOfflineToolNotice(patched[10]);
   patched.push(replaceExact(originals.at(-1), scrollbackAnchor, patchedScrollback));
   await Promise.all(patched.map((source, index) => source === originals[index] ? undefined : writeFile([...targets, tuiPath][index], source, "utf8")));
+  await patchRuntimeDefaultTheme(projectRoot);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

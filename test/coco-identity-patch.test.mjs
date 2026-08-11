@@ -101,7 +101,8 @@ const tuiSource = `const fullRender = (clear) => {
                 buffer += "\\x1b[2J\\x1b[H\\x1b[3J"; // Clear screen, home, then clear scrollback
     }
 };`;
-const interactiveModelSelectionSource = `    showModelSelector(initialSearchInput) {
+const interactiveModelSelectionSource = `    currentTheme: this.settingsManager.getThemeSetting() || "dark",
+    showModelSelector(initialSearchInput) {
         this.showSelector((done) => {
             const selector = new ModelSelectorComponent(this.ui, this.session.model, this.settingsManager, this.session.modelRuntime, this.session.scopedModels, async (model) => {
                 try {
@@ -131,13 +132,15 @@ const interactiveLoginSource = `function getLoginProviderCompletionOptions(provi
             id: provider.id,
             name: provider.name,
             authTypes: [provider.authType],
+            custom: provider.custom,
         });
     }
-    return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(byId.values()).sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
     getLoginProviderOptions(authType) {
         const options = [];
         for (const provider of this.session.modelRuntime.getProviders()) {
+            const custom = this.session.modelRuntime.isCustomProvider(provider.id);
             const authStatus = this.session.modelRuntime.getProviderAuthStatus(provider.id);
             const status = authStatus.configured ? { type: "api_key", source: authStatus.source } : undefined;
             if ((!authType || authType === "oauth") && provider.auth.oauth) {
@@ -145,6 +148,7 @@ const interactiveLoginSource = `function getLoginProviderCompletionOptions(provi
                     id: provider.id,
                     name: provider.name,
                     authType: "oauth",
+                    custom,
                     method: provider.auth.oauth,
                     status,
                 });
@@ -154,12 +158,13 @@ const interactiveLoginSource = `function getLoginProviderCompletionOptions(provi
                     id: provider.id,
                     name: provider.name,
                     authType: "api_key",
+                    custom,
                     method: provider.auth.apiKey,
                     status,
                 });
             }
         }
-        return options.sort((a, b) => a.name.localeCompare(b.name));
+        return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
     }`;
 const repositoryRoot = new URL("..", import.meta.url).pathname;
 const patchTargets = [
@@ -244,6 +249,8 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.match(interactive, /truncateToWidth/);
     assert.match(interactive, /theme\.bold\(theme\.fg\("accent"/);
     assert.match(interactive, /theme\.fg\("dim"/);
+    assert.match(interactive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange"/);
+    assert.match(interactive, /Number\(Boolean\(b\.custom\)\) - Number\(Boolean\(a\.custom\)\)/);
     assert.match(interactive, /invalidate\(\)/);
     assert.match(interactive, /setExpanded\(expanded\)/);
     assert.match(interactive, /new ResponsiveStartupWordmark\(false/);
@@ -423,7 +430,7 @@ test("Given supported model artifacts, when patched, then declared models are vi
     assert.match(interactive, /const custom = this\.session\.modelRuntime\.isCustomProvider\(provider\.id\);/);
     assert.equal(interactive.match(/const custom = this\.session\.modelRuntime\.isCustomProvider\(provider\.id\);/g)?.length, 1);
     assert.doesNotMatch(interactive, /const custom = this\.session\.modelRuntime\.isConfiguredProvider\(provider\.id\);/);
-    assert.match(interactive, /Number\(b\.custom\) - Number\(a\.custom\)/);
+    assert.match(interactive, /Number\(Boolean\(b\.custom\)\) - Number\(Boolean\(a\.custom\)\)/);
   } finally {
     await rm(root, { force: true, recursive: true });
   }
