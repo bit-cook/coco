@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -32,5 +32,25 @@ test("execution bindings reject conflicts, malformed IDs, and unknown status", a
     await assert.rejects(store.write({ providerId: "linux-bwrap", requestSha256: "b".repeat(64), runId, taskId }), /EXECUTION_BINDING_CONFLICT/);
     await assert.rejects(store.write({ providerId: "linux-bwrap", requestSha256: hash, runId, status: "completed", taskId }), /EXECUTION_BINDING_INVALID/);
     await assert.rejects(store.write({ providerId: "linux-bwrap", requestSha256: hash, runId: "bad", taskId }), /EXECUTION_BINDING_INVALID|EXECUTION_BINDING_ID_INVALID/);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("execution binding reads fail closed for corruption, symlinks, and weak permissions", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-execution-binding-corrupt-"));
+  try {
+    const store = createExecutionBindingStore({ agentDir });
+    await store.write({ providerId: "linux-bwrap", requestSha256: hash, runId, taskId });
+    await writeFile(store.pathFor(taskId, runId), "{broken}\n");
+    await assert.rejects(store.read({ runId, taskId }), /EXECUTION_BINDING_CORRUPT/);
+    await rm(store.pathFor(taskId, runId));
+    await symlink("../missing.json", store.pathFor(taskId, runId));
+    await assert.rejects(store.read({ runId, taskId }), /STATE_ENTRY_INVALID/);
+    await rm(store.pathFor(taskId, runId));
+    await store.write({ providerId: "linux-bwrap", requestSha256: hash, runId, taskId });
+    if (process.platform !== "win32") {
+      await chmod(store.pathFor(taskId, runId), 0o400);
+      await assert.rejects(store.read({ runId, taskId }), /STATE_PERMISSION_INVALID/);
+      await chmod(store.pathFor(taskId, runId), 0o600);
+    }
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });
