@@ -15,5 +15,6 @@ TaskEvent 是 CoCo v0.3 的有界、非权威可观测层；`tasks.json` 仍是�
 - 执行模式必须显式解析：`isolated-required` 在隔离能力不可用时拒绝；`host-explicit` 必须直接确认，并始终携带可见的 `non-isolated` 标记。任何模式都不会自动降级到 host 执行。
 - 已解析的 execution request 会组合 mode、policy 和 provider capabilities。隔离请求要求 provider 能强制执行 network、secrets 和对应 workspace 控制；任何能力缺失都在执行前拒绝。Host 请求保留 policy 声明，但 enforcement 明确标为 `host`，不伪装成 provider isolation。
 - Provider preflight 只接受冻结的 provider ID 和精确 capability descriptor，再把一条 approved request 绑定到该 provider。命令、环境变量和可执行 callback 不属于 descriptor 或当前 preflight 切片，因此 preflight 本身没有执行副作用。
+- approved preflight digest 可以独立持久化到 `task-execution-bindings/<taskId>/<runId>.json`。这个私有、幂等产物只保存 task/run identity、provider ID、approved 状态和 request SHA-256；不扩展 v0.3 Task Receipt schema，也不保存命令、prompt、环境变量或凭据。
 
 事件不能重建 `tasks.json`；旧任务可能没有完整历史，进程崩溃后也不承诺日志字节级完整。

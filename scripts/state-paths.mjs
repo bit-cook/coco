@@ -24,6 +24,7 @@ export function statePaths(agentDir) {
     runner: join(root, "runner.json"),
     settings: join(root, "settings.json"),
     taskEvents: join(root, "task-events"),
+    taskExecutionBindings: join(root, "task-execution-bindings"),
     taskLogs: join(root, "task-logs"),
     taskReceipts: join(root, "task-receipts"),
     tasks: join(root, "tasks.json"),
