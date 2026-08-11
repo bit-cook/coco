@@ -11,11 +11,12 @@ import { createHash } from "node:crypto";
 
 const fail = (code) => { const error = new Error(code); error.code = code; throw error; };
 const SHA256 = /^[0-9a-f]{64}$/;
+const RECEIPT_REF = /^task-receipts\/[a-z0-9_-]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.json$/i;
 
 function valid(value) {
   return value && value.schemaVersion === 1 && typeof value.taskId === "string" && value.taskId.length > 0
     && STATES.includes(value.state) && typeof value.revision === "number" && Number.isSafeInteger(value.revision) && value.revision >= 0
-    && (value.verification === null || (value.verification && typeof value.verification.verdict === "string" && ["passed", "failed"].includes(value.verification.verdict) && typeof value.verification.receiptRef === "string" && value.verification.receiptRef.startsWith("task-receipts/") && SHA256.test(value.verification.receiptSha256)))
+    && (value.verification === null || (value.verification && typeof value.verification.verdict === "string" && ["passed", "failed"].includes(value.verification.verdict) && typeof value.verification.receiptRef === "string" && RECEIPT_REF.test(value.verification.receiptRef) && SHA256.test(value.verification.receiptSha256)))
     && Object.keys(value).sort().join(",") === "revision,schemaVersion,state,taskId,verification";
 }
 
@@ -34,7 +35,7 @@ export function transitionPlanEditVerify(current, next, { verification = null } 
 }
 
 export function receiptVerification(receipt, receiptRef) {
-  if (!receipt || typeof receiptRef !== "string" || !receiptRef.startsWith("task-receipts/")) fail("PLAN_RECEIPT_INVALID");
+  if (!receipt || typeof receiptRef !== "string" || !RECEIPT_REF.test(receiptRef)) fail("PLAN_RECEIPT_INVALID");
   const receiptSha256 = createHash("sha256").update(canonicalJson(receipt)).digest("hex");
   return { receiptRef, receiptSha256, verdict: receipt.verdict };
 }
