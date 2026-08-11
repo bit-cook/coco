@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { createExecutionProviderDescriptor, preflightExecutionRequest, verifyExecutionBinding } from "../scripts/execution-provider.mjs";
 import { evaluateExecutionMatrix } from "../scripts/execution-matrix.mjs";
+import { createExecutionMatrixEvidence, verifyExecutionMatrixEvidence } from "../scripts/execution-matrix-evidence.mjs";
 
 const isolated = { capabilities: { isolated: true, networkControl: true, secretsControl: true, workspaceRead: true, workspaceWrite: true }, id: "linux-bwrap" };
 
@@ -45,4 +46,14 @@ test("execution capability matrix reports deterministic approval and rejection c
   ]);
   assert.deepEqual(matrix, evaluateExecutionMatrix(isolated, cases));
   assert.throws(() => evaluateExecutionMatrix(isolated, []), /EXECUTION_MATRIX_INVALID/);
+});
+
+test("execution matrix evidence binds provider descriptor and exact cases", () => {
+  const cases = [{ mode: "isolated-required" }, { hostConfirmed: true, mode: "host-explicit" }];
+  const descriptor = createExecutionProviderDescriptor(isolated);
+  const results = evaluateExecutionMatrix(isolated, cases);
+  const evidence = createExecutionMatrixEvidence({ cases, descriptor, providerId: descriptor.id, results });
+  assert.equal(verifyExecutionMatrixEvidence(evidence, { cases, descriptor }).status, "verified");
+  assert.throws(() => verifyExecutionMatrixEvidence(evidence, { cases: cases.slice(0, 1), descriptor }), /EXECUTION_MATRIX_EVIDENCE_MISMATCH/);
+  assert.throws(() => verifyExecutionMatrixEvidence(evidence, { cases, descriptor: { ...descriptor, id: "other" } }), /EXECUTION_MATRIX_EVIDENCE_MISMATCH/);
 });

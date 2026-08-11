@@ -17,5 +17,6 @@ TaskEvent 是 CoCo v0.3 的有界、非权威可观测层；`tasks.json` 仍是�
 - Provider preflight 只接受冻结的 provider ID 和精确 capability descriptor，再把一条 approved request 绑定到该 provider。命令、环境变量和可执行 callback 不属于 descriptor 或当前 preflight 切片，因此 preflight 本身没有执行副作用。
 - approved preflight digest 可以独立持久化到 `task-execution-bindings/<taskId>/<runId>.json`。这个私有、幂等产物只保存 task/run identity、provider ID、approved 状态和 request SHA-256；不扩展 v0.3 Task Receipt schema，也不保存命令、prompt、环境变量或凭据。
 - capability matrix evaluator 只通过 preflight 运行有界 request cases，返回确定性的 `approved` 或 typed `rejected` 结果；绝不启动进程、调用命令，也不会把隔离失败的 case 自动降级为 host。
+- matrix 结果可以封存为有界 evidence 对象，包含 provider descriptor 和 case-set 的 SHA-256 摘要。Provider 或 cases 发生变化时，校验会在考虑任何 execution provider 前拒绝。
 
 事件不能重建 `tasks.json`；旧任务可能没有完整历史，进程崩溃后也不承诺日志字节级完整。
