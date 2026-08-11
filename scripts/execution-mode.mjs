@@ -18,4 +18,18 @@ export function resolveExecutionPolicy(input = {}) {
   return Object.freeze({ ...policy, schemaVersion: 1 });
 }
 
+export function resolveExecutionRequest(input = {}) {
+  if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((key) => !["capabilities", "hostConfirmed", "mode", "policy"].includes(key))) fail("EXECUTION_REQUEST_INVALID");
+  const capabilities = input.capabilities ?? {};
+  if (!capabilities || typeof capabilities !== "object" || Array.isArray(capabilities) || Object.keys(capabilities).some((key) => !["isolated", "networkControl", "secretsControl", "workspaceRead", "workspaceWrite"].includes(key)) || Object.values(capabilities).some((value) => typeof value !== "boolean")) fail("EXECUTION_CAPABILITIES_INVALID");
+  const mode = resolveExecutionMode({ hostConfirmed: input.hostConfirmed, isolatedAvailable: capabilities.isolated === true, mode: input.mode });
+  const policy = resolveExecutionPolicy(input.policy);
+  if (mode.isolated) {
+    if (!capabilities.networkControl) fail("EXECUTION_NETWORK_CONTROL_UNAVAILABLE");
+    if (!capabilities.secretsControl) fail("EXECUTION_SECRETS_CONTROL_UNAVAILABLE");
+    if (policy.workspace === "write" ? !capabilities.workspaceWrite : !capabilities.workspaceRead) fail("EXECUTION_WORKSPACE_CONTROL_UNAVAILABLE");
+  }
+  return Object.freeze({ enforcement: mode.isolated ? "provider" : "host", mode, policy, schemaVersion: 1 });
+}
+
 export { MODES as executionModes };

@@ -13,5 +13,6 @@ TaskEvent 是 CoCo v0.3 的有界、非权威可观测层；`tasks.json` 仍是�
 - v0.4 的首个上下文实验提供有界、只读的 JavaScript/TypeScript `buildRepoMap()`。它报告候选函数、类、导出变量、imports，以及字节/文件/符号计数，并跳过依赖和构建目录。该实现明确是 lexical 候选清单，不冒充完整语法引用图；不会编辑文件或执行命令。
 - v0.4 执行契约单独表示为纯 `plan -> edit -> verify` 状态机。它拒绝跳过阶段、terminal 状态变更，以及没有明确 passed verification verdict 的 `completed`。当前切片不执行编辑或命令。
 - 执行模式必须显式解析：`isolated-required` 在隔离能力不可用时拒绝；`host-explicit` 必须直接确认，并始终携带可见的 `non-isolated` 标记。任何模式都不会自动降级到 host 执行。
+- 已解析的 execution request 会组合 mode、policy 和 provider capabilities。隔离请求要求 provider 能强制执行 network、secrets 和对应 workspace 控制；任何能力缺失都在执行前拒绝。Host 请求保留 policy 声明，但 enforcement 明确标为 `host`，不伪装成 provider isolation。
 
 事件不能重建 `tasks.json`；旧任务可能没有完整历史，进程崩溃后也不承诺日志字节级完整。
