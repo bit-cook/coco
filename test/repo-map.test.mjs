@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { buildRepoMap } from "../scripts/repo-map.mjs";
+import { buildRepoMap, selectRepoContext } from "../scripts/repo-map.mjs";
 
 test("bounded JS/TS repo map reports deterministic symbols and imports", async () => {
   const root = await mkdtemp(join(tmpdir(), "coco-repo-map-"));
@@ -30,4 +30,15 @@ test("repo map fails closed at file and byte budgets", async () => {
     await assert.rejects(buildRepoMap({ root, maxFiles: 1 }), /REPO_MAP_FILE_LIMIT_EXCEEDED/);
     await assert.rejects(buildRepoMap({ root, maxBytes: 1 }), /REPO_MAP_BYTE_LIMIT_EXCEEDED/);
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("repo context selection is deterministic and budgeted", () => {
+  const map = { files: [
+    { imports: [], path: "z.ts", symbols: [{ kind: "function", line: 1, name: "other" }] },
+    { imports: ["./z.ts"], path: "a.ts", symbols: [{ kind: "function", line: 1, name: "target" }, { kind: "variable", line: 2, name: "extra" }] },
+  ], schemaVersion: 1 };
+  const selected = selectRepoContext(map, { maxFiles: 1, maxSymbols: 1, query: "target" });
+  assert.deepEqual(selected.files.map(({ path }) => path), ["a.ts"]);
+  assert.deepEqual(selected.files[0].symbols.map(({ name }) => name), ["target"]);
+  assert.equal(selected.stats.files, 1); assert.equal(selected.stats.symbols, 1);
 });

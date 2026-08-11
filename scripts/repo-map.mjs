@@ -37,6 +37,31 @@ function extractImports(source) {
   return [...imports].sort();
 }
 
+function queryTokens(query) {
+  return [...new Set(String(query ?? "").toLowerCase().split(/[^a-z0-9_$]+/).filter(Boolean))];
+}
+
+export function selectRepoContext(map, { query = "", maxBytes = 128 * 1024, maxFiles = 32, maxSymbols = 256 } = {}) {
+  if (!map || map.schemaVersion !== 1 || !Array.isArray(map.files)) fail("REPO_CONTEXT_MAP_INVALID");
+  bounded(maxBytes, "CONTEXT_BYTE_LIMIT"); bounded(maxFiles, "CONTEXT_FILE_LIMIT"); bounded(maxSymbols, "CONTEXT_SYMBOL_LIMIT");
+  const tokens = queryTokens(query);
+  const score = (entry) => {
+    const haystack = [entry.path, ...entry.imports, ...entry.symbols.flatMap(({ name }) => [name])].join(" ").toLowerCase();
+    return tokens.reduce((value, token) => value + (haystack.includes(token) ? 1 : 0), 0);
+  };
+  const ranked = map.files.map((entry) => ({ entry, score: score(entry) })).sort((a, b) => b.score - a.score || a.entry.path.localeCompare(b.entry.path));
+  const files = []; let bytes = 0; let symbols = 0;
+  for (const { entry, score: relevance } of ranked) {
+    if (files.length >= maxFiles) break;
+    const selectedSymbols = entry.symbols.slice(0, Math.max(0, maxSymbols - symbols));
+    const candidate = { imports: entry.imports, path: entry.path, relevance, symbols: selectedSymbols };
+    const candidateBytes = Buffer.byteLength(JSON.stringify(candidate));
+    if (bytes + candidateBytes > maxBytes) continue;
+    files.push(candidate); bytes += candidateBytes; symbols += selectedSymbols.length;
+  }
+  return { files, query: String(query ?? ""), schemaVersion: 1, stats: { bytes, files: files.length, symbols } };
+}
+
 async function collectFiles(root, directory, state) {
   const entries = await readdir(directory, { withFileTypes: true });
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
