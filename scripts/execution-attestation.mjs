@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isAbsolute, resolve } from "node:path";
 
 import { canonicalJson } from "./canonical-json.mjs";
 
@@ -21,7 +22,7 @@ export function verifyExecutionAttestation(attestation, descriptor) {
 }
 
 export function verifyDiscoveredExecutionAdapter(discovery, attestation) {
-  if (!discovery || discovery.schemaVersion !== 1 || !attestation || attestation.schemaVersion !== 1 || attestation.status !== "attested") fail("EXECUTION_ADAPTER_EVIDENCE_INVALID");
+  if (!discovery || typeof discovery !== "object" || Array.isArray(discovery) || Object.keys(discovery).sort().join(",") !== "bytes,path,schemaVersion,sha256" || discovery.schemaVersion !== 1 || !Number.isSafeInteger(discovery.bytes) || discovery.bytes < 1 || discovery.bytes > 64 * 1024 * 1024 || typeof discovery.path !== "string" || !isAbsolute(discovery.path) || resolve(discovery.path) !== discovery.path || !SHA256.test(discovery.sha256 ?? "") || !attestation || attestation.schemaVersion !== 1 || attestation.status !== "attested") fail("EXECUTION_ADAPTER_EVIDENCE_INVALID");
   if (discovery.sha256 !== attestation.adapterSha256) fail("EXECUTION_ADAPTER_DIGEST_MISMATCH");
   return Object.freeze({ adapterSha256: discovery.sha256, adapterVersion: attestation.adapterVersion, path: discovery.path, schemaVersion: 1, status: "verified" });
 }

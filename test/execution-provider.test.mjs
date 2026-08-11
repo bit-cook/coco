@@ -98,4 +98,7 @@ test("adapter discovery evidence must match the attested binary digest", () => {
   const discovery = { bytes: 1, path: "/adapter", schemaVersion: 1, sha256: "a".repeat(64) };
   assert.equal(verifyDiscoveredExecutionAdapter(discovery, attestation).status, "verified");
   assert.throws(() => verifyDiscoveredExecutionAdapter({ ...discovery, sha256: "b".repeat(64) }, attestation), /EXECUTION_ADAPTER_DIGEST_MISMATCH/);
+  assert.throws(() => verifyDiscoveredExecutionAdapter({ ...discovery, bytes: 0 }, attestation), /EXECUTION_ADAPTER_EVIDENCE_INVALID/);
+  assert.throws(() => verifyDiscoveredExecutionAdapter({ ...discovery, extra: true }, attestation), /EXECUTION_ADAPTER_EVIDENCE_INVALID/);
+  assert.throws(() => verifyDiscoveredExecutionAdapter({ ...discovery, path: "relative" }, attestation), /EXECUTION_ADAPTER_EVIDENCE_INVALID/);
 });
