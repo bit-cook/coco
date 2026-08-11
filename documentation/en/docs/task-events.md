@@ -24,5 +24,6 @@ TaskEvent is CoCo v0.3's bounded, non-authoritative observability layer. `tasks.
 - Evidence-chain verification now requires that adapter attestation, matrix evidence, request binding, provider identity, and passed receipt all agree before returning `verified`.
 - Read-only adapter discovery accepts only an explicit normalized absolute path, rejects symlinks, non-regular files, oversized files, and group/world-writable files, then hashes stable bytes with a post-read identity check. It never executes the adapter.
 - Discovery evidence must match the adapter digest in the attestation before it can be treated as verified; a different on-disk binary is rejected.
+- Final evidence-chain verification requires this verified discovery evidence in addition to attestation, matrix, request binding, and passed receipt evidence. Missing discovery evidence fails closed.
 
 No event replay rebuilds `tasks.json`. Older tasks may have no complete history, and log capture does not promise byte-perfect recovery after a process crash.
