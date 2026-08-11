@@ -8,5 +8,7 @@ TaskEvent is CoCo v0.3's bounded, non-authoritative observability layer. `tasks.
 - Active runs emit bounded heartbeats. Restart recovery replays pending terminal intents and records interrupted attempts as `run.abandoned` before requeueing.
 - Non-interactive stdout/stderr is stored separately in `task-logs/<taskId>/<runId>.jsonl`, limited to 4096 records or 4 MiB per run.
 - The loopback bearer-token Control API exposes read-only paginated endpoints at `GET /v1/tasks/<taskId>/runs/<runId>/events` and `/logs`, using exclusive `cursor` and bounded `limit` parameters.
+- Each terminal run writes a private canonical receipt at `task-receipts/<taskId>/<runId>.json`, containing the runner contract, exit code, verdict, timestamps, and an optional SHA-256 summary of the bounded log artifact. Receipt publication is idempotent and happens before the terminal event.
+- `GET /v1/tasks/<taskId>/runs/<runId>/receipt` returns the authenticated receipt without task prompts, credentials, or raw command output. `GET /v1/tasks/<taskId>/diagnosis` conservatively combines process identity, heartbeat age, and recent log activity into `healthy`, `waiting`, `stuck`, or `unknown`; an unobserved process is never called stuck.
 
 No event replay rebuilds `tasks.json`. Older tasks may have no complete history, and log capture does not promise byte-perfect recovery after a process crash.

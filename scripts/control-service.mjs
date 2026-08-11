@@ -12,6 +12,8 @@ import { atomicReplace } from "./state-transaction.mjs";
 import { createTaskStore } from "./task-state.mjs";
 import { createTaskEventStore } from "./task-events.mjs";
 import { createTaskLogStore } from "./task-logs.mjs";
+import { createTaskReceiptStore } from "./task-receipts.mjs";
+import { diagnoseTask } from "./task-diagnosis.mjs";
 import { cancelTask, startDetachedRunner, stopRunner } from "./task-runner.mjs";
 import { processAlive, processIdentity, processMatches, terminateProcessTree } from "./task-process.mjs";
 
@@ -73,7 +75,7 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
   await ensureAgentDirectory(agentDir);
   const previous = await state(agentDir); if (previous && previous.pid !== process.pid && (previous.processIdentity ? await processMatches(previous.pid, previous.processIdentity) : await processAlive(previous.pid))) fail("CONTROL_ALREADY_RUNNING");
   const token = randomBytes(32).toString("base64url");
-  const store = createTaskStore({ agentDir }); const events = createTaskEventStore({ agentDir }); const logs = createTaskLogStore({ agentDir }); const publicRoot = join(root, "control", "public");
+  const store = createTaskStore({ agentDir }); const events = createTaskEventStore({ agentDir }); const logs = createTaskLogStore({ agentDir }); const receipts = createTaskReceiptStore({ agentDir }); const publicRoot = join(root, "control", "public");
   const server = createServer(async (request, response) => {
     response.setHeader("content-security-policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'");
     response.setHeader("referrer-policy", "no-referrer");
@@ -97,6 +99,16 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
       if (!authorized(request, token)) return json(response, 401, { error: "UNAUTHORIZED" });
       if (request.method === "GET" && url.pathname === "/v1/health") return json(response, 200, { schemaVersion: 1, status: "ok" });
       if (request.method === "GET" && url.pathname === "/v1/tasks") return json(response, 200, { tasks: (await store.load()).tasks.map(cleanTask) });
+      const diagnosis = /^\/v1\/tasks\/([a-z0-9_-]{12})\/diagnosis$/.exec(url.pathname);
+      if (request.method === "GET" && diagnosis) {
+        const task = (await store.load()).tasks.find(({ id }) => id === diagnosis[1]); if (!task) return json(response, 404, { error: "NOT_FOUND" });
+        const eventsPage = task.activeRunId ? await events.readPage({ taskId: task.id, runId: task.activeRunId, cursor: 0, limit: 4096 }) : { events: [] };
+        const logsPage = task.activeRunId ? await logs.read({ taskId: task.id, runId: task.activeRunId, cursor: 0, limit: 256 }) : { records: [] };
+        const latestHeartbeatAt = eventsPage.events.filter(({ type }) => type === "run.heartbeat").at(-1)?.at ?? null;
+        const latestLogAt = logsPage.records.at(-1)?.at ?? null;
+        const alive = task.pid && task.processIdentity ? await processMatches(task.pid, task.processIdentity) : false;
+        return json(response, 200, diagnoseTask({ task, latestHeartbeatAt, latestLogAt, processAlive: alive }));
+      }
       if (request.method === "GET" && url.pathname === "/v1/agents") {
         const active = (await store.load()).tasks.filter((task) => task.status === "running" && task.pid);
         return json(response, 200, { agents: await Promise.all(active.map(async (task) => ({ ...cleanTask(task), alive: await processMatches(task.pid, task.processIdentity), pid: task.pid }))) });
@@ -115,6 +127,13 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
         const value = stream[3] === "events" ? { ...(await events.readPage({ taskId: task.id, runId, cursor, limit })), taskId: task.id, runId, schemaVersion: 1 } : { ...(await logs.read({ taskId: task.id, runId, cursor, limit })), taskId: task.id, runId, schemaVersion: 1 };
         if (Buffer.byteLength(JSON.stringify(value)) > MAX_OBSERVATION_RESPONSE) return json(response, 413, { error: "OBSERVATION_RESPONSE_TOO_LARGE" });
         return json(response, 200, value);
+      }
+      const receipt = /^\/v1\/tasks\/([a-z0-9_-]{12})\/runs\/([0-9a-f-]{36})\/receipt$/.exec(url.pathname);
+      if (request.method === "GET" && receipt) {
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(receipt[2])) return json(response, 404, { error: "NOT_FOUND" });
+        const task = (await store.load()).tasks.find(({ id }) => id === receipt[1]); if (!task) return json(response, 404, { error: "NOT_FOUND" });
+        const value = await receipts.read({ taskId: task.id, runId: receipt[2].toLowerCase() });
+        return value ? json(response, 200, { receipt: value }) : json(response, 404, { error: "NOT_FOUND" });
       }
       if (request.method === "POST" && url.pathname === "/v1/tasks") {
         const input = JSON.parse((await body(request)).toString("utf8"));

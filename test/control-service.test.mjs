@@ -9,6 +9,7 @@ import { controlStatus, runControlServer } from "../scripts/control-service.mjs"
 import { statePaths } from "../scripts/state-paths.mjs";
 import { createTaskEventStore } from "../scripts/task-events.mjs";
 import { createTaskLogStore } from "../scripts/task-logs.mjs";
+import { createTaskReceiptStore } from "../scripts/task-receipts.mjs";
 import { createTaskStore } from "../scripts/task-state.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
@@ -77,6 +78,7 @@ test("control plane exposes authenticated paginated events and logs only for the
     await events.append({ taskId: task.id, runId, type: "run.started", eventId: "018f47a0-7b20-7cc5-8a33-333333333333" });
     await events.append({ taskId: task.id, runId, type: "run.heartbeat", eventId: "018f47a0-7b20-7cc5-8a33-444444444444" });
     await logs.append({ taskId: task.id, runId, stream: "stdout", data: "hello" });
+    await createTaskReceiptStore({ agentDir }).write({ endedAt: "2026-08-11T12:00:01.000Z", exitCode: 0, log: await logs.describe({ taskId: task.id, runId }), runId, startedAt: "2026-08-11T12:00:00.000Z", taskId: task.id });
     const running = runControlServer({ agentDir, host: "127.0.0.1", port: 0, root, signal: controller.signal });
     let state;
     for (let attempt = 0; attempt < 100; attempt += 1) { try { state = JSON.parse(await readFile(statePaths(agentDir).control)); break; } catch { await new Promise((done) => setTimeout(done, 10)); } }
@@ -87,6 +89,9 @@ test("control plane exposes authenticated paginated events and logs only for the
     const logPage = await (await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/logs`, { headers: auth })).json();
     assert.deepEqual(logPage.records.map(({ data }) => data), ["hello"]);
     assert.equal((await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/events`, { headers: auth })).status, 200);
+    const receipt = await (await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/receipt`, { headers: auth })).json();
+    assert.equal(receipt.receipt.verdict, "passed"); assert.equal(receipt.receipt.log.records, 1);
+    assert.equal((await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/receipt`)).status, 401);
     assert.equal((await fetch(`${base}/v1/tasks/${task.id}/runs/not-a-run/logs`, { headers: auth })).status, 404);
     assert.equal((await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/logs?cursor=-1`, { headers: auth })).status, 400);
     assert.equal((await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/logs`)).status, 401);

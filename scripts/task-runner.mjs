@@ -9,6 +9,7 @@ import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.
 import { applyStateTransaction } from "./state-transaction.mjs";
 import { createTaskEventStore } from "./task-events.mjs";
 import { createTaskLogStore } from "./task-logs.mjs";
+import { createTaskReceiptStore } from "./task-receipts.mjs";
 import { processAlive, processIdentity, processMatches, terminateProcessTree } from "./task-process.mjs";
 import { createTaskStore, selectRunnableTask } from "./task-state.mjs";
 import { createTaskWorktree } from "./worktree-tasks.mjs";
@@ -164,6 +165,7 @@ export function createTaskRunner({ agentDir, heartbeatIntervalMs = 30000, root, 
   const store = createTaskStore({ agentDir });
   const events = createTaskEventStore({ agentDir, enforceLifecycle: true });
   const logs = createTaskLogStore({ agentDir });
+  const receipts = createTaskReceiptStore({ agentDir });
   const paths = statePaths(agentDir);
   let stopping = false;
   let child = null;
@@ -299,6 +301,8 @@ export function createTaskRunner({ agentDir, heartbeatIntervalMs = 30000, root, 
       finally { heartbeatController.abort(); await heartbeatLoop; }
       if (heartbeatError) throw heartbeatError;
       child = null; childIdentity = null;
+      const endedAt = new Date().toISOString();
+      await receipts.write({ endedAt, exitCode: outcome.code, log: await logs.describe({ taskId: task.id, runId: currentTask.activeRunId }), runId: currentTask.activeRunId, startedAt: currentTask.startedAt, taskId: task.id });
       await finish(task.id, outcome.code === 0 ? "completed" : "failed", finalAssistantText(outcome.output ?? ""), outcome.code === 0 ? null : (outcome.error || "TASK_PROCESS_FAILED"));
     } catch (error) {
       if (!claimed || !started) throw error;

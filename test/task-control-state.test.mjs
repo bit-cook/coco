@@ -7,6 +7,7 @@ import test from "node:test";
 
 import { createTaskRunner, getRunnerStatus } from "../scripts/task-runner.mjs";
 import { createTaskEventStore } from "../scripts/task-events.mjs";
+import { createTaskReceiptStore } from "../scripts/task-receipts.mjs";
 import { processAlive } from "../scripts/task-process.mjs";
 import { statePaths } from "../scripts/state-paths.mjs";
 import { createTaskStore, emptyTaskState, selectRunnableTask, validTaskState } from "../scripts/task-state.mjs";
@@ -109,6 +110,8 @@ test("runner records failed terminal outcomes without persisting task content", 
       { outcome: "failed", type: "run.finished" },
     ]);
     assert.equal(JSON.stringify(events).includes("private"), false);
+    const receipt = await createTaskReceiptStore({ agentDir }).read({ runId, taskId: task.id });
+    assert.equal(receipt.exitCode, 1); assert.equal(receipt.verdict, "failed"); assert.equal(JSON.stringify(receipt).includes("private"), false);
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });
 

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { access, lstat, mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { applyStateTransaction } from "./state-transaction.mjs";
@@ -84,6 +85,16 @@ export function createTaskLogStore({ agentDir, now = () => new Date() } = {}) {
     });
   }
 
+  async function describe({ taskId, runId }) {
+    return serialized(async () => {
+      await ensureAgentDirectory(directoryRoot); await ensureDirectory(root, taskId);
+      const path = pathFor(root, taskId, runId);
+      if (await inspectRegular(path) === null) return null;
+      const current = await readStream(path, { taskId, runId: runId.toLowerCase() });
+      return { bytes: current.bytes.length, records: current.records.length, ref: `task-logs/${taskId}/${runId.toLowerCase()}.jsonl`, sha256: createHash("sha256").update(current.bytes).digest("hex") };
+    });
+  }
+
   async function exists({ taskId, runId }) { try { await access(pathFor(root, taskId, runId)); return true; } catch { return false; } }
-  return { append, exists, read, pathFor: (taskId, runId) => pathFor(root, taskId, runId), root };
+  return { append, describe, exists, read, pathFor: (taskId, runId) => pathFor(root, taskId, runId), root };
 }

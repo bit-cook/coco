@@ -8,5 +8,7 @@ TaskEvent 是 CoCo v0.3 的有界、非权威可观测层；`tasks.json` 仍是�
 - active run 会发出有界 heartbeat。重启时会重放 pending terminal intent，并在重新排队前记录 `run.abandoned`。
 - 非交互 stdout/stderr 独立存放于 `task-logs/<taskId>/<runId>.jsonl`，每个 run 最多 4096 条或 4 MiB。
 - loopback bearer-token Control API 通过 `GET /v1/tasks/<taskId>/runs/<runId>/events` 和 `/logs` 提供只读分页查询，使用排他的 `cursor` 与有界 `limit`。
+- 每个 terminal run 都会写入私有 canonical 收据 `task-receipts/<taskId>/<runId>.json`，记录 runner 契约、退出码、判定、时间戳，以及有界日志产物（如存在）的 SHA-256 摘要。收据发布支持幂等重试，并在 terminal event 之前完成。
+- `GET /v1/tasks/<taskId>/runs/<runId>/receipt` 返回认证后的收据，不包含 task prompt、凭据或原始命令输出。`GET /v1/tasks/<taskId>/diagnosis` 保守地结合进程 identity、heartbeat 年龄和最近日志活动，返回 `healthy`、`waiting`、`stuck` 或 `unknown`；无法观察到进程时绝不会判为 stuck。
 
 事件不能重建 `tasks.json`；旧任务可能没有完整历史，进程崩溃后也不承诺日志字节级完整。
