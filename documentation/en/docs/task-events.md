@@ -22,7 +22,7 @@ TaskEvent is CoCo v0.3's bounded, non-authoritative observability layer. `tasks.
 - The bounded provider registry stores only canonical descriptors, deterministic provider IDs, and preflight lookup. It intentionally exposes no `execute` method; duplicate or unknown provider IDs reject.
 - Adapter attestation binds a stable adapter binary SHA-256 and semantic version to the canonical provider descriptor. The current attestation layer validates supplied evidence only; it does not discover, launch, or trust a binary by path.
 - Evidence-chain verification now requires that adapter attestation, matrix evidence, request binding, provider identity, and passed receipt all agree before returning `verified`.
-- Read-only adapter discovery accepts only an explicit normalized absolute path, rejects symlinks, non-regular files, oversized files, and group/world-writable files, then hashes stable bytes with a post-read identity check. It never executes the adapter.
+- Read-only adapter discovery accepts only an explicit normalized absolute path, rejects symlinks, non-regular files, oversized files, and group/world-writable files, then opens with no-follow semantics and hashes bytes from one file descriptor with identity checks before and after reading. It never executes the adapter.
 - Discovery evidence must match the adapter digest in the attestation before it can be treated as verified; a different on-disk binary is rejected.
 - Final evidence-chain verification requires this verified discovery evidence in addition to attestation, matrix, request binding, and passed receipt evidence. Missing discovery evidence fails closed.
 

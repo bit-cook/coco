@@ -25,3 +25,12 @@ test("adapter discovery rejects relative paths, symlinks, and group-writable fil
     if (process.platform !== "win32") { await chmod(path, 0o520); await assert.rejects(discoverExecutionAdapter(path), /EXECUTION_ADAPTER_PERMISSION_INVALID/); }
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test("adapter discovery rejects missing and empty entries with typed errors", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coco-adapter-discovery-empty-"));
+  try {
+    const empty = join(root, "empty"); await writeFile(empty, "", { mode: 0o500 });
+    await assert.rejects(discoverExecutionAdapter(join(root, "missing")), /EXECUTION_ADAPTER_UNAVAILABLE/);
+    await assert.rejects(discoverExecutionAdapter(empty), /EXECUTION_ADAPTER_SIZE_INVALID/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
