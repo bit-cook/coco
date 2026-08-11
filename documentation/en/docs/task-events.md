@@ -26,5 +26,6 @@ TaskEvent is CoCo v0.3's bounded, non-authoritative observability layer. `tasks.
 - Discovery evidence must match the adapter digest in the attestation before it can be treated as verified; a different on-disk binary is rejected.
 - Discovery evidence itself has an exact schema: normalized absolute path, positive bounded byte count, canonical SHA-256, and schema version only. Unknown fields and malformed evidence reject.
 - Final evidence-chain verification requires this verified discovery evidence in addition to attestation, matrix, request binding, and passed receipt evidence. Missing discovery evidence fails closed.
+- A protocol-v1 handshake verifier accepts only a pre-supplied exact `ready` response and binds its provider ID, adapter digest/version, and descriptor digest to attestation evidence. It accepts no command, path, callback, or process launcher, and final evidence-chain verification requires the verified handshake digest.
 
 No event replay rebuilds `tasks.json`. Older tasks may have no complete history, and log capture does not promise byte-perfect recovery after a process crash.

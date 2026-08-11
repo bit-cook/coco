@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
+import { canonicalJson } from "../scripts/canonical-json.mjs";
 import { createExecutionProviderDescriptor, createExecutionProviderRegistry, preflightExecutionRequest, verifyExecutionBinding } from "../scripts/execution-provider.mjs";
 import { evaluateExecutionMatrix } from "../scripts/execution-matrix.mjs";
 import { createExecutionMatrixEvidence, verifyExecutionMatrixEvidence } from "../scripts/execution-matrix-evidence.mjs";
@@ -67,11 +69,13 @@ test("execution evidence chain verifies matrix, binding, and passed receipt toge
   const matrixEvidence = createExecutionMatrixEvidence({ cases, descriptor, providerId: descriptor.id, results: evaluateExecutionMatrix(isolated, cases) });
   const attestation = createExecutionAttestation({ adapterSha256: "a".repeat(64), adapterVersion: "1.0.0", descriptor });
   const discovery = { bytes: 1, path: "/adapter", schemaVersion: 1, sha256: "a".repeat(64) };
+  const handshake = { adapterSha256: attestation.adapterSha256, adapterVersion: attestation.adapterVersion, descriptorSha256: createHash("sha256").update(canonicalJson(descriptor)).digest("hex"), protocolVersion: 1, providerId: descriptor.id, schemaVersion: 1, status: "ready" };
   const receipt = { exitCode: 0, runId: "018f47a0-7b20-7cc5-8a33-111111111111", schemaVersion: 1, verdict: "passed" };
-  const chain = verifyExecutionEvidenceChain({ attestation, binding, cases, descriptor, discovery, matrixEvidence, preflight, receipt });
+  const chain = verifyExecutionEvidenceChain({ attestation, binding, cases, descriptor, discovery, handshake, matrixEvidence, preflight, receipt });
   assert.equal(chain.status, "verified"); assert.equal(chain.providerId, "linux-bwrap");
-  assert.throws(() => verifyExecutionEvidenceChain({ attestation, binding, cases, descriptor, discovery, matrixEvidence, preflight, receipt: { ...receipt, verdict: "failed" } }), /EXECUTION_RECEIPT_INVALID/);
-  assert.throws(() => verifyExecutionEvidenceChain({ attestation, binding, cases, descriptor, matrixEvidence, preflight, receipt }), /EXECUTION_ADAPTER_EVIDENCE_INVALID/);
+  assert.throws(() => verifyExecutionEvidenceChain({ attestation, binding, cases, descriptor, discovery, handshake, matrixEvidence, preflight, receipt: { ...receipt, verdict: "failed" } }), /EXECUTION_RECEIPT_INVALID/);
+  assert.throws(() => verifyExecutionEvidenceChain({ attestation, binding, cases, descriptor, handshake, matrixEvidence, preflight, receipt }), /EXECUTION_ADAPTER_EVIDENCE_INVALID/);
+  assert.throws(() => verifyExecutionEvidenceChain({ attestation, binding, cases, descriptor, discovery, matrixEvidence, preflight, receipt }), /EXECUTION_HANDSHAKE_INVALID/);
 });
 
 test("execution provider registry is bounded, deterministic, and preflight-only", () => {
