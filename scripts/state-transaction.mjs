@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
-import { chmod, lstat, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, link, lstat, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 
 import { canonicalJson } from "./canonical-json.mjs";
 import { parseStrictJson, StateError, validateJournal } from "./state-schema.mjs";
 import { ensureAgentDirectory, fsyncDirectory, inspectRegular, safeStatePath } from "./state-paths.mjs";
+import { processAlive, processIdentity } from "./task-process.mjs";
 
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const secretNames = new Set(["auth.json"]);
@@ -26,13 +27,69 @@ async function operationState(operation) {
   try { return digest(await readFile(operation.path)); } catch (error) { if (error && error.code === "ENOENT") return null; throw error; }
 }
 
-export async function acquireStateLock(agentDir) {
+function validLockOwner(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    && typeof value.ownerId === "string" && value.ownerId.length > 0
+    && Number.isSafeInteger(value.pid) && value.pid > 0
+    && (value.processIdentity === null || typeof value.processIdentity === "string")
+    && value.schemaVersion === 1
+    && Object.keys(value).sort().join(",") === ["ownerId", "pid", "processIdentity", "schemaVersion"].sort().join(",");
+}
+
+async function staleLock(path, staleMs, now) {
+  let info;
+  try { info = await lstat(path); } catch (error) { if (error?.code === "ENOENT") return true; throw error; }
+  if (!info.isFile() || info.isSymbolicLink()) fail("STATE_LOCK_INVALID");
+  let owner;
+  try { owner = JSON.parse(await readFile(path, "utf8")); } catch {
+    if (now() - info.mtimeMs < staleMs) return false;
+    return true;
+  }
+  if (!validLockOwner(owner)) {
+    if (now() - info.mtimeMs < staleMs) return false;
+    return true;
+  }
+  if (!await processAlive(owner.pid)) return true;
+  if (!owner.processIdentity) return false;
+  const identity = await processIdentity(owner.pid);
+  return identity === null ? false : identity !== owner.processIdentity;
+}
+
+export async function acquireStateLock(agentDir, { now = Date.now, staleMs = 5000 } = {}) {
   await ensureAgentDirectory(agentDir);
   const path = join(agentDir, ".state.lock");
-  try {
-    const descriptor = await open(path, "wx", 0o600);
-    return Object.freeze({ async release() { await descriptor.close(); await rm(path, { force: true }); }, path });
-  } catch (error) { if (error && error.code === "EEXIST") fail("STATE_LOCKED"); throw error; }
+  const ownerId = randomUUID();
+  const temporary = join(agentDir, `.state.lock.${ownerId}.tmp`);
+  const owner = { ownerId, pid: process.pid, processIdentity: await processIdentity(process.pid), schemaVersion: 1 };
+  await writeSynced(temporary, canonicalJson(owner), 0o600);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await link(temporary, path);
+      await rm(temporary, { force: true });
+      await fsyncDirectory(path);
+      return Object.freeze({
+        async release() {
+          let current;
+          try { current = JSON.parse(await readFile(path, "utf8")); } catch { return; }
+          if (current?.ownerId === ownerId) await rm(path, { force: true });
+        },
+        ownerId,
+        path,
+      });
+    } catch (error) {
+      if (error?.code !== "EEXIST") { await rm(temporary, { force: true }); throw error; }
+      if (attempt === 0 && await staleLock(path, staleMs, now)) {
+        const abandoned = `${path}.${randomUUID()}.abandoned`;
+        try { await rename(path, abandoned); } catch (renameError) { if (renameError?.code === "ENOENT") continue; throw renameError; }
+        await rm(abandoned, { force: true });
+        continue;
+      }
+      await rm(temporary, { force: true });
+      fail("STATE_LOCKED");
+    }
+  }
+  await rm(temporary, { force: true });
+  fail("STATE_LOCKED");
 }
 
 export async function atomicReplace({ agentDir, path, bytes, containsSecret = false }) {
@@ -47,7 +104,7 @@ export async function atomicReplace({ agentDir, path, bytes, containsSecret = fa
   await fsyncDirectory(target);
 }
 
-export async function recoverTransactions(agentDir) {
+async function recoverTransactionsLocked(agentDir) {
   await ensureAgentDirectory(agentDir);
   const directory = join(agentDir, "transactions");
   await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -75,11 +132,16 @@ export async function recoverTransactions(agentDir) {
   }
 }
 
+export async function recoverTransactions(agentDir) {
+  const lock = await acquireStateLock(agentDir);
+  try { await recoverTransactionsLocked(agentDir); } finally { await lock.release(); }
+}
+
 export async function applyStateTransaction({ agentDir, operations, transactionId = randomUUID() }) {
   if (typeof operations !== "function" && (!Array.isArray(operations) || operations.length === 0)) fail("TRANSACTION_INVALID");
   const lock = await acquireStateLock(agentDir);
   try {
-    await recoverTransactions(agentDir);
+    await recoverTransactionsLocked(agentDir);
     const inputs = typeof operations === "function" ? await operations() : operations;
     if (!Array.isArray(inputs) || inputs.length === 0) fail("TRANSACTION_INVALID");
     const directory = join(agentDir, "transactions");
@@ -97,6 +159,6 @@ export async function applyStateTransaction({ agentDir, operations, transactionI
     const journalPath = join(directory, `${transactionId}.json`);
     const journal = { nextIndex: 0, operations: prepared, phase: "prepared", schemaVersion: 1, transactionId };
     await writeJournal(journalPath, journal);
-    await recoverTransactions(agentDir);
+    await recoverTransactionsLocked(agentDir);
   } finally { await lock.release(); }
 }

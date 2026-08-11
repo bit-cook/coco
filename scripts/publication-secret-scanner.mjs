@@ -8,6 +8,7 @@ const exec = promisify(execFile);
 const MAX_TEXT_BYTES = 4 * 1024 * 1024;
 const MAX_ARCHIVE_BYTES = 256 * 1024 * 1024;
 const MAX_ARCHIVE_MEMBERS = 25_000;
+const MAX_ARCHIVE_LIST_BYTES = 32 * 1024 * 1024;
 const ignoredDirectories = new Set([".coco-tools", "node_modules"]);
 const archiveExtensions = new Set([".tgz", ".gz"]);
 const testOnlyKey = ["sk", "test", "only", "invalid", "key"].join("-");
@@ -45,8 +46,8 @@ function isIgnoredPath(path) {
 async function listArchive(archive) {
   if ((await lstat(archive)).size > MAX_ARCHIVE_BYTES) return null;
   const [names, details] = await Promise.all([
-    exec("tar", ["-tzf", archive], { maxBuffer: MAX_TEXT_BYTES }),
-    exec("tar", ["--numeric-owner", "-tvzf", archive], { maxBuffer: MAX_TEXT_BYTES }),
+    exec("tar", ["-tzf", archive], { maxBuffer: MAX_ARCHIVE_LIST_BYTES }),
+    exec("tar", ["--numeric-owner", "-tvzf", archive], { maxBuffer: MAX_ARCHIVE_LIST_BYTES }),
   ]);
   const members = names.stdout.split("\n").filter(Boolean);
   const types = details.stdout.split("\n").filter(Boolean).map((line) => line[0]);
@@ -65,7 +66,7 @@ async function scanArchive(archive) {
     return [{ path: archive, detector: "archive-unsafe", count: 1 }];
   }
   if (members === null) return [{ path: archive, detector: "archive-unsafe", count: 1 }];
-  const extracted = await mkdtemp(join(tmpdir(), "coco-publication-scan-"));
+  const extracted = await mkdtemp(join(process.env.COCO_SCANNER_TMPDIR ?? tmpdir(), "coco-publication-scan-"));
   try {
     await exec("tar", ["-xzf", archive, "--no-same-owner", "--no-same-permissions", "-C", extracted]);
     const findings = [];

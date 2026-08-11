@@ -7,6 +7,7 @@ import { cancelTask, createTaskRunner, getRunnerStatus, startDetachedRunner, sto
 import { processMatches } from "./task-process.mjs";
 
 function fail(code) { const error = new Error(code); error.code = code; throw error; }
+function visibleTask({ cancelPending: _cancelPending, pendingRunEvent: _pendingRunEvent, webhookSecret: _secret, ...task }) { return task; }
 function output(value, json) {
   process.stdout.write(json ? `${JSON.stringify(value)}\n` : `${Array.isArray(value) ? value.map((task) => `${task.id}  ${task.status.padEnd(9)} ${task.prompt}`).join("\n") : typeof value === "string" ? value : JSON.stringify(value, null, 2)}\n`);
   return { exitCode: 0, kind: "native" };
@@ -19,9 +20,9 @@ function duration(value) {
 export async function taskCommand(argv, root) {
   const agentDir = agentDirectory(); const store = createTaskStore({ agentDir });
   const [action, ...args] = argv; const json = args.includes("--json");
-  if (action === "list") return output((await store.load()).tasks.map(({ webhookSecret: _secret, ...task }) => task), json);
+  if (action === "list") return output((await store.load()).tasks.map(visibleTask), json);
   if (action === "active") {
-    const tasks = (await store.load()).tasks.filter((task) => task.status === "running" && task.pid).map(({ webhookSecret: _secret, ...task }) => task);
+    const tasks = (await store.load()).tasks.filter((task) => task.status === "running" && task.pid).map(visibleTask);
     return output({ agents: await Promise.all(tasks.map(async (task) => ({ ...task, alive: await processMatches(task.pid, task.processIdentity) }))), runner: await getRunnerStatus(agentDir) }, true);
   }
   if (action === "stop-all") {
@@ -32,13 +33,13 @@ export async function taskCommand(argv, root) {
   }
   if (action === "show") {
     const task = (await store.load()).tasks.find(({ id }) => id === args[0] || id.startsWith(args[0] ?? ""));
-    if (!task) fail("TASK_NOT_FOUND"); const { webhookSecret: _secret, ...visible } = task; return output(visible, true);
+    if (!task) fail("TASK_NOT_FOUND"); return output(visibleTask(task), true);
   }
   if (action === "cancel") {
     const id = args[0]; let target;
     const snapshot = await store.load(); target = snapshot.tasks.find((task) => task.id === id || task.id.startsWith(id ?? "")); if (!target) fail("TASK_NOT_FOUND");
     target = await cancelTask(store, target.id);
-    const { webhookSecret: _secret, ...visible } = target; return output(visible, true);
+    return output(visibleTask(target), true);
   }
   if (action === "run") { await createTaskRunner({ agentDir, root }).run({ once: true }); return output("task runner: completed", json); }
   if (action !== "create") fail("TASK_USAGE");

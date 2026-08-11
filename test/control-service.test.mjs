@@ -7,6 +7,9 @@ import test from "node:test";
 
 import { controlStatus, runControlServer } from "../scripts/control-service.mjs";
 import { statePaths } from "../scripts/state-paths.mjs";
+import { createTaskEventStore } from "../scripts/task-events.mjs";
+import { createTaskLogStore } from "../scripts/task-logs.mjs";
+import { createTaskStore } from "../scripts/task-state.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 
@@ -61,4 +64,32 @@ test("control server and its direct entry point reject non-loopback hosts", asyn
     });
     assert.notEqual(result.code, 0); assert.match(result.stderr, /CONTROL_LOOPBACK_REQUIRED/);
   } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("control plane exposes authenticated paginated events and logs only for the bound task", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-control-observe-"));
+  const controller = new AbortController();
+  try {
+    const store = createTaskStore({ agentDir });
+    const task = await store.create({ cwd: process.cwd(), prompt: "observe", worktree: false });
+    const runId = "018f47a0-7b20-7cc5-8a33-222222222222";
+    const events = createTaskEventStore({ agentDir }); const logs = createTaskLogStore({ agentDir });
+    await events.append({ taskId: task.id, runId, type: "run.started", eventId: "018f47a0-7b20-7cc5-8a33-333333333333" });
+    await events.append({ taskId: task.id, runId, type: "run.heartbeat", eventId: "018f47a0-7b20-7cc5-8a33-444444444444" });
+    await logs.append({ taskId: task.id, runId, stream: "stdout", data: "hello" });
+    const running = runControlServer({ agentDir, host: "127.0.0.1", port: 0, root, signal: controller.signal });
+    let state;
+    for (let attempt = 0; attempt < 100; attempt += 1) { try { state = JSON.parse(await readFile(statePaths(agentDir).control)); break; } catch { await new Promise((done) => setTimeout(done, 10)); } }
+    const base = `http://127.0.0.1:${state.port}`; const auth = { authorization: `Bearer ${state.token}` };
+    assert.equal((await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/events?cursor=1&limit=1`, { headers: auth })).status, 200);
+    const eventPage = await (await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/events?cursor=1&limit=1`, { headers: auth })).json();
+    assert.deepEqual(eventPage.events.map(({ seq }) => seq), [2]); assert.equal(eventPage.hasMore, false);
+    const logPage = await (await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/logs`, { headers: auth })).json();
+    assert.deepEqual(logPage.records.map(({ data }) => data), ["hello"]);
+    assert.equal((await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/events`, { headers: auth })).status, 200);
+    assert.equal((await fetch(`${base}/v1/tasks/${task.id}/runs/not-a-run/logs`, { headers: auth })).status, 404);
+    assert.equal((await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/logs?cursor=-1`, { headers: auth })).status, 400);
+    assert.equal((await fetch(`${base}/v1/tasks/${task.id}/runs/${runId}/logs`)).status, 401);
+    controller.abort(); await running;
+  } finally { controller.abort(); await rm(agentDir, { recursive: true, force: true }); }
 });

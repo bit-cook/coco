@@ -10,15 +10,18 @@ import { StateError } from "./state-schema.mjs";
 import { agentDirectory, ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { atomicReplace } from "./state-transaction.mjs";
 import { createTaskStore } from "./task-state.mjs";
+import { createTaskEventStore } from "./task-events.mjs";
+import { createTaskLogStore } from "./task-logs.mjs";
 import { cancelTask, startDetachedRunner, stopRunner } from "./task-runner.mjs";
 import { processAlive, processIdentity, processMatches, terminateProcessTree } from "./task-process.mjs";
 
 const MAX_BODY = 1024 * 1024;
+const MAX_OBSERVATION_RESPONSE = 1024 * 1024;
 const TYPES = { ".css": "text/css; charset=utf-8", ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml" };
 function fail(code) { throw new StateError(code); }
 function requireLoopback(host) { if (host !== "127.0.0.1" && host !== "::1") fail("CONTROL_LOOPBACK_REQUIRED"); }
 function controlUrl(host, port) { return `http://${host === "::1" ? `[${host}]` : host}:${port}`; }
-function cleanTask({ webhookSecret: _secret, pid: _pid, ...task }) { return task; }
+function cleanTask({ cancelPending: _cancelPending, pendingRunEvent: _pendingRunEvent, webhookSecret: _secret, pid: _pid, ...task }) { return task; }
 function json(response, status, body) { const bytes = Buffer.from(JSON.stringify(body)); response.writeHead(status, { "cache-control": "no-store", "content-length": bytes.length, "content-type": "application/json; charset=utf-8", "x-content-type-options": "nosniff" }); response.end(bytes); }
 async function body(request) {
   const chunks = []; let size = 0;
@@ -70,7 +73,7 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
   await ensureAgentDirectory(agentDir);
   const previous = await state(agentDir); if (previous && previous.pid !== process.pid && (previous.processIdentity ? await processMatches(previous.pid, previous.processIdentity) : await processAlive(previous.pid))) fail("CONTROL_ALREADY_RUNNING");
   const token = randomBytes(32).toString("base64url");
-  const store = createTaskStore({ agentDir }); const publicRoot = join(root, "control", "public");
+  const store = createTaskStore({ agentDir }); const events = createTaskEventStore({ agentDir }); const logs = createTaskLogStore({ agentDir }); const publicRoot = join(root, "control", "public");
   const server = createServer(async (request, response) => {
     response.setHeader("content-security-policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'");
     response.setHeader("referrer-policy", "no-referrer");
@@ -97,6 +100,21 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
       if (request.method === "GET" && url.pathname === "/v1/agents") {
         const active = (await store.load()).tasks.filter((task) => task.status === "running" && task.pid);
         return json(response, 200, { agents: await Promise.all(active.map(async (task) => ({ ...cleanTask(task), alive: await processMatches(task.pid, task.processIdentity), pid: task.pid }))) });
+      }
+      const stream = /^\/v1\/tasks\/([a-z0-9_-]{12})\/runs\/([0-9a-f-]{36})\/(events|logs)$/.exec(url.pathname);
+      if (request.method === "GET" && stream) {
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(stream[2])) return json(response, 404, { error: "NOT_FOUND" });
+        const task = (await store.load()).tasks.find(({ id }) => id === stream[1]); if (!task) return json(response, 404, { error: "NOT_FOUND" });
+        const runId = stream[2].toLowerCase();
+        const artifactExists = stream[3] === "events"
+          ? await events.exists({ taskId: task.id, runId })
+          : await logs.exists({ taskId: task.id, runId });
+        if (!artifactExists && task.activeRunId !== runId) return json(response, 404, { error: "NOT_FOUND" });
+        const query = (name, fallback) => url.searchParams.has(name) ? Number(url.searchParams.get(name)) : fallback;
+        const cursor = query("cursor", 0), limit = query("limit", 256); if (!Number.isSafeInteger(cursor) || cursor < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 256) return json(response, 400, { error: "QUERY_INVALID" });
+        const value = stream[3] === "events" ? { ...(await events.readPage({ taskId: task.id, runId, cursor, limit })), taskId: task.id, runId, schemaVersion: 1 } : { ...(await logs.read({ taskId: task.id, runId, cursor, limit })), taskId: task.id, runId, schemaVersion: 1 };
+        if (Buffer.byteLength(JSON.stringify(value)) > MAX_OBSERVATION_RESPONSE) return json(response, 413, { error: "OBSERVATION_RESPONSE_TOO_LARGE" });
+        return json(response, 200, value);
       }
       if (request.method === "POST" && url.pathname === "/v1/tasks") {
         const input = JSON.parse((await body(request)).toString("utf8"));

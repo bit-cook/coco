@@ -23,6 +23,8 @@ export function statePaths(agentDir) {
     ownership: join(root, "ownership.json"),
     runner: join(root, "runner.json"),
     settings: join(root, "settings.json"),
+    taskEvents: join(root, "task-events"),
+    taskLogs: join(root, "task-logs"),
     tasks: join(root, "tasks.json"),
     worktrees: join(root, "worktrees"),
   });

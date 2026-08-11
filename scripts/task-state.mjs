@@ -8,6 +8,9 @@ import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.
 import { applyStateTransaction } from "./state-transaction.mjs";
 
 const ID = /^[a-z0-9_-]{12}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EVENT_TYPES = new Set(["run.started", "run.finished", "run.abandoned"]);
+const OUTCOMES = new Set([null, "completed", "failed", "abandoned"]);
 const STATUSES = new Set(["queued", "running", "blocked", "completed", "failed", "cancelled"]);
 const TRIGGERS = new Set(["manual", "schedule", "webhook", "github"]);
 const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
@@ -26,13 +29,29 @@ export function validTask(task) {
   if (task.webhookSecret !== null && (typeof task.webhookSecret !== "string" || task.webhookSecret.length !== 64 || !/^[a-f0-9]+$/.test(task.webhookSecret))) return false;
   if (task.github !== null && (!object(task.github) || !text(task.github.event, 100) || (task.github.repository !== null && !text(task.github.repository, 300)))) return false;
   if (task.pid !== null && (!Number.isSafeInteger(task.pid) || task.pid < 1)) return false;
+  if (task.activeRunId !== null && (typeof task.activeRunId !== "string" || !UUID.test(task.activeRunId))) return false;
+  if (task.pendingRunEvent !== null) {
+    const event = task.pendingRunEvent;
+    if (!object(event) || !UUID.test(event.eventId) || !UUID.test(event.runId) || !EVENT_TYPES.has(event.type) || !iso(event.at) || !OUTCOMES.has(event.outcome)) return false;
+    if (((event.type === "run.finished" && !["completed", "failed"].includes(event.outcome)) || (event.type === "run.abandoned" && event.outcome !== "abandoned") || (event.type === "run.started" && event.outcome !== null))) return false;
+    if (Object.keys(event).sort().join(",") !== ["at", "eventId", "outcome", "runId", "type"].sort().join(",")) return false;
+    if (task.activeRunId !== event.runId) return false;
+  }
+  if (typeof task.cancelPending !== "boolean") return false;
+  if (task.cancelPending && task.status !== "running") return false;
+  if (task.activeRunId !== null && task.status !== "running" && !(["run.finished", "run.abandoned"].includes(task.pendingRunEvent?.type))) return false;
+  if (task.pendingRunEvent?.type === "run.started" && task.status !== "running") return false;
+  if (task.pendingRunEvent?.type === "run.finished" && !["completed", "failed", "queued"].includes(task.status)) return false;
+  if (task.pendingRunEvent?.type === "run.abandoned" && task.status !== "queued") return false;
   if (typeof task.launchPending !== "boolean") return false;
   if (task.processIdentity !== null && (typeof task.processIdentity !== "string" || task.processIdentity.length > 200)) return false;
+  if (task.heartbeatAt !== null && !iso(task.heartbeatAt)) return false;
+  if (task.heartbeatAt !== null && task.status !== "running") return false;
   if (task.startedAt !== null && !iso(task.startedAt)) return false;
   if (task.finishedAt !== null && !iso(task.finishedAt)) return false;
   if (task.lastError !== null && (typeof task.lastError !== "string" || Buffer.byteLength(task.lastError) > 10000)) return false;
   if (task.result !== null && (typeof task.result !== "string" || Buffer.byteLength(task.result) > 1000000)) return false;
-  return Object.keys(task).sort().join(",") === ["attempts", "branch", "createdAt", "cwd", "finishedAt", "github", "id", "lastError", "launchPending", "pid", "processIdentity", "prompt", "result", "schedule", "startedAt", "status", "trigger", "updatedAt", "webhookSecret", "worktree", "worktreePath"].sort().join(",");
+  return Object.keys(task).sort().join(",") === ["activeRunId", "attempts", "branch", "cancelPending", "createdAt", "cwd", "finishedAt", "github", "heartbeatAt", "id", "lastError", "launchPending", "pendingRunEvent", "pid", "processIdentity", "prompt", "result", "schedule", "startedAt", "status", "trigger", "updatedAt", "webhookSecret", "worktree", "worktreePath"].sort().join(",");
 }
 
 export function validTaskState(value) {
@@ -43,7 +62,7 @@ async function readState(path) {
   if (await inspectRegular(path) === null) return emptyTaskState();
   let value;
   try { value = JSON.parse(await readFile(path, "utf8")); } catch { fail("TASK_STATE_INVALID"); }
-  if (object(value) && value.schemaVersion === 1 && Array.isArray(value.tasks)) for (const task of value.tasks) if (object(task)) { if (!("processIdentity" in task)) task.processIdentity = null; if (!("launchPending" in task)) task.launchPending = false; }
+  if (object(value) && value.schemaVersion === 1 && Array.isArray(value.tasks)) for (const task of value.tasks) if (object(task)) { if (!("activeRunId" in task)) task.activeRunId = null; if (!("cancelPending" in task)) task.cancelPending = false; if (!("heartbeatAt" in task)) task.heartbeatAt = null; if (!("pendingRunEvent" in task)) task.pendingRunEvent = null; if (!("processIdentity" in task)) task.processIdentity = null; if (!("launchPending" in task)) task.launchPending = false; }
   if (!validTaskState(value)) fail("TASK_STATE_INVALID");
   return value;
 }
@@ -79,9 +98,9 @@ export function createTaskStore({ agentDir, now = () => new Date(), random = ran
   async function create(input) {
     const createdAt = now().toISOString();
     const task = {
-      attempts: 0, branch: null, createdAt, cwd: resolve(input.cwd), finishedAt: null,
-      github: input.github ?? null, id: taskId(random), lastError: null, launchPending: false, pid: null, processIdentity: null,
-      prompt: input.prompt.trim(), result: null, schedule: input.schedule ?? null,
+      activeRunId: null, attempts: 0, branch: null, cancelPending: false, createdAt, cwd: resolve(input.cwd), finishedAt: null,
+      github: input.github ?? null, heartbeatAt: null, id: taskId(random), lastError: null, launchPending: false, pid: null, processIdentity: null,
+      pendingRunEvent: null, prompt: input.prompt.trim(), result: null, schedule: input.schedule ?? null,
       startedAt: null, status: input.initialStatus ?? "queued", trigger: input.trigger ?? "manual", updatedAt: createdAt,
       webhookSecret: input.webhookSecret ?? null, worktree: input.worktree !== false, worktreePath: null,
     };
@@ -99,6 +118,6 @@ export function createTaskStore({ agentDir, now = () => new Date(), random = ran
 
 export function selectRunnableTask(state, now = Date.now()) {
   return state.tasks
-    .filter((task) => task.status === "queued" && (task.schedule === null || Date.parse(task.schedule.nextRunAt) <= now))
+    .filter((task) => task.status === "queued" && task.activeRunId === null && task.pendingRunEvent === null && (task.schedule === null || Date.parse(task.schedule.nextRunAt) <= now))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0] ?? null;
 }

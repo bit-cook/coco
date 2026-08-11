@@ -1,5 +1,11 @@
 # 更新日志
 
+## [0.3.0] - 2026-08-11
+
+- 新增 durable per-run TaskEvent、heartbeat、有界增量日志和经过认证的 Control API 只读查询。
+- 强化崩溃恢复、取消顺序、证据限额和 release archive 扫描。
+- 新增活力橙色默认主题与自定义 Provider 登录优先排序。
+
 ## [0.2.1] - 2026-08-09
 
 - 将持久化 PID 与进程身份绑定，修复启动/取消竞态，并将控制服务监听限制为 loopback。

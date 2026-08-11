@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.0] - 2026-08-11
+
+- Added durable per-run TaskEvent streams, heartbeats, bounded incremental logs, and authenticated read-only Control API queries.
+- Hardened crash recovery, cancellation ordering, evidence limits, and release archive scanning.
+- Added the vivid orange default theme and custom-provider-first login ordering.
+
 ## [0.2.1] - 2026-08-09
 
 - Bound persisted process IDs to process identities, closed the launch/cancel race, and restricted control listeners to loopback.

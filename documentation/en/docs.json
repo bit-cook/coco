@@ -8,6 +8,7 @@
         { "title": "CoCo CLI", "path": "coco-cli.md" },
         { "title": "CoCo Security", "path": "coco-security.md" },
         { "title": "Tasks and Control", "path": "tasks.md" },
+        { "title": "TaskEvent v1 Protocol", "path": "task-events.md" },
         { "title": "Quickstart", "path": "quickstart.md" },
         { "title": "Using Pi", "path": "usage.md" },
         { "title": "Providers", "path": "providers.md" },

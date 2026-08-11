@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.0] - 2026-08-11
+
+### Added
+
+- Added append-only per-run TaskEvent streams with durable run IDs, idempotent lifecycle outbox intents, restart abandonment evidence, and bounded heartbeat events.
+- Added bounded non-interactive stdout/stderr artifacts with secure permissions and cursor-based incremental reads.
+- Added authenticated loopback Control API endpoints for paginated task events and run logs.
+- Added the vivid `coco-orange` default theme and custom-provider-first login ordering.
+
+### Security
+
+- Reused fail-closed state locks and crash-recoverable transactions for task evidence and logs, with symlink rejection and strict path, schema, count, and byte limits.
+- Preserved PID identity verification and two-phase cancellation while preventing ghost heartbeats after terminal events.
+- Hardened release secret scanning for bounded large archive listings and configurable secure temporary storage.
+
+### Fixed
+
+- Stopped short tasks from waiting for a full heartbeat interval during cleanup.
+- Prevented injected runner executions from leaving launch state pending.
+
 ## [0.2.1] - 2026-08-09
 
 ### Security
