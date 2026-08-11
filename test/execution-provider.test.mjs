@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createExecutionProviderDescriptor, preflightExecutionRequest } from "../scripts/execution-provider.mjs";
+import { createExecutionProviderDescriptor, preflightExecutionRequest, verifyExecutionBinding } from "../scripts/execution-provider.mjs";
 
 const isolated = { capabilities: { isolated: true, networkControl: true, secretsControl: true, workspaceRead: true, workspaceWrite: true }, id: "linux-bwrap" };
 
@@ -18,4 +18,12 @@ test("execution preflight binds an approved request to one provider", () => {
   assert.deepEqual(result, preflightExecutionRequest(isolated, { mode: "isolated-required", policy: { workspace: "read" } }));
   assert.throws(() => preflightExecutionRequest({ ...isolated, capabilities: { ...isolated.capabilities, networkControl: false } }, { mode: "isolated-required" }), /EXECUTION_NETWORK_CONTROL_UNAVAILABLE/);
   assert.throws(() => preflightExecutionRequest(isolated, { command: "npm test", mode: "isolated-required" }), /EXECUTION_PREFLIGHT_INVALID/);
+});
+
+test("execution binding verification rejects provider or request substitution", () => {
+  const result = preflightExecutionRequest(isolated, { mode: "isolated-required", policy: { workspace: "read" } });
+  const binding = { providerId: result.providerId, requestSha256: result.requestSha256, schemaVersion: 1, status: "approved" };
+  assert.deepEqual(verifyExecutionBinding(result, binding), { providerId: "linux-bwrap", requestSha256: result.requestSha256, schemaVersion: 1, status: "verified" });
+  assert.throws(() => verifyExecutionBinding(result, { ...binding, providerId: "other" }), /EXECUTION_BINDING_MISMATCH/);
+  assert.throws(() => verifyExecutionBinding(result, { ...binding, requestSha256: "b".repeat(64) }), /EXECUTION_BINDING_MISMATCH/);
 });

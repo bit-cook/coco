@@ -21,3 +21,9 @@ export function preflightExecutionRequest(provider, request = {}) {
   const binding = { providerId: descriptor.id, request: resolved, schemaVersion: 1 };
   return Object.freeze({ ...binding, requestSha256: createHash("sha256").update(canonicalJson(binding)).digest("hex"), status: "approved" });
 }
+
+export function verifyExecutionBinding(preflight, binding) {
+  if (!preflight || preflight.schemaVersion !== 1 || preflight.status !== "approved" || !binding || binding.schemaVersion !== 1 || binding.status !== "approved") fail("EXECUTION_BINDING_INVALID");
+  if (preflight.providerId !== binding.providerId || preflight.requestSha256 !== binding.requestSha256) fail("EXECUTION_BINDING_MISMATCH");
+  return Object.freeze({ providerId: binding.providerId, requestSha256: binding.requestSha256, schemaVersion: 1, status: "verified" });
+}
