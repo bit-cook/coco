@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+
+import { canonicalJson } from "./canonical-json.mjs";
 import { resolveExecutionRequest } from "./execution-mode.mjs";
 
 const PROVIDER_ID = /^[a-z][a-z0-9-]{0,31}$/;
@@ -15,5 +18,6 @@ export function preflightExecutionRequest(provider, request = {}) {
   const descriptor = createExecutionProviderDescriptor(provider);
   if (!request || typeof request !== "object" || Array.isArray(request) || Object.keys(request).some((key) => !["hostConfirmed", "mode", "policy"].includes(key))) fail("EXECUTION_PREFLIGHT_INVALID");
   const resolved = resolveExecutionRequest({ ...request, capabilities: descriptor.capabilities });
-  return Object.freeze({ providerId: descriptor.id, request: resolved, schemaVersion: 1, status: "approved" });
+  const binding = { providerId: descriptor.id, request: resolved, schemaVersion: 1 };
+  return Object.freeze({ ...binding, requestSha256: createHash("sha256").update(canonicalJson(binding)).digest("hex"), status: "approved" });
 }
