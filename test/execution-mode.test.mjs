@@ -1,0 +1,15 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { resolveExecutionMode } from "../scripts/execution-mode.mjs";
+
+test("isolated-required fails closed when isolation is unavailable", () => {
+  assert.throws(() => resolveExecutionMode({ mode: "isolated-required" }), /EXECUTION_ISOLATION_UNAVAILABLE/);
+  assert.deepEqual(resolveExecutionMode({ isolatedAvailable: true, mode: "isolated-required" }), { isolated: true, label: "isolated", mode: "isolated-required", schemaVersion: 1 });
+});
+
+test("host-explicit requires confirmation and remains visibly non-isolated", () => {
+  assert.throws(() => resolveExecutionMode({ mode: "host-explicit" }), /EXECUTION_HOST_CONFIRMATION_REQUIRED/);
+  assert.deepEqual(resolveExecutionMode({ hostConfirmed: true, isolatedAvailable: true, mode: "host-explicit" }), { isolated: false, label: "non-isolated", mode: "host-explicit", schemaVersion: 1 });
+  assert.throws(() => resolveExecutionMode({ isolatedAvailable: true }), /EXECUTION_MODE_INVALID/);
+});

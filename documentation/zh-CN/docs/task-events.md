@@ -12,5 +12,6 @@ TaskEvent 是 CoCo v0.3 的有界、非权威可观测层；`tasks.json` 仍是�
 - `GET /v1/tasks/<taskId>/runs/<runId>/receipt` 返回认证后的收据，不包含 task prompt、凭据或原始命令输出。`GET /v1/tasks/<taskId>/diagnosis` 保守地结合进程 identity、heartbeat 年龄和最近日志活动，返回 `healthy`、`waiting`、`stuck` 或 `unknown`；无法观察到进程时绝不会判为 stuck。
 - v0.4 的首个上下文实验提供有界、只读的 JavaScript/TypeScript `buildRepoMap()`。它报告候选函数、类、导出变量、imports，以及字节/文件/符号计数，并跳过依赖和构建目录。该实现明确是 lexical 候选清单，不冒充完整语法引用图；不会编辑文件或执行命令。
 - v0.4 执行契约单独表示为纯 `plan -> edit -> verify` 状态机。它拒绝跳过阶段、terminal 状态变更，以及没有明确 passed verification verdict 的 `completed`。当前切片不执行编辑或命令。
+- 执行模式必须显式解析：`isolated-required` 在隔离能力不可用时拒绝；`host-explicit` 必须直接确认，并始终携带可见的 `non-isolated` 标记。任何模式都不会自动降级到 host 执行。
 
 事件不能重建 `tasks.json`；旧任务可能没有完整历史，进程崩溃后也不承诺日志字节级完整。
