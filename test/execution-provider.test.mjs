@@ -5,7 +5,7 @@ import { createExecutionProviderDescriptor, createExecutionProviderRegistry, pre
 import { evaluateExecutionMatrix } from "../scripts/execution-matrix.mjs";
 import { createExecutionMatrixEvidence, verifyExecutionMatrixEvidence } from "../scripts/execution-matrix-evidence.mjs";
 import { verifyExecutionEvidenceChain } from "../scripts/execution-evidence-chain.mjs";
-import { createExecutionAttestation, verifyExecutionAttestation } from "../scripts/execution-attestation.mjs";
+import { createExecutionAttestation, verifyDiscoveredExecutionAdapter, verifyExecutionAttestation } from "../scripts/execution-attestation.mjs";
 
 const isolated = { capabilities: { isolated: true, networkControl: true, secretsControl: true, workspaceRead: true, workspaceWrite: true }, id: "linux-bwrap" };
 
@@ -88,4 +88,12 @@ test("execution attestation binds adapter identity, version, and provider descri
   assert.equal(verifyExecutionAttestation(attestation, descriptor).status, "verified");
   assert.throws(() => verifyExecutionAttestation(attestation, createExecutionProviderDescriptor({ ...isolated, id: "other" })), /EXECUTION_ATTESTATION_MISMATCH/);
   assert.throws(() => createExecutionAttestation({ adapterSha256: "bad", adapterVersion: "latest", descriptor }), /EXECUTION_ATTESTATION_INVALID/);
+});
+
+test("adapter discovery evidence must match the attested binary digest", () => {
+  const descriptor = createExecutionProviderDescriptor(isolated);
+  const attestation = createExecutionAttestation({ adapterSha256: "a".repeat(64), adapterVersion: "1.0.0", descriptor });
+  const discovery = { bytes: 1, path: "/adapter", schemaVersion: 1, sha256: "a".repeat(64) };
+  assert.equal(verifyDiscoveredExecutionAdapter(discovery, attestation).status, "verified");
+  assert.throws(() => verifyDiscoveredExecutionAdapter({ ...discovery, sha256: "b".repeat(64) }, attestation), /EXECUTION_ADAPTER_DIGEST_MISMATCH/);
 });

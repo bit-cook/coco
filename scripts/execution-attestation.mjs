@@ -19,3 +19,9 @@ export function verifyExecutionAttestation(attestation, descriptor) {
   if (canonicalJson(expected) !== canonicalJson(attestation)) fail("EXECUTION_ATTESTATION_MISMATCH");
   return Object.freeze({ attestationSha256: attestation.attestationSha256, providerId: attestation.providerId, schemaVersion: 1, status: "verified" });
 }
+
+export function verifyDiscoveredExecutionAdapter(discovery, attestation) {
+  if (!discovery || discovery.schemaVersion !== 1 || !attestation || attestation.schemaVersion !== 1 || attestation.status !== "attested") fail("EXECUTION_ADAPTER_EVIDENCE_INVALID");
+  if (discovery.sha256 !== attestation.adapterSha256) fail("EXECUTION_ADAPTER_DIGEST_MISMATCH");
+  return Object.freeze({ adapterSha256: discovery.sha256, adapterVersion: attestation.adapterVersion, path: discovery.path, schemaVersion: 1, status: "verified" });
+}

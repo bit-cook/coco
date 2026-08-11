@@ -23,5 +23,6 @@ TaskEvent 是 CoCo v0.3 的有界、非权威可观测层；`tasks.json` 仍是�
 - Adapter attestation 将稳定的 adapter binary SHA-256 和语义版本绑定到 canonical provider descriptor。当前 attestation 层只校验传入 evidence，不会按路径发现、启动或信任 binary。
 - Evidence-chain 校验现在要求 adapter attestation、matrix evidence、request binding、provider identity 和 passed receipt 全部一致，才返回 `verified`。
 - 只读 adapter discovery 只接受显式、normalized 的绝对路径，拒绝 symlink、非 regular file、过大文件以及 group/world-writable 文件，并在读取后复验 identity 再计算 SHA-256；绝不执行 adapter。
+- Discovery evidence 必须与 attestation 中的 adapter digest 一致，才能标记为 verified；磁盘上的不同 binary 会被拒绝。
 
 事件不能重建 `tasks.json`；旧任务可能没有完整历史，进程崩溃后也不承诺日志字节级完整。
