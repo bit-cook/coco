@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createExecutionProviderDescriptor, preflightExecutionRequest, verifyExecutionBinding } from "../scripts/execution-provider.mjs";
+import { evaluateExecutionMatrix } from "../scripts/execution-matrix.mjs";
 
 const isolated = { capabilities: { isolated: true, networkControl: true, secretsControl: true, workspaceRead: true, workspaceWrite: true }, id: "linux-bwrap" };
 
@@ -26,4 +27,22 @@ test("execution binding verification rejects provider or request substitution", 
   assert.deepEqual(verifyExecutionBinding(result, binding), { providerId: "linux-bwrap", requestSha256: result.requestSha256, schemaVersion: 1, status: "verified" });
   assert.throws(() => verifyExecutionBinding(result, { ...binding, providerId: "other" }), /EXECUTION_BINDING_MISMATCH/);
   assert.throws(() => verifyExecutionBinding(result, { ...binding, requestSha256: "b".repeat(64) }), /EXECUTION_BINDING_MISMATCH/);
+});
+
+test("execution capability matrix reports deterministic approval and rejection codes", () => {
+  const cases = [
+    { mode: "isolated-required" },
+    { mode: "isolated-required", policy: { workspace: "read" } },
+    { hostConfirmed: true, mode: "host-explicit", policy: { network: "allow" } },
+    { mode: "host-explicit" },
+  ];
+  const matrix = evaluateExecutionMatrix(isolated, cases);
+  assert.deepEqual(matrix.map(({ code, status }) => ({ code, status })), [
+    { code: undefined, status: "approved" },
+    { code: undefined, status: "approved" },
+    { code: undefined, status: "approved" },
+    { code: "EXECUTION_HOST_CONFIRMATION_REQUIRED", status: "rejected" },
+  ]);
+  assert.deepEqual(matrix, evaluateExecutionMatrix(isolated, cases));
+  assert.throws(() => evaluateExecutionMatrix(isolated, []), /EXECUTION_MATRIX_INVALID/);
 });
