@@ -6,6 +6,8 @@ const TRANSITIONS = new Map([
   ["completed", new Set()],
   ["failed", new Set()],
 ]);
+import { createHash } from "node:crypto";
+
 const fail = (code) => { const error = new Error(code); error.code = code; throw error; };
 const SHA256 = /^[0-9a-f]{64}$/;
 
@@ -28,6 +30,12 @@ export function transitionPlanEditVerify(current, next, { verification = null } 
   if (next === "completed" && (!verification || verification.verdict !== "passed")) fail("PLAN_COMPLETION_UNVERIFIED");
   if (next === "failed" && verification && verification.verdict !== "failed") fail("PLAN_FAILURE_EVIDENCE_INVALID");
   return Object.freeze({ revision: current.revision + 1, schemaVersion: 1, state: next, taskId: current.taskId, verification: next === "verifying" ? null : verification });
+}
+
+export function receiptVerification(receipt, receiptRef) {
+  if (!receipt || typeof receiptRef !== "string" || !receiptRef.startsWith("task-receipts/")) fail("PLAN_RECEIPT_INVALID");
+  const receiptSha256 = createHash("sha256").update(`${JSON.stringify(receipt)}\n`).digest("hex");
+  return { receiptRef, receiptSha256, verdict: receipt.verdict };
 }
 
 export { STATES as planEditVerifyStates };
