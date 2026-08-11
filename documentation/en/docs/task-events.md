@@ -19,5 +19,6 @@ TaskEvent is CoCo v0.3's bounded, non-authoritative observability layer. `tasks.
 - The capability matrix evaluator runs bounded request cases through preflight only. It returns deterministic `approved` or typed `rejected` results and never starts a process, invokes a command, or treats a failed isolated case as host fallback.
 - Matrix results can be sealed as a bounded evidence object containing provider descriptor and case-set SHA-256 digests. Verification rejects changed providers or cases before any execution provider is considered.
 - A separate evidence-chain verifier can require matrix evidence, execution binding, and a passed terminal receipt to agree on provider and request context. This is a pure verification layer and does not alter the v0.3 receipt schema.
+- The bounded provider registry stores only canonical descriptors, deterministic provider IDs, and preflight lookup. It intentionally exposes no `execute` method; duplicate or unknown provider IDs reject.
 
 No event replay rebuilds `tasks.json`. Older tasks may have no complete history, and log capture does not promise byte-perfect recovery after a process crash.

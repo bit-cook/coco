@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createExecutionProviderDescriptor, preflightExecutionRequest, verifyExecutionBinding } from "../scripts/execution-provider.mjs";
+import { createExecutionProviderDescriptor, createExecutionProviderRegistry, preflightExecutionRequest, verifyExecutionBinding } from "../scripts/execution-provider.mjs";
 import { evaluateExecutionMatrix } from "../scripts/execution-matrix.mjs";
 import { createExecutionMatrixEvidence, verifyExecutionMatrixEvidence } from "../scripts/execution-matrix-evidence.mjs";
 import { verifyExecutionEvidenceChain } from "../scripts/execution-evidence-chain.mjs";
@@ -68,4 +68,14 @@ test("execution evidence chain verifies matrix, binding, and passed receipt toge
   const chain = verifyExecutionEvidenceChain({ binding, cases, descriptor, matrixEvidence, preflight, receipt });
   assert.equal(chain.status, "verified"); assert.equal(chain.providerId, "linux-bwrap");
   assert.throws(() => verifyExecutionEvidenceChain({ binding, cases, descriptor, matrixEvidence, preflight, receipt: { ...receipt, verdict: "failed" } }), /EXECUTION_RECEIPT_INVALID/);
+});
+
+test("execution provider registry is bounded, deterministic, and preflight-only", () => {
+  const host = { capabilities: { isolated: false, networkControl: false, secretsControl: false, workspaceRead: true, workspaceWrite: true }, id: "host" };
+  const registry = createExecutionProviderRegistry([isolated, host]);
+  assert.deepEqual(registry.ids, ["host", "linux-bwrap"]);
+  assert.equal(registry.preflight("host", { hostConfirmed: true, mode: "host-explicit" }).providerId, "host");
+  assert.equal("execute" in registry, false);
+  assert.throws(() => registry.preflight("missing", { mode: "isolated-required" }), /EXECUTION_PROVIDER_NOT_FOUND/);
+  assert.throws(() => createExecutionProviderRegistry([isolated, isolated]), /EXECUTION_PROVIDER_DUPLICATE/);
 });
