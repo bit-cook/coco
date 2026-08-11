@@ -5,6 +5,7 @@ import { createExecutionProviderDescriptor, createExecutionProviderRegistry, pre
 import { evaluateExecutionMatrix } from "../scripts/execution-matrix.mjs";
 import { createExecutionMatrixEvidence, verifyExecutionMatrixEvidence } from "../scripts/execution-matrix-evidence.mjs";
 import { verifyExecutionEvidenceChain } from "../scripts/execution-evidence-chain.mjs";
+import { createExecutionAttestation, verifyExecutionAttestation } from "../scripts/execution-attestation.mjs";
 
 const isolated = { capabilities: { isolated: true, networkControl: true, secretsControl: true, workspaceRead: true, workspaceWrite: true }, id: "linux-bwrap" };
 
@@ -78,4 +79,12 @@ test("execution provider registry is bounded, deterministic, and preflight-only"
   assert.equal("execute" in registry, false);
   assert.throws(() => registry.preflight("missing", { mode: "isolated-required" }), /EXECUTION_PROVIDER_NOT_FOUND/);
   assert.throws(() => createExecutionProviderRegistry([isolated, isolated]), /EXECUTION_PROVIDER_DUPLICATE/);
+});
+
+test("execution attestation binds adapter identity, version, and provider descriptor", () => {
+  const descriptor = createExecutionProviderDescriptor(isolated);
+  const attestation = createExecutionAttestation({ adapterSha256: "a".repeat(64), adapterVersion: "1.0.0", descriptor });
+  assert.equal(verifyExecutionAttestation(attestation, descriptor).status, "verified");
+  assert.throws(() => verifyExecutionAttestation(attestation, createExecutionProviderDescriptor({ ...isolated, id: "other" })), /EXECUTION_ATTESTATION_MISMATCH/);
+  assert.throws(() => createExecutionAttestation({ adapterSha256: "bad", adapterVersion: "latest", descriptor }), /EXECUTION_ATTESTATION_INVALID/);
 });

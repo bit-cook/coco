@@ -20,5 +20,6 @@ TaskEvent 是 CoCo v0.3 的有界、非权威可观测层；`tasks.json` 仍是�
 - matrix 结果可以封存为有界 evidence 对象，包含 provider descriptor 和 case-set 的 SHA-256 摘要。Provider 或 cases 发生变化时，校验会在考虑任何 execution provider 前拒绝。
 - 独立的 evidence-chain verifier 可以要求 matrix evidence、execution binding 和 passed terminal receipt 在 provider 与 request context 上一致。这是纯校验层，不改变 v0.3 receipt schema。
 - 有界 provider registry 只保存 canonical descriptors、确定性 provider IDs 和 preflight lookup，明确不暴露 `execute` 方法；重复或未知 provider ID 会拒绝。
+- Adapter attestation 将稳定的 adapter binary SHA-256 和语义版本绑定到 canonical provider descriptor。当前 attestation 层只校验传入 evidence，不会按路径发现、启动或信任 binary。
 
 事件不能重建 `tasks.json`；旧任务可能没有完整历史，进程崩溃后也不承诺日志字节级完整。
