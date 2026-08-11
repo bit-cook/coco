@@ -51,3 +51,8 @@ test("repo context selection is deterministic and budgeted", () => {
   assert.deepEqual(selected.files[0].symbols.map(({ name }) => name), ["target"]);
   assert.equal(selected.stats.files, 1); assert.equal(selected.stats.symbols, 1);
 });
+
+test("repo context selection rejects malformed maps before ranking", () => {
+  assert.throws(() => selectRepoContext({ files: [{ path: "x.js", imports: [null], symbols: [] }], schemaVersion: 1 }), /REPO_CONTEXT_MAP_INVALID/);
+  assert.throws(() => selectRepoContext({ files: [{ path: "x.js", imports: [], symbols: [{ name: 1 }] }], schemaVersion: 1 }), /REPO_CONTEXT_MAP_INVALID/);
+});

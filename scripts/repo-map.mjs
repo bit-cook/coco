@@ -43,6 +43,7 @@ function queryTokens(query) {
 
 export function selectRepoContext(map, { query = "", maxBytes = 128 * 1024, maxFiles = 32, maxSymbols = 256 } = {}) {
   if (!map || map.schemaVersion !== 1 || !Array.isArray(map.files)) fail("REPO_CONTEXT_MAP_INVALID");
+  if (map.files.some((entry) => !entry || typeof entry.path !== "string" || !Array.isArray(entry.imports) || !Array.isArray(entry.symbols) || entry.imports.some((value) => typeof value !== "string") || entry.symbols.some((value) => !value || typeof value.name !== "string"))) fail("REPO_CONTEXT_MAP_INVALID");
   bounded(maxBytes, "CONTEXT_BYTE_LIMIT"); bounded(maxFiles, "CONTEXT_FILE_LIMIT"); bounded(maxSymbols, "CONTEXT_SYMBOL_LIMIT");
   const tokens = queryTokens(query);
   const score = (entry) => {
