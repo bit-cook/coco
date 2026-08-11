@@ -65,10 +65,11 @@ test("execution evidence chain verifies matrix, binding, and passed receipt toge
   const preflight = preflightExecutionRequest(isolated, cases[0]);
   const binding = { providerId: preflight.providerId, requestSha256: preflight.requestSha256, schemaVersion: 1, status: "approved" };
   const matrixEvidence = createExecutionMatrixEvidence({ cases, descriptor, providerId: descriptor.id, results: evaluateExecutionMatrix(isolated, cases) });
+  const attestation = createExecutionAttestation({ adapterSha256: "a".repeat(64), adapterVersion: "1.0.0", descriptor });
   const receipt = { exitCode: 0, runId: "018f47a0-7b20-7cc5-8a33-111111111111", schemaVersion: 1, verdict: "passed" };
-  const chain = verifyExecutionEvidenceChain({ binding, cases, descriptor, matrixEvidence, preflight, receipt });
+  const chain = verifyExecutionEvidenceChain({ attestation, binding, cases, descriptor, matrixEvidence, preflight, receipt });
   assert.equal(chain.status, "verified"); assert.equal(chain.providerId, "linux-bwrap");
-  assert.throws(() => verifyExecutionEvidenceChain({ binding, cases, descriptor, matrixEvidence, preflight, receipt: { ...receipt, verdict: "failed" } }), /EXECUTION_RECEIPT_INVALID/);
+  assert.throws(() => verifyExecutionEvidenceChain({ attestation, binding, cases, descriptor, matrixEvidence, preflight, receipt: { ...receipt, verdict: "failed" } }), /EXECUTION_RECEIPT_INVALID/);
 });
 
 test("execution provider registry is bounded, deterministic, and preflight-only", () => {

@@ -21,5 +21,6 @@ TaskEvent is CoCo v0.3's bounded, non-authoritative observability layer. `tasks.
 - A separate evidence-chain verifier can require matrix evidence, execution binding, and a passed terminal receipt to agree on provider and request context. This is a pure verification layer and does not alter the v0.3 receipt schema.
 - The bounded provider registry stores only canonical descriptors, deterministic provider IDs, and preflight lookup. It intentionally exposes no `execute` method; duplicate or unknown provider IDs reject.
 - Adapter attestation binds a stable adapter binary SHA-256 and semantic version to the canonical provider descriptor. The current attestation layer validates supplied evidence only; it does not discover, launch, or trust a binary by path.
+- Evidence-chain verification now requires that adapter attestation, matrix evidence, request binding, provider identity, and passed receipt all agree before returning `verified`.
 
 No event replay rebuilds `tasks.json`. Older tasks may have no complete history, and log capture does not promise byte-perfect recovery after a process crash.
