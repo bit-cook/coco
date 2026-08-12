@@ -326,7 +326,7 @@ class ResourceList {
             else {
                 // Resource item (cursor only on items)
                 const item = entry.item;
-                const cursor = isSelected ? "> " : "  ";
+                const cursor = isSelected ? theme.bold(theme.fg("accent", "› ")) : "  ";
                 const dimmed = this.isDimmedItem(item);
                 const nameText = isSelected && !dimmed ? theme.bold(item.displayName) : item.displayName;
                 const name = dimmed ? theme.fg("dim", nameText) : nameText;

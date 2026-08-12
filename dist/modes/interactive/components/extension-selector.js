@@ -49,7 +49,7 @@ export class ExtensionSelectorComponent extends Container {
         for (let i = 0; i < this.options.length; i++) {
             const isSelected = i === this.selectedIndex;
             const text = isSelected
-                ? theme.fg("accent", "→ ") + theme.fg("accent", this.options[i])
+                ? theme.bold(theme.fg("accent", "› ")) + theme.fg("accent", this.options[i])
                 : `  ${theme.fg("text", this.options[i])}`;
             this.listContainer.addChild(new Text(text, 1, 0));
         }

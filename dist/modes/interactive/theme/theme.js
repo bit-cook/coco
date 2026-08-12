@@ -328,8 +328,10 @@ function getBuiltinThemes() {
         const darkPath = path.join(themesDir, "dark.json");
         const lightPath = path.join(themesDir, "light.json");
         const orangePath = path.join(themesDir, "coco-orange.json");
+        const orangeLightPath = path.join(themesDir, "coco-orange-light.json");
         BUILTIN_THEMES = {
             "coco-orange": JSON.parse(fs.readFileSync(orangePath, "utf-8")),
+            "coco-orange-light": JSON.parse(fs.readFileSync(orangeLightPath, "utf-8")),
             dark: JSON.parse(fs.readFileSync(darkPath, "utf-8")),
             light: JSON.parse(fs.readFileSync(lightPath, "utf-8")),
         };
@@ -1040,8 +1042,8 @@ export function getMarkdownTheme() {
 }
 export function getSelectListTheme() {
     return {
-        selectedPrefix: (text) => theme.fg("accent", text),
-        selectedText: (text) => theme.fg("accent", text),
+        selectedPrefix: (text) => theme.bold(theme.fg("accent", text)),
+        selectedText: (text) => theme.bold(theme.fg("accent", text)),
         description: (text) => theme.fg("muted", text),
         scrollInfo: (text) => theme.fg("muted", text),
         noMatch: (text) => theme.fg("muted", text),
@@ -1055,10 +1057,10 @@ export function getEditorTheme() {
 }
 export function getSettingsListTheme() {
     return {
-        label: (text, selected) => (selected ? theme.fg("accent", text) : text),
-        value: (text, selected) => (selected ? theme.fg("accent", text) : theme.fg("muted", text)),
+        label: (text, selected) => (selected ? theme.bold(theme.fg("accent", text)) : text),
+        value: (text, selected) => (selected ? theme.bold(theme.fg("accent", text)) : theme.fg("muted", text)),
         description: (text) => theme.fg("dim", text),
-        cursor: theme.fg("accent", "→ "),
+        cursor: theme.bold(theme.fg("accent", "› ")),
         hint: (text) => theme.fg("dim", text),
     };
 }

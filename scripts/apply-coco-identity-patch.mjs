@@ -64,7 +64,7 @@ const responsiveStartupWordmark = `class ResponsiveStartupWordmark {
         const art = [" CCCC  ooo  CCCC  ooo", "C     o   o C     o   o", "C     o   o C     o   o", " CCCC  ooo  CCCC  ooo"];
         const compact = "CoCo";
         const artWidth = Math.max(...art.map((line) => visibleWidth(line)));
-        const mark = contentWidth >= artWidth ? art : [compact];
+        const mark = contentWidth >= 64 && contentWidth >= artWidth ? art : [compact];
         const lines = mark.map((line) => padding + truncateToWidth(theme.bold(theme.fg("accent", line)), contentWidth, "") + padding);
         const version = this.version ? theme.fg("dim", "  v" + this.version) : "";
         if (version && visibleWidth(mark[mark.length - 1]) + visibleWidth(version) <= contentWidth) {
@@ -429,12 +429,20 @@ const patchedLoginProviderFlow = `${patchedCustomProviderLogin}
         });
     }`;
 const defaultThemeAnchor = `currentTheme: this.settingsManager.getThemeSetting() || "dark",`;
-const patchedDefaultTheme = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",`;
+const patchedDefaultTheme = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange-light/coco-orange",`;
 const builtinThemesAnchor = `        BUILTIN_THEMES = {
             dark: JSON.parse(fs.readFileSync(darkPath, "utf-8")),
             light: JSON.parse(fs.readFileSync(lightPath, "utf-8")),
         };`;
 const patchedBuiltinThemes = `        const orangePath = path.join(themesDir, "coco-orange.json");
+        const orangeLightPath = path.join(themesDir, "coco-orange-light.json");
+        BUILTIN_THEMES = {
+            "coco-orange": JSON.parse(fs.readFileSync(orangePath, "utf-8")),
+            "coco-orange-light": JSON.parse(fs.readFileSync(orangeLightPath, "utf-8")),
+            dark: JSON.parse(fs.readFileSync(darkPath, "utf-8")),
+            light: JSON.parse(fs.readFileSync(lightPath, "utf-8")),
+        };`;
+const previousPatchedBuiltinThemes = `        const orangePath = path.join(themesDir, "coco-orange.json");
         BUILTIN_THEMES = {
             "coco-orange": JSON.parse(fs.readFileSync(orangePath, "utf-8")),
             dark: JSON.parse(fs.readFileSync(darkPath, "utf-8")),
@@ -457,10 +465,12 @@ const uiLanguageImports = new Map([
   ["components/bash-execution.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/first-time-setup.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/assistant-message.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/user-message.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/show-images-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/extension-editor.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/extension-input.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/bordered-loader.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/footer.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/session-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/user-message-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/tree-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
@@ -655,25 +665,30 @@ async function patchRuntimeDefaultTheme(projectRoot) {
     try { source = await readFile(path, "utf8"); }
     catch (error) { if (error?.code === "ENOENT") continue; throw error; }
     const anchor = `currentTheme: this.settingsManager.getThemeSetting() || "dark",`;
-    const replacement = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",`;
+    const previous = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",`;
+    const replacement = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange-light/coco-orange",`;
     if (source.includes(replacement)) continue;
-    if (!source.includes(anchor)) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
-    await writeFile(path, source.replace(anchor, replacement), "utf8");
+    if (!source.includes(anchor) && !source.includes(previous)) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+    await writeFile(path, source.replace(source.includes(anchor) ? anchor : previous, replacement), "utf8");
   }
 }
 
 async function patchBuiltinThemeRegistry(projectRoot) {
   const bundledThemeDir = join(agentPath(projectRoot), "dist", "modes", "interactive", "theme");
   const orangeTheme = join(projectRoot, "dist", "modes", "interactive", "theme", "coco-orange.json");
+  const orangeLightTheme = join(projectRoot, "dist", "modes", "interactive", "theme", "coco-orange-light.json");
   const bundledOrangeTheme = join(bundledThemeDir, "coco-orange.json");
+  const bundledOrangeLightTheme = join(bundledThemeDir, "coco-orange-light.json");
   try { await copyFile(orangeTheme, bundledOrangeTheme); } catch (error) { if (error?.code !== "ENOENT") throw error; }
+  try { await copyFile(orangeLightTheme, bundledOrangeLightTheme); } catch (error) { if (error?.code !== "ENOENT") throw error; }
   for (const path of [join(projectRoot, "dist", "modes", "interactive", "theme", "theme.js"), join(bundledThemeDir, "theme.js")]) {
     let source;
     try { source = await readFile(path, "utf8"); }
     catch (error) { if (error?.code === "ENOENT") continue; throw error; }
-    if (source.includes('"coco-orange": JSON.parse(fs.readFileSync(orangePath')) continue;
-    if (!source.includes(builtinThemesAnchor)) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
-    await writeFile(path, source.replace(builtinThemesAnchor, patchedBuiltinThemes), "utf8");
+    if (source.includes('"coco-orange-light": JSON.parse(fs.readFileSync(orangeLightPath')) continue;
+    const anchor = source.includes(previousPatchedBuiltinThemes) ? previousPatchedBuiltinThemes : builtinThemesAnchor;
+    if (!source.includes(anchor)) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+    await writeFile(path, source.replace(anchor, patchedBuiltinThemes), "utf8");
   }
 }
 
@@ -724,6 +739,7 @@ async function patchUiLanguage(projectRoot) {
       source = source
         .replace('const SETTINGS_SUBMENU_SELECT_LIST_LAYOUT = {', 'function localizeItems(items) { return items.map((item) => ({ ...item, label: uiText(item.label), description: item.description ? uiText(item.description) : item.description })); }\nconst SETTINGS_SUBMENU_SELECT_LIST_LAYOUT = {')
         .replaceAll('new SettingsList(items,', 'new SettingsList(localizeItems(items),')
+        .replace('// Add borders\n        this.addChild(new DynamicBorder());', '// Add borders\n        this.addChild(new DynamicBorder());\n        this.addChild(new Text(theme.bold(theme.fg("accent", `  ${uiText("Settings")}`)), 0, 0));')
         .replace('this.selectList = new SelectList(options,', 'this.selectList = new SelectList(localizeItems(options),')
         .replace('theme.bold(theme.fg("accent", title))', 'theme.bold(theme.fg("accent", uiText(title)))')
         .replace('theme.fg("muted", description)', 'theme.fg("muted", uiText(description))')
@@ -783,8 +799,14 @@ async function patchUiLanguage(projectRoot) {
     if (relative === "components/assistant-message.js") {
       source = source
         .replace('hiddenThinkingLabel = "Thinking..."', 'hiddenThinkingLabel = uiText("Thinking...")')
+        .replace('this.contentContainer.addChild(new Spacer(1));\n        }\n        // Render content in order', 'this.contentContainer.addChild(new Spacer(1));\n            this.contentContainer.addChild(new Text(theme.bold(theme.fg("accent", `◇ ${uiText("CoCo")}`)), this.outputPad, 0));\n        }\n        // Render content in order')
         .replace('"Operation aborted"', 'uiText("Operation aborted")')
         .replace('"Unknown error"', 'uiText("Unknown error")');
+    }
+    if (relative === "components/user-message.js") {
+      source = source
+        .replace('import { Box, Container, Markdown }', 'import { Box, Container, Markdown, Text }')
+        .replace('const contentBox = new Box(this.outputPad, 1, (content) => theme.bg("userMessageBg", content));', 'const contentBox = new Box(this.outputPad, 1, (content) => theme.bg("userMessageBg", content));\n        contentBox.addChild(new Text(theme.bold(theme.fg("accent", `◆ ${uiText("You")}`)), 0, 0));');
     }
     if (relative === "components/show-images-selector.js") {
       source = source
@@ -808,6 +830,10 @@ async function patchUiLanguage(projectRoot) {
         .replaceAll('this.showStatus("Forked to new session")', 'this.showStatus(uiText("Forked to new session"))')
         .replaceAll('this.showStatus("Navigated to selected point")', 'this.showStatus(uiText("Navigated to selected point"))')
         .replaceAll('this.showWarning("A bash command is already running. Press Esc to cancel it first.")', 'this.showWarning(uiText("A bash command is already running. Press Esc to cancel it first."))');
+    }
+    if (relative === "components/footer.js") {
+      source = source
+        .replace('const modelName = state.model?.id || "no-model";', 'const modelName = state.model?.id || uiText("No model selected.");');
     }
     if (relative === "components/session-selector.js") {
       for (const label of ["now", "Resume Session (Current Folder)", "Resume Session (All)", "Threaded", "Recent", "Fuzzy", "Sort:", "All", "Named", "Name:", "Current Folder", "Delete session?", "No sessions found", "Session moved to trash", "Session deleted", "Rename Session"]) {
@@ -845,6 +871,8 @@ async function patchUiLanguage(projectRoot) {
     }
     if (relative === "components/model-selector.js") {
       source = source
+        .replace('// Add hint about model filtering', 'this.addChild(new Text(theme.bold(theme.fg("accent", `  ${uiText("Models")}`)), 0, 0));\n        // Add hint about model filtering')
+        .replace('new Text(theme.fg("warning", hintText), 0, 0)', 'new Text(theme.fg("muted", hintText), 2, 0)')
         .replaceAll('theme.fg("accent", "all")', 'theme.fg("accent", uiText("all"))')
         .replaceAll('theme.fg("muted", "all")', 'theme.fg("muted", uiText("all"))')
         .replaceAll('theme.fg("accent", "scoped")', 'theme.fg("accent", uiText("scoped"))')
@@ -937,6 +965,66 @@ async function patchSettingsValueDisplay(projectRoot) {
   await writeFile(path, source, "utf8");
 }
 
+async function patchTuiVisualSystem(projectRoot) {
+  const interactiveRoots = [
+    join(projectRoot, "dist", "modes", "interactive"),
+    join(agentPath(projectRoot), "dist", "modes", "interactive"),
+  ];
+  for (const interactiveRoot of interactiveRoots) {
+    const borderPath = join(interactiveRoot, "components", "dynamic-border.js");
+    let border;
+    try { border = await readFile(borderPath, "utf8"); } catch (error) { if (error?.code === "ENOENT") continue; throw error; }
+    if (!border.includes('const inset = width >= 12 ? 2 : 0;')) {
+      border = border.replace(
+        '        return [this.color("─".repeat(Math.max(1, width)))];',
+        '        const inset = width >= 12 ? 2 : 0;\n        const rule = this.color("─".repeat(Math.max(1, width - inset * 2)));\n        return [`${" ".repeat(inset)}${rule}${" ".repeat(inset)}`];',
+      );
+      await writeFile(borderPath, border, "utf8");
+    }
+
+    const footerPath = join(interactiveRoot, "components", "footer.js");
+    let footer;
+    try { footer = await readFile(footerPath, "utf8"); } catch (error) { if (error?.code === "ENOENT") continue; throw error; }
+    if (!footer.includes('theme.fg("accent", "◆")')) {
+      footer = footer
+        .replace('const dimRemainder = theme.fg("dim", remainder);', 'const dimRemainder = theme.fg("muted", remainder);')
+        .replace('const pwdLine = truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "..."));', 'const pwdLine = truncateToWidth(`${theme.fg("accent", "◆")} ${theme.fg("muted", pwd)}`, width, theme.fg("dim", "..."));');
+      await writeFile(footerPath, footer, "utf8");
+    }
+
+    const themePath = join(interactiveRoot, "theme", "theme.js");
+    let themeSource;
+    try { themeSource = await readFile(themePath, "utf8"); } catch (error) { if (error?.code === "ENOENT") continue; throw error; }
+    themeSource = themeSource
+      .replace('selectedPrefix: (text) => theme.fg("accent", text),', 'selectedPrefix: (text) => theme.bold(theme.fg("accent", text)),')
+      .replace('selectedText: (text) => theme.fg("accent", text),', 'selectedText: (text) => theme.bold(theme.fg("accent", text)),')
+      .replace('label: (text, selected) => (selected ? theme.fg("accent", text) : text),', 'label: (text, selected) => (selected ? theme.bold(theme.fg("accent", text)) : text),')
+      .replace('value: (text, selected) => (selected ? theme.fg("accent", text) : theme.fg("muted", text)),', 'value: (text, selected) => (selected ? theme.bold(theme.fg("accent", text)) : theme.fg("muted", text)),')
+      .replace('cursor: theme.fg("accent", "→ "),', 'cursor: theme.bold(theme.fg("accent", "› ")),');
+    await writeFile(themePath, themeSource, "utf8");
+
+    const cursorFiles = ["config-selector.js", "trust-selector.js", "first-time-setup.js", "scoped-models-selector.js", "model-selector.js", "oauth-selector.js", "extension-selector.js"];
+    for (const name of cursorFiles) {
+      const path = join(interactiveRoot, "components", name);
+      let source;
+      try { source = await readFile(path, "utf8"); } catch (error) { if (error?.code === "ENOENT") continue; throw error; }
+      source = source
+        .replaceAll('theme.fg("accent", "→ ")', 'theme.bold(theme.fg("accent", "› "))')
+        .replaceAll('isSelected ? "> " : "  "', 'isSelected ? theme.bold(theme.fg("accent", "› ")) : "  "');
+      await writeFile(path, source, "utf8");
+    }
+  }
+}
+
+async function patchInputPrompt(projectRoot) {
+  const path = join(agentPath(projectRoot), "node_modules", "@earendil-works", "pi-tui", "dist", "components", "input.js");
+  let source;
+  try { source = await readFile(path, "utf8"); } catch (error) { if (error?.code === "ENOENT") return; throw error; }
+  if (source.includes('const prompt = "› ";')) return;
+  if (!source.includes('const prompt = "> ";')) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+  await writeFile(path, source.replace('const prompt = "> ";', 'const prompt = "› ";'), "utf8");
+}
+
 export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) {
   const agent = agentPath(projectRoot);
   const tui = join(agent, "node_modules", "@earendil-works", "pi-tui");
@@ -1014,6 +1102,8 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   await patchUiLanguage(projectRoot);
   await patchAutocompleteSourceLabels(projectRoot);
   await patchSettingsValueDisplay(projectRoot);
+  await patchTuiVisualSystem(projectRoot);
+  await patchInputPrompt(projectRoot);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

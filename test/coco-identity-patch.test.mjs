@@ -283,8 +283,8 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.match(interactive, /truncateToWidth/);
     assert.match(interactive, /theme\.bold\(theme\.fg\("accent"/);
     assert.match(interactive, /theme\.fg\("dim"/);
-    assert.match(interactive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange"/);
-    assert.match(bundledInteractive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange"/);
+    assert.match(interactive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange-light\/coco-orange"/);
+    assert.match(bundledInteractive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange-light\/coco-orange"/);
     assert.match(interactive, /Number\(Boolean\(b\.custom\)\) - Number\(Boolean\(a\.custom\)\)/);
     assert.match(interactive, /if \(authType === "api_key"\) \{\s*providerOptions\.unshift\(\{\s*id: "__coco_custom_provider__",\s*name: uiText\("Custom \/ 自定义"\)/);
     assert.match(interactive, /if \(providerId === "__coco_custom_provider__"\) \{\s*await this\.startCustomProviderLogin\(\);/);
@@ -353,12 +353,12 @@ test("Given the patched startup wordmark, when rendered at responsive widths, th
     await applyCocoIdentityPatch({ root });
     const ResponsiveStartupWordmark = wordmarkFrom(await readPatched(root, "dist/modes/interactive/interactive-mode.js"));
 
-    const wideArtThreshold = 25;
-    const wide = new ResponsiveStartupWordmark(false, "0.82.1").render(40);
+    const wideArtThreshold = 66;
+    const wide = new ResponsiveStartupWordmark(false, "0.82.1").render(80);
     assert.equal(wide.length, 4);
     assert.match(wide.join("\n"), /CCCC/);
     assert.match(wide.join("\n"), /v0\.82\.1/);
-    assert.ok(wide.every((line) => visibleWidth(line) <= 40));
+    assert.ok(wide.every((line) => visibleWidth(line) <= 80));
 
     const beforeWide = new ResponsiveStartupWordmark(false).render(wideArtThreshold - 1);
     assert.equal(beforeWide.length, 1);
@@ -379,9 +379,9 @@ test("Given the patched startup wordmark, when rendered at responsive widths, th
       assert.ok(tiny.every((line) => visibleWidth(line) <= width));
     }
 
-    const versionWithoutRoom = new ResponsiveStartupWordmark(false, "0.82.1").render(wideArtThreshold);
+    const versionWithoutRoom = new ResponsiveStartupWordmark(false, "0.82.1").render(6);
     assert.doesNotMatch(versionWithoutRoom.join("\n"), /v0\.82\.1/);
-    const versionWithRoom = new ResponsiveStartupWordmark(false, "0.82.1").render(40);
+    const versionWithRoom = new ResponsiveStartupWordmark(false, "0.82.1").render(80);
     assert.match(versionWithRoom.join("\n"), /v0\.82\.1/);
   } finally {
     await rm(root, { force: true, recursive: true });
@@ -395,7 +395,7 @@ test("Given the patched startup wordmark, when startup state changes, then quiet
     const ResponsiveStartupWordmark = wordmarkFrom(await readPatched(root, "dist/modes/interactive/interactive-mode.js"));
 
     const quiet = new ResponsiveStartupWordmark(false, "0.82.1");
-    assert.equal(quiet.render(40).length, 4);
+    assert.equal(quiet.render(80).length, 4);
 
     const wordmark = new ResponsiveStartupWordmark(false, "", "compact", "expanded\ninstructions");
     const compact = wordmark.render(40);

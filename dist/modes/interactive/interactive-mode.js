@@ -3402,7 +3402,7 @@ export class InteractiveMode {
                 httpIdleTimeoutMs: this.settingsManager.getHttpIdleTimeoutMs(),
                 thinkingLevel: this.session.thinkingLevel,
                 availableThinkingLevels: this.session.getAvailableThinkingLevels(),
-                currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",
+                currentTheme: this.settingsManager.getThemeSetting() || "coco-orange-light/coco-orange",
                 terminalTheme: this.themeController.getTerminalTheme(),
                 availableThemes: getAvailableThemes(),
                 hideThinkingBlock: this.hideThinkingBlock,

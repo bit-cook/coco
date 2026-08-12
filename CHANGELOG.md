@@ -5320,3 +5320,7 @@ Initial public release.
 ## 0.4.4
 
 - Make installer release cache keys unique per run so even a previously cached bad edge response cannot be reused.
+
+## 0.5.0
+
+- Redesign the CoCo TUI with paired orange-and-ink dark/light themes, unified panel chrome, responsive branding, stronger message hierarchy, clearer footer semantics, consistent selection and input markers, distinct tool states, and verified 256-color behavior.

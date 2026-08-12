@@ -213,7 +213,7 @@ export class ModelSelectorComponent extends Container {
             const isCurrent = modelsAreEqual(this.currentModel, item.model);
             let line = "";
             if (isSelected) {
-                const prefix = theme.fg("accent", "→ ");
+                const prefix = theme.bold(theme.fg("accent", "› "));
                 const modelText = `${item.id}`;
                 const providerBadge = theme.fg("muted", `[${item.provider}]`);
                 const checkmark = isCurrent ? theme.fg("success", " ✓") : "";

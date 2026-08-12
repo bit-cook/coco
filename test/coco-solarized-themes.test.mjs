@@ -106,18 +106,24 @@ test("Given the footer design contract, when its source is inspected, then it ap
   assert.doesNotMatch(footer, /theme\.bg\s*\(/);
 });
 
-test("CoCo's default theme uses a vivid orange accent system", async () => {
+test("CoCo's paired themes use an accessible orange and ink visual system", async () => {
   const theme = await readTheme("coco-orange");
+  const light = await readTheme("coco-orange-light");
   assert.equal(theme.name, "coco-orange");
+  assert.equal(light.name, "coco-orange-light");
   assert.equal(theme.colors.accent, "orangeBright");
   assert.equal(theme.colors.borderAccent, "orangeBright");
-  assert.equal(theme.colors.bashMode, "orangeBright");
+  assert.equal(theme.colors.bashMode, "blue");
   assert.equal(theme.vars.orangeBright, "#ffb15c");
+  assert.equal(light.colors.accent, "orangeBright");
+  assert.equal(light.colors.text, "text");
+  assert.notEqual(light.vars.text, theme.vars.text);
 });
 
 test("CoCo registers the orange theme as a runtime built-in", async () => {
   for (const sourcePath of [join(root, "dist", "modes", "interactive", "theme", "theme.js"), join(root, "node_modules", "@earendil-works", "pi-coding-agent", "dist", "modes", "interactive", "theme", "theme.js")]) {
     const source = await readFile(sourcePath, "utf8");
     assert.match(source, /"coco-orange": JSON\.parse\(fs\.readFileSync\(orangePath/);
+    assert.match(source, /"coco-orange-light": JSON\.parse\(fs\.readFileSync\(orangeLightPath/);
   }
 });

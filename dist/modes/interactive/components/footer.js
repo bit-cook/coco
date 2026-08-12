@@ -203,8 +203,8 @@ export class FooterComponent {
         // before and after the colored section independently.
         const dimStatsLeft = theme.fg("dim", statsLeft);
         const remainder = statsLine.slice(statsLeft.length); // padding + rightSide
-        const dimRemainder = theme.fg("dim", remainder);
-        const pwdLine = truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "..."));
+        const dimRemainder = theme.fg("muted", remainder);
+        const pwdLine = truncateToWidth(`${theme.fg("accent", "◆")} ${theme.fg("muted", pwd)}`, width, theme.fg("dim", "..."));
         const lines = [pwdLine, dimStatsLeft + dimRemainder];
         // Add extension statuses on a single line, sorted by key alphabetically
         const extensionStatuses = this.footerData.getExtensionStatuses();

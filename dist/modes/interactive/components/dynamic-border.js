@@ -15,7 +15,9 @@ export class DynamicBorder {
         // No cached state to invalidate currently
     }
     render(width) {
-        return [this.color("─".repeat(Math.max(1, width)))];
+        const inset = width >= 12 ? 2 : 0;
+        const rule = this.color("─".repeat(Math.max(1, width - inset * 2)));
+        return [`${" ".repeat(inset)}${rule}${" ".repeat(inset)}`];
     }
 }
 //# sourceMappingURL=dynamic-border.js.map

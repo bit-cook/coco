@@ -161,7 +161,7 @@ export class ScopedModelsSelectorComponent extends Container {
         for (let i = startIndex; i < endIndex; i++) {
             const item = this.filteredItems[i];
             const isSelected = i === this.selectedIndex;
-            const prefix = isSelected ? theme.fg("accent", "→ ") : "  ";
+            const prefix = isSelected ? theme.bold(theme.fg("accent", "› ")) : "  ";
             const id = item.model?.id ?? item.fullId;
             const modelText = isSelected ? theme.fg("accent", id) : id;
             const providerBadge = theme.fg("muted", item.model ? ` [${item.model.provider}]` : " [unavailable]");

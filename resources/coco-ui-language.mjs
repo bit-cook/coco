@@ -5,6 +5,7 @@ import { join } from "node:path";
 const ZH = {
   "CoCo": "CoCo",
   "User": "用户",
+  "You": "你",
   "Project": "项目",
   "Git": "Git",
   "A bash command is already running. Press Esc to cancel it first.": "已有 bash 命令正在运行。请先按 Esc 取消。",
@@ -110,6 +111,7 @@ const ZH = {
   "Deep reasoning (~16k tokens)": "深度推理（约 16k tokens）",
   "Moderate reasoning (~8k tokens)": "中度推理（约 8k tokens）",
   "Model Configuration": "模型配置",
+  "Models": "模型",
   "Model Name:": "模型名称：",
   "Model selection saved to settings": "模型选择已保存到设置",
   "Model unavailable": "模型不可用",
@@ -172,6 +174,7 @@ const ZH = {
   "save": "保存",
   "Save and go back": "保存并返回",
   "Saved decision:": "已保存的决定：",
+  "Settings": "设置",
   "Select a theme, or choose Automatic to follow terminal appearance.": "请选择主题，或选择“自动”以跟随终端外观。",
   "Select a model / 选择模型": "选择模型",
   "Select authentication method:": "选择认证方式：",
