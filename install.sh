@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.5.0}"
+COCO_VERSION="${COCO_VERSION:-0.5.1}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/bit-cook/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key"
@@ -400,8 +400,8 @@ settings.defaultThinkingLevel = "max";
 const ownershipPath = `${agentDir}/ownership.json`;
 let ownership = fs.existsSync(ownershipPath) ? JSON.parse(fs.readFileSync(ownershipPath, "utf8")) : null;
 const ownedSettings = ownership?.managedFiles?.["settings.json"]?.ownedJsonPointers || [];
-if (settings.theme === "dark" && !ownedSettings.includes("/theme")) { settings.theme = "coco-orange"; settingsChanged = true; }
-if (!("theme" in settings)) { settings.theme = "coco-orange"; settingsChanged = true; }
+if (["dark", "coco-orange"].includes(settings.theme) && !ownedSettings.includes("/theme")) { settings.theme = "coco-orange-light/coco-orange"; settingsChanged = true; }
+if (!("theme" in settings)) { settings.theme = "coco-orange-light/coco-orange"; settingsChanged = true; }
 if (!settingsExisted || settingsChanged) {
   fs.writeFileSync(settingsPath, JSON.stringify(settings) + "\n", { mode: 0o600 });
 }

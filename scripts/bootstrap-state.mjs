@@ -8,7 +8,7 @@ import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
 
 const PROVIDERS = ["idepub", "achai", "agnes", "deepseek", "stepfun"];
-const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, enabledModels: ["agnes/agnes-2.5-flash"], lastChangelogVersion: "0.5.0", theme: "coco-orange-light/coco-orange" };
+const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, enabledModels: ["agnes/agnes-2.5-flash"], lastChangelogVersion: "0.5.1", theme: "coco-orange-light/coco-orange" };
 
 function hash(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
@@ -32,11 +32,11 @@ function mergeSettings(existing, ownership) {
     if (!(key in value)) { value[key] = structuredClone(DEFAULT_SETTINGS[key]); created.push(pointer); }
     else if (JSON.stringify(value[key]) !== JSON.stringify(DEFAULT_SETTINGS[key])) skipped.push(pointer);
   }
-  if (value.theme === "dark" && !ownership?.managedFiles?.["settings.json"]?.ownedJsonPointers?.includes("/theme")) {
-    value.theme = "coco-orange";
+  if (["dark", "coco-orange"].includes(value.theme) && !ownership?.managedFiles?.["settings.json"]?.ownedJsonPointers?.includes("/theme")) {
+    value.theme = "coco-orange-light/coco-orange";
     created.push("/theme");
   }
-  if (value.theme === "coco-orange" && !ownership?.managedFiles?.["settings.json"]?.ownedJsonPointers?.includes("/theme")) created.push("/theme");
+  if (value.theme === "coco-orange-light/coco-orange" && !ownership?.managedFiles?.["settings.json"]?.ownedJsonPointers?.includes("/theme")) created.push("/theme");
   return { created, skipped, value };
 }
 

@@ -4,7 +4,7 @@ import test from "node:test";
 
 const root = new URL("..", import.meta.url);
 const install = "curl -fsSL https://bit-cook.github.io/coco/install.sh | bash";
-const uninstall = "curl -fsSL https://github.com/bit-cook/coco/releases/download/v0.5.0/uninstall.sh | bash";
+const uninstall = "curl -fsSL https://github.com/bit-cook/coco/releases/download/v0.5.1/uninstall.sh | bash";
 
 test("bilingual homepage keeps the install-first static site contract", async () => {
   const [english, chinese, styles] = await Promise.all([

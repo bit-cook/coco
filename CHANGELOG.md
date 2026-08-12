@@ -5324,3 +5324,7 @@ Initial public release.
 ## 0.5.0
 
 - Redesign the CoCo TUI with paired orange-and-ink dark/light themes, unified panel chrome, responsive branding, stronger message hierarchy, clearer footer semantics, consistent selection and input markers, distinct tool states, and verified 256-color behavior.
+
+## 0.5.1
+
+- Preserve the paired orange light/dark theme through the final installer state write and migrate only unowned legacy defaults.

@@ -153,7 +153,7 @@ for (const installer of installers) {
       assert.equal(auth.agnes.key, syntheticAgnesKey);
       assert.equal(Buffer.byteLength(auth.agnes.key), 51);
       assert.equal((await readFile(setup.environment.COCO_TEST_DOWNLOAD_LOG, "utf8")).includes(agnesAssetUrl), true);
-      assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "settings.json"), "utf8")), { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", theme: "coco-orange" });
+      assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "settings.json"), "utf8")), { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", theme: "coco-orange-light/coco-orange" });
       const ownership = JSON.parse(await readFile(join(setup.agent, "ownership.json"), "utf8"));
       assert.equal(ownership.schemaVersion, 1);
       assert.ok(ownership.managedFiles["models.json"].ownedJsonPointers.includes("/providers/agnes/models"));
