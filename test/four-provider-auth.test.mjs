@@ -82,12 +82,13 @@ test("Given official DeepSeek bootstrap state, when its provider is inspected, t
   try {
     await bootstrapState({ agentDir, root: cocoRoot });
     const models = JSON.parse(await readFile(join(agentDir, "models.json"), "utf8"));
+    const seeds = JSON.parse(await readFile(join(cocoRoot, "resources", "provider-model-seeds.v1.json"), "utf8"));
     assert.deepEqual(models.providers.deepseek, {
       api: "openai-completions",
       authHeader: true,
       baseUrl: "https://api.deepseek.com",
-    compat: { supportsDeveloperRole: false, supportsReasoningEffort: true },
-      models: [],
+      compat: { supportsDeveloperRole: false, supportsReasoningEffort: true },
+      models: seeds.providers.deepseek.map((model) => ({ contextWindow: 128000, cost: { cacheRead: 0, cacheWrite: 0, input: 0, output: 0 }, input: ["text"], maxTokens: 16384, reasoning: false, ...model })),
     });
   } finally {
     await rm(root, { force: true, recursive: true });
