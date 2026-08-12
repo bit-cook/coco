@@ -5280,3 +5280,7 @@ Initial public release.
 ## 0.3.8
 
 - Make API Custom a real Base URL/key/model discovery wizard; keep Account login for provider account authentication.
+
+## 0.3.9
+
+- Normalize the API login flow to one Custom entry and one active Base URL/key wizard.

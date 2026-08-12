@@ -194,6 +194,8 @@ const interactiveLoginSource = `function getLoginProviderCompletionOptions(provi
             }, () => done(), initialSearchInput);
             return { component: selector, focus: selector };
         });
+    }
+    async showOAuthSelector(mode) {
     }`;
 const repositoryRoot = new URL("..", import.meta.url).pathname;
 const patchTargets = [
@@ -285,7 +287,10 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.match(bundledInteractive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange"/);
     assert.match(interactive, /Number\(Boolean\(b\.custom\)\) - Number\(Boolean\(a\.custom\)\)/);
     assert.match(interactive, /if \(authType === "api_key"\) \{\s*providerOptions\.unshift\(\{\s*id: "__coco_custom_provider__",\s*name: "Custom \/ 自定义"/);
-    assert.match(interactive, /if \(providerId === "__coco_custom_provider__"\) \{\s*await this\.startCustomProviderLogin\(selectedAuthType\);/);
+    assert.match(interactive, /if \(providerId === "__coco_custom_provider__"\) \{\s*await this\.startCustomProviderLogin\(\);/);
+    assert.equal((interactive.match(/async startCustomProviderLogin\(/g) ?? []).length, 1);
+    assert.equal((interactive.match(/providerOptions\.unshift\(/g) ?? []).length, 1);
+    assert.equal((interactive.match(/name: "Custom \/ 自定义"/g) ?? []).length, 1);
     assert.match(interactive, /Custom provider Base URL \/ 自定义提供商地址/);
     assert.match(interactive, /fetchCustomProviderModels/);
     assert.match(interactive, /saveCustomProvider/);

@@ -384,6 +384,44 @@ const patchedCustomProviderLogin = `    async startCustomProviderLogin() {
             this.showError(error instanceof Error ? error.message : String(error));
         }
     }`;
+const patchedLoginProviderFlow = `${patchedCustomProviderLogin}
+    showLoginProviderSelector(authType, initialSearchInput) {
+        const providerOptions = this.getLoginProviderOptions(authType);
+        if (authType === "api_key") {
+            providerOptions.unshift({
+                id: "__coco_custom_provider__",
+                name: "Custom / 自定义",
+                authType,
+                custom: true,
+            });
+        }
+        if (providerOptions.length === 0) {
+            const message = authType === "oauth"
+                ? "No subscription providers available."
+                : authType === "api_key"
+                    ? "No API key providers available."
+                    : "No login providers available.";
+            this.showStatus(message);
+            return;
+        }
+        this.showSelector((done) => {
+            const selector = new OAuthSelectorComponent("login", providerOptions, async (providerId, selectedAuthType) => {
+                done();
+                if (providerId === "__coco_custom_provider__") {
+                    await this.startCustomProviderLogin();
+                    return;
+                }
+                const providerOption = providerOptions.find((provider) => provider.id === providerId && provider.authType === selectedAuthType);
+                if (!providerOption) return;
+                await this.startProviderLogin(providerOption);
+            }, () => {
+                done();
+                if (authType) this.showLoginAuthTypeSelector();
+                else this.ui.requestRender();
+            }, initialSearchInput);
+            return { component: selector, focus: selector };
+        });
+    }`;
 const defaultThemeAnchor = `currentTheme: this.settingsManager.getThemeSetting() || "dark",`;
 const patchedDefaultTheme = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",`;
 const builtinThemesAnchor = `        BUILTIN_THEMES = {
@@ -472,12 +510,15 @@ function replaceUpgrade(source, anchor, legacy, replacement) {
 }
 
 function replaceCustomProviderLogin(source) {
-  if (count(source, patchedCustomProviderLogin) === 1) return source;
-  const end = "    showLoginProviderSelector(authType, initialSearchInput) {";
-  if (count(source, end) !== 1) throw patchError(count(source, end) > 1 ? "COCO_PATCH_DUPLICATE_ANCHOR" : "COCO_PATCH_UNKNOWN_ANCHOR");
-  const withoutCustomMethods = source.replace(/\n    async startCustomProviderLogin\([\s\S]*?(?=\n    showLoginProviderSelector\(authType, initialSearchInput\) \{)/g, "");
-  const endIndex = withoutCustomMethods.indexOf(end);
-  return withoutCustomMethods.slice(0, endIndex) + "\n" + patchedCustomProviderLogin + withoutCustomMethods.slice(endIndex);
+  const selectorStart = "    showLoginProviderSelector(authType, initialSearchInput) {";
+  const nextMethod = "    async showOAuthSelector(mode) {";
+  const customStart = "    async startCustomProviderLogin(";
+  const selectorIndex = source.indexOf(selectorStart);
+  const nextIndex = source.indexOf(nextMethod, selectorIndex);
+  if (selectorIndex < 0 || nextIndex < 0) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+  const customIndex = source.indexOf(customStart);
+  const startIndex = customIndex >= 0 && customIndex < selectorIndex ? customIndex : selectorIndex;
+  return source.slice(0, startIndex) + patchedLoginProviderFlow + "\n" + source.slice(nextIndex);
 }
 
 function replaceOwnedResponsiveStartupWordmark(source) {
@@ -670,8 +711,6 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[7] = replaceExact(patched[7], loginApiKeyOptionAnchor, patchedLoginApiKeyOption);
   patched[7] = replaceUpgrade(patched[7], loginOptionsSortAnchor, [`        return options.sort((a, b) => Number(b.custom) - Number(a.custom) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`, `        return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`, loginOptionsDirectSortAnchor, patchedLoginOptionsDirectSort], patchedLoginOptionsSort);
   patched[7] = replaceUpgrade(patched[7], loginOptionsDirectSortAnchor, patchedLoginOptionsSort, patchedLoginOptionsDirectSort);
-  if (!patched[7].includes('if (authType === "api_key") {')) patched[7] = replaceUpgrade(patched[7], loginProviderSelectorAnchor, [], patchedLoginProviderSelector);
-  patched[7] = replaceExact(patched[7], loginProviderSelectionAnchor, patchedLoginProviderSelection);
   patched[7] = replaceCustomProviderLogin(patched[7]);
   patched[7] = replaceExact(patched[7], defaultThemeAnchor, patchedDefaultTheme);
   if (!patched[7].endsWith("\n")) patched[7] += "\n";
