@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
+import { MANAGED_PROVIDER_IDS, PROVIDER_CREDENTIAL_ENV } from "./product-identity.generated.mjs";
 
 export class StateError extends Error {
   constructor(code) { super(code); this.code = code; this.name = "StateError"; }
 }
 
-const managedProviders = new Set(["idepub", "achai", "agnes", "deepseek", "stepfun"]);
-const providerEnvironment = Object.freeze({ achai: "ACHAI_API_KEY", agnes: "AGNES_API_KEY", deepseek: "DEEPSEEK_API_KEY", idepub: "IDEPUB_API_KEY", stepfun: "STEPFUN_API_KEY" });
+const managedProviders = new Set(MANAGED_PROVIDER_IDS);
 const envKey = /^[A-Z][A-Z0-9_]*$/;
 const pointerToken = /^(?:[^~/]|~0|~1)*$/;
 
@@ -95,7 +95,7 @@ export function resolveCredential({ auth, environment = process.env, legacyModel
   validateAuth(auth);
   const stored = auth[provider];
   if (stored) return { key: stored.key, source: "auth" };
-  const envName = providerEnvironment[provider];
+  const envName = PROVIDER_CREDENTIAL_ENV[provider];
   if (typeof environment[envName] === "string" && environment[envName].length > 0) return { key: environment[envName], source: "environment" };
   const legacy = legacyModels?.providers?.[provider]?.apiKey;
   return typeof legacy === "string" && legacy.length > 0 ? { key: legacy, source: "legacy" } : { key: null, source: "none" };

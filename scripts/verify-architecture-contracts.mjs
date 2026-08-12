@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PRODUCT_COMMAND, PRODUCT_CONFIG_DIR, PRODUCT_NAME, PRODUCT_VERSION, UPSTREAM_PACKAGE, UPSTREAM_VERSION } from "./product-identity.generated.mjs";
+import { MANAGED_PROVIDER_IDS, PRODUCT_COMMAND, PRODUCT_CONFIG_DIR, PRODUCT_NAME, PRODUCT_VERSION, PROVIDER_CREDENTIAL_ENV, UPSTREAM_PACKAGE, UPSTREAM_VERSION } from "./product-identity.generated.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const fail = (code, details = {}) => { const error = new Error(code); error.code = code; error.details = details; throw error; };
@@ -38,6 +38,7 @@ export async function verifyArchitectureContracts() {
   includes(patcher, `expectedVersion = "${upstream.version}"`, "PATCHER_VERSION_DRIFT");
 
   const providerIds = Object.keys(manifest.providers).sort();
+  if (JSON.stringify(MANAGED_PROVIDER_IDS) !== JSON.stringify(providerIds) || JSON.stringify(PROVIDER_CREDENTIAL_ENV) !== JSON.stringify(Object.fromEntries(providerIds.map((id) => [id, manifest.providers[id].credentialEnv])))) fail("GENERATED_PROVIDER_DRIFT");
   for (const [name, ids] of [["registry", Object.keys(registry.providers).sort()], ["seeds", Object.keys(seeds.providers).sort()]]) if (JSON.stringify(ids) !== JSON.stringify(providerIds)) fail("PROVIDER_SET_DRIFT", { ids, name, providerIds });
   const defaultSeed = seeds.providers[manifest.defaults.provider]?.some((model) => model.id === manifest.defaults.model);
   if (!defaultSeed) fail("DEFAULT_MODEL_NOT_SEEDED");

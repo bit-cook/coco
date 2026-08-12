@@ -6,6 +6,7 @@
 - [能力矩阵](capability-matrix.md) - Production、contract、experimental、platform-limited 和 planned 边界。
 - [Product Manifest RFC](product-manifest-rfc.md) - 产品元数据单一事实源迁移方案。
 - [Pi Upstream Dashboard](upstream-dashboard.md) - 当前 baseline、release lag 和离线/在线检查规则。
+- [Provider Readiness](provider-readiness.md) - 本地 readiness、credential rotation 和 network verification 边界。
 
 ## CoCo 操作文档
 

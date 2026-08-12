@@ -28,6 +28,10 @@ test("doctor checks auth for the configured default provider rather than an arbi
     const auth = result.checks.find((entry) => entry.id === "AUTH_STATUS");
     assert.deepEqual(auth.details, { present: true, provider: "agnes", rotationRequired: false, source: "auth" });
     assert.equal(auth.status, "pass");
+    assert.equal(result.providers.length, 1);
+    assert.equal(result.providers[0].provider, "agnes");
+    assert.equal(result.providers[0].localStatus, "ready");
+    assert.deepEqual(result.providers[0].verification, { scope: null, status: "not-checked" });
   } finally {
     if (previous === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previous;
     await rm(root, { force: true, recursive: true });

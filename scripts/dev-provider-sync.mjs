@@ -2,9 +2,9 @@ import { resolve } from "node:path";
 import { request as httpRequest } from "node:http";
 import { syncModels } from "./provider-sync.mjs";
 import { StateError, parseStrictJson } from "./state-schema.mjs";
+import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
 
 const capabilities = new WeakMap();
-const PROVIDERS = ["achai", "agnes", "deepseek", "idepub", "stepfun"];
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
 
@@ -49,7 +49,7 @@ function fetchFixtureCatalog(url, authorization) {
 
 export async function syncProviderModelsForTest({ agentDir, allowEmpty = false, capability, origin, provider, root }) {
   const fixture = fixtureOrigin(capability, origin, root);
-  if (!PROVIDERS.includes(provider)) throw new StateError("PROVIDER_INVALID");
+  if (!MANAGED_PROVIDER_IDS.includes(provider)) throw new StateError("PROVIDER_INVALID");
   return syncModels({
     agentDir,
     allowEmpty,

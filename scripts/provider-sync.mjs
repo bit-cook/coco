@@ -9,10 +9,10 @@ import { catalogPayload, catalogSha256, normalizeModels } from "./state-catalog.
 import { StateError, ownedProviderPointers, parseStrictJson, resolveCredential, validateAuth, validateOwnership } from "./state-schema.mjs";
 import { inspectRegular, statePaths } from "./state-paths.mjs";
 import { applyStateTransaction } from "./state-transaction.mjs";
+import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
 
 export const PROVIDER_REGISTRY_SHA256 = "1ca4283d560af09b9301de2e260fc8b9a73587a71110822a8bc214409cf30da1";
 export const PROVIDER_TRANSFORMATIONS_SHA256 = "f79110eab47af63e59309af68a9bc28a8b6ba24f2cabb32b0e6a44f3d968014c";
-const PROVIDERS = ["achai", "agnes", "deepseek", "idepub", "stepfun"];
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
 const LOCK_RETRY_ATTEMPTS = 200;
@@ -36,7 +36,7 @@ export async function readFrozenProviderContracts(root) {
     frozenJson(root, "provider-transformations.v1.json", PROVIDER_TRANSFORMATIONS_SHA256, "TRANSFORMATIONS_INTEGRITY_INVALID"),
   ]);
   if (registry.schemaVersion !== 1 || !object(registry.providers) || transformations.schemaVersion !== 1) fail("PROVIDER_CONTRACT_INVALID");
-  for (const provider of PROVIDERS) {
+  for (const provider of MANAGED_PROVIDER_IDS) {
     const entry = registry.providers[provider];
     if (!object(entry) || entry.api !== "openai-completions" || entry.authHeader !== true || !object(entry.compat) || typeof entry.baseUrl !== "string" || typeof entry.origin !== "string" || typeof entry.modelsPath !== "string" || typeof entry.chatPath !== "string") fail("PROVIDER_CONTRACT_INVALID");
   }
@@ -104,10 +104,10 @@ async function applySyncTransaction(options) {
   }
 }
 
-export async function syncModels({ agentDir, allowEmpty = false, fetchCatalog, providerIds = PROVIDERS, root }) {
+export async function syncModels({ agentDir, allowEmpty = false, fetchCatalog, providerIds = MANAGED_PROVIDER_IDS, root }) {
   const { registry, transformations } = await readFrozenProviderContracts(root);
   const ids = [...new Set(providerIds)].sort(byteOrder);
-  if (ids.length === 0 || ids.some((id) => !PROVIDERS.includes(id))) fail("PROVIDER_INVALID");
+  if (ids.length === 0 || ids.some((id) => !MANAGED_PROVIDER_IDS.includes(id))) fail("PROVIDER_INVALID");
   const paths = statePaths(agentDir);
   const currentModels = await optionalJson(paths.models, "MODELS_SCHEMA_INVALID", { providers: {} });
   if (!object(currentModels) || !object(currentModels.providers)) fail("MODELS_SCHEMA_INVALID");
@@ -148,6 +148,6 @@ export async function syncModels({ agentDir, allowEmpty = false, fetchCatalog, p
   return { modelCount: prepared.reduce((count, item) => count + item.models.length, 0), providers: prepared.map((item) => ({ catalogSha256: item.metadata.catalogSha256, modelCount: item.models.length, provider: item.provider })), status: "applied" };
 }
 
-export async function syncProviderModels({ agentDir, allowEmpty = false, providerIds = PROVIDERS, root }) {
+export async function syncProviderModels({ agentDir, allowEmpty = false, providerIds = MANAGED_PROVIDER_IDS, root }) {
   return syncModels({ agentDir, allowEmpty, fetchCatalog: ({ authorization, entry }) => fetchJson(providerUrl(entry), authorization), providerIds, root });
 }

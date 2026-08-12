@@ -30,7 +30,7 @@
 ## 迁移阶段
 
 1. **Additive contract**：manifest + verifier，只检测 drift。
-2. **Generated identity leaf**：`scripts/product-identity.generated.mjs` 已由 manifest 确定性生成，runtime identity 保持兼容 exports。
+2. **Generated identity/provider leaf**：`scripts/product-identity.generated.mjs` 已由 manifest 确定性生成，runtime identity 保持兼容 exports；managed Provider IDs 和 credential environment map 已供 state/schema/sync 消费。
 3. **Tests consume manifest**：测试不再重复版本和 Provider 常量。
 4. **Generate leaf artifacts**：继续生成 provider registry。
 5. **Runtime consumption**：state/auth/provider/bootstrap 使用 generated constants。

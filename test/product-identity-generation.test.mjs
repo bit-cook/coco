@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { canonicalJson } from "../scripts/canonical-json.mjs";
 import { generateProductIdentity, productIdentitySource } from "../scripts/generate-product-identity.mjs";
+import { MANAGED_PROVIDER_IDS, PROVIDER_CREDENTIAL_ENV } from "../scripts/product-identity.generated.mjs";
 
 const project = new URL("..", import.meta.url).pathname;
 const manifest = JSON.parse(await readFile(join(project, "resources", "product-manifest.v1.json"), "utf8"));
@@ -17,6 +18,8 @@ test("committed product identity is the deterministic projection of the product 
   assert.deepEqual(await generateProductIdentity({ check: true, root: project }), { changed: false, status: "approved" });
   const after = await stat(join(project, "scripts", "product-identity.generated.mjs"));
   assert.equal(after.mtimeMs, before.mtimeMs);
+  assert.deepEqual(MANAGED_PROVIDER_IDS, Object.keys(manifest.providers));
+  assert.deepEqual(PROVIDER_CREDENTIAL_ENV, Object.fromEntries(Object.entries(manifest.providers).map(([id, provider]) => [id, provider.credentialEnv])));
 });
 
 test("check rejects stale output and write repairs it without rewriting current bytes", async () => {
@@ -42,6 +45,9 @@ test("generator rejects noncanonical or incomplete product manifests", async () 
     await assert.rejects(() => generateProductIdentity({ check: true, root }), (error) => error.code === "PRODUCT_MANIFEST_INVALID");
     const incomplete = structuredClone(manifest); delete incomplete.product.command;
     await writeFile(join(root, "resources", "product-manifest.v1.json"), canonicalJson(incomplete));
+    await assert.rejects(() => generateProductIdentity({ check: true, root }), (error) => error.code === "PRODUCT_MANIFEST_INVALID");
+    const invalidEnvironment = structuredClone(manifest); invalidEnvironment.providers.achai.credentialEnv = "not-valid";
+    await writeFile(join(root, "resources", "product-manifest.v1.json"), canonicalJson(invalidEnvironment));
     await assert.rejects(() => generateProductIdentity({ check: true, root }), (error) => error.code === "PRODUCT_MANIFEST_INVALID");
   } finally { await rm(root, { force: true, recursive: true }); }
 });

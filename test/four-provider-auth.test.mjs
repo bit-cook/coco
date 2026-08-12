@@ -34,13 +34,20 @@ test("Given each canonical provider, when auth is set, inspected, resolved, and 
     for (const [provider, environmentName] of providers) {
       const environment = { [environmentName]: `${provider}-environment` };
       const [initial] = await getAuthStatus({ agentDir, environment, provider });
-      assert.deepEqual(initial, { available: true, provider, rotationRequired: false, source: "environment" });
+      assert.equal(initial.available, true);
+      assert.equal(initial.provider, provider);
+      assert.equal(initial.rotationRequired, false);
+      assert.equal(initial.source, "environment");
+      assert.equal(initial.readiness.localStatus, "unknown");
+      assert.deepEqual(initial.readiness.verification, { scope: null, status: "not-checked" });
       await setAuthKey({ agentDir, key: `${provider}-stored`, provider });
       const [stored] = await getAuthStatus({ agentDir, environment, provider });
       assert.equal(stored.source, "auth");
+      assert.equal(stored.readiness.credential.status, "available");
       assert.equal(resolveCredential({ auth: { [provider]: { key: `${provider}-stored`, type: "api_key" } }, environment, provider }).source, "auth");
       const removed = await removeAuthKey({ agentDir, environment, provider });
       assert.equal(removed.source, "environment");
+      assert.equal(removed.readiness.localStatus, "unknown");
       const dispatched = await dispatchCoco({ argv: ["manage", "auth", "status", provider, "--json"], root });
       assert.equal(dispatched.exitCode, 0);
     }

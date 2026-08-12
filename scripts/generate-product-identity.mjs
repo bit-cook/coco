@@ -14,7 +14,18 @@ export function productIdentitySource(manifest) {
     ["PRODUCT_COMMAND", ["product", "command"]], ["PRODUCT_CONFIG_DIR", ["product", "configDir"]], ["PRODUCT_NAME", ["product", "name"]],
     ["PRODUCT_VERSION", ["product", "version"]], ["UPSTREAM_PACKAGE", ["upstream", "package"]], ["UPSTREAM_VERSION", ["upstream", "version"]],
   ];
-  return `// Generated from resources/product-manifest.v1.json by scripts/generate-product-identity.mjs.\n// Do not edit directly.\n\n${fields.map(([name, path]) => `export const ${name} = ${JSON.stringify(value(manifest, path))};`).join("\n")}\n`;
+  if (manifest.providers === null || typeof manifest.providers !== "object" || Array.isArray(manifest.providers)) fail("PRODUCT_MANIFEST_INVALID");
+  const providerIds = Object.keys(manifest.providers);
+  if (providerIds.length === 0 || providerIds.some((id) => !/^[a-z][a-z0-9-]*$/.test(id))) fail("PRODUCT_MANIFEST_INVALID");
+  const providerEnvironment = Object.fromEntries(providerIds.map((id) => {
+    const environment = value(manifest, ["providers", id, "credentialEnv"]);
+    if (!/^[A-Z][A-Z0-9_]*$/.test(environment)) fail("PRODUCT_MANIFEST_INVALID");
+    return [id, environment];
+  }));
+  const constants = fields.map(([name, path]) => `export const ${name} = ${JSON.stringify(value(manifest, path))};`);
+  constants.push(`export const MANAGED_PROVIDER_IDS = Object.freeze(${JSON.stringify(providerIds)});`);
+  constants.push(`export const PROVIDER_CREDENTIAL_ENV = Object.freeze(${JSON.stringify(providerEnvironment)});`);
+  return `// Generated from resources/product-manifest.v1.json by scripts/generate-product-identity.mjs.\n// Do not edit directly.\n\n${constants.join("\n")}\n`;
 }
 
 export async function generateProductIdentity({ check = true, root = defaultRoot } = {}) {

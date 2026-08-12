@@ -4,8 +4,10 @@ import { canonicalJson } from "./canonical-json.mjs";
 import { StateError, parseStrictJson, resolveCredential, validateAuth } from "./state-schema.mjs";
 import { inspectRegular, statePaths } from "./state-paths.mjs";
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
+import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
+import { projectProviderReadiness } from "./provider-readiness.mjs";
 
-const MANAGED_PROVIDERS = new Set(["idepub", "achai", "agnes", "deepseek", "stepfun"]);
+const MANAGED_PROVIDERS = new Set(MANAGED_PROVIDER_IDS);
 const MAX_KEY_BYTES = 16 * 1024;
 
 function fail(code) { throw new StateError(code); }
@@ -15,12 +17,14 @@ function validProvider(provider) {
   return provider;
 }
 
-function authStatus(auth, provider, environment) {
+function authStatus(auth, provider, environment, rotationRequired = false) {
   const credential = resolveCredential({ auth, environment, provider });
+  const available = credential.source !== "none";
   return {
-    available: credential.source !== "none",
+    available,
     provider,
-    rotationRequired: false,
+    readiness: projectProviderReadiness({ credentialSource: credential.source, credentialStatus: available ? "available" : "missing", provider, rotationRequired }),
+    rotationRequired,
     source: credential.source,
   };
 }
@@ -179,7 +183,7 @@ export async function getAuthStatus({ agentDir, environment = process.env, provi
   const auth = await existingAuth(agentDir);
   const rotation = new Set(await rotationProviders(agentDir));
   const providers = provider === undefined ? [...MANAGED_PROVIDERS] : [provider];
-  return providers.map((id) => ({ ...authStatus(auth, id, environment), rotationRequired: rotation.has(id) }));
+  return providers.map((id) => authStatus(auth, id, environment, rotation.has(id)));
 }
 
 export async function setAuthKey({ agentDir, key, provider }) {
@@ -195,7 +199,8 @@ export async function setAuthKey({ agentDir, key, provider }) {
   const operations = [{ bytes: canonicalJson(auth), containsSecret: true, path: paths.auth }];
   if (nextRotation.length !== rotation.length) operations.push({ bytes: canonicalJson({ rotationRequired: nextRotation, schemaVersion: 1 }), path: `${agentDir}/migration.json` });
   await applyStateTransaction({ agentDir, operations });
-  return { provider, rotationRequired: false, source: "auth" };
+  const [status] = await getAuthStatus({ agentDir, environment: {}, provider });
+  return status;
 }
 
 export async function removeAuthKey({ agentDir, environment = process.env, provider }) {
