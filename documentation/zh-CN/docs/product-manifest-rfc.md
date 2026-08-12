@@ -2,7 +2,7 @@
 
 ## 状态
 
-`Draft / additive / verification-only`
+`M1 active / additive / first generated leaf`
 
 当前文件：`resources/product-manifest.v1.json`。
 
@@ -30,10 +30,11 @@
 ## 迁移阶段
 
 1. **Additive contract**：manifest + verifier，只检测 drift。
-2. **Tests consume manifest**：测试不再重复版本和 Provider 常量。
-3. **Generate leaf artifacts**：生成 identity module 和 provider registry。
-4. **Runtime consumption**：state/auth/provider/bootstrap 使用 generated constants。
-5. **Installer template**：只在生命周期测试证明 byte-equivalent 后迁移嵌入状态逻辑。
+2. **Generated identity leaf**：`scripts/product-identity.generated.mjs` 已由 manifest 确定性生成，runtime identity 保持兼容 exports。
+3. **Tests consume manifest**：测试不再重复版本和 Provider 常量。
+4. **Generate leaf artifacts**：继续生成 provider registry。
+5. **Runtime consumption**：state/auth/provider/bootstrap 使用 generated constants。
+6. **Installer template**：只在生命周期测试证明 byte-equivalent 后迁移嵌入状态逻辑。
 
 ## 当前门禁
 

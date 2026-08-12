@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PRODUCT_COMMAND, PRODUCT_CONFIG_DIR, PRODUCT_NAME, PRODUCT_VERSION, UPSTREAM_PACKAGE, UPSTREAM_VERSION } from "./product-identity.generated.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const fail = (code, details = {}) => { const error = new Error(code); error.code = code; error.details = details; throw error; };
@@ -18,16 +19,16 @@ export function verifyPatchInventory(source, inventory) {
 }
 
 export async function verifyArchitectureContracts() {
-  const [manifest, inventory, matrix, baseline, pkg, lock, vscode, registry, seeds, patcher, bootstrap, installer, identity] = await Promise.all([
+  const [manifest, inventory, matrix, baseline, pkg, lock, vscode, registry, seeds, patcher, bootstrap, installer] = await Promise.all([
     readJson("resources/product-manifest.v1.json"), readJson("resources/patch-inventory.v1.json"), readJson("resources/capability-matrix.v1.json"), readJson("resources/upstream-baseline.v1.json"),
     readJson("package.json"), readJson("package-lock.json"), readJson("vscode/package.json"), readJson("resources/provider-registry.v1.json"), readJson("resources/provider-model-seeds.v1.json"),
-    readFile(join(root, "scripts/apply-coco-identity-patch.mjs"), "utf8"), readFile(join(root, "scripts/bootstrap-state.mjs"), "utf8"), readFile(join(root, "install.sh"), "utf8"), readFile(join(root, "scripts/coco-runtime-identity.mjs"), "utf8"),
+    readFile(join(root, "scripts/apply-coco-identity-patch.mjs"), "utf8"), readFile(join(root, "scripts/bootstrap-state.mjs"), "utf8"), readFile(join(root, "install.sh"), "utf8"),
   ]);
   if (manifest.schemaVersion !== 1 || inventory.schemaVersion !== 1 || matrix.schemaVersion !== 1 || baseline.schemaVersion !== 1) fail("ARCHITECTURE_SCHEMA_INVALID");
 
   const version = manifest.product.version;
   for (const [name, actual] of [["package", pkg.version], ["lock", lock.version], ["lock-root", lock.packages?.[""]?.version], ["vscode", vscode.version], ["matrix", matrix.version]]) if (actual !== version) fail("PRODUCT_VERSION_DRIFT", { actual, name, version });
-  includes(identity, `COCO_VERSION = "${version}"`, "RUNTIME_VERSION_DRIFT");
+  if (PRODUCT_COMMAND !== manifest.product.command || PRODUCT_CONFIG_DIR !== manifest.product.configDir || PRODUCT_NAME !== manifest.product.name || PRODUCT_VERSION !== version || UPSTREAM_PACKAGE !== manifest.upstream.package || UPSTREAM_VERSION !== manifest.upstream.version) fail("GENERATED_IDENTITY_DRIFT");
   includes(installer, `COCO_VERSION="\${COCO_VERSION:-${version}}"`, "INSTALLER_VERSION_DRIFT");
 
   const upstream = manifest.upstream;

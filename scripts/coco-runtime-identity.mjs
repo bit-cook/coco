@@ -2,10 +2,11 @@ import { lstat, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { realpath } from "node:fs/promises";
+import { PRODUCT_COMMAND, PRODUCT_CONFIG_DIR, PRODUCT_NAME, PRODUCT_VERSION, UPSTREAM_PACKAGE, UPSTREAM_VERSION } from "./product-identity.generated.mjs";
 
-export const CORE_NAME = "@earendil-works/pi-coding-agent";
-export const CORE_VERSION = "0.82.1";
-export const COCO_VERSION = "0.5.2";
+export const CORE_NAME = UPSTREAM_PACKAGE;
+export const CORE_VERSION = UPSTREAM_VERSION;
+export const COCO_VERSION = PRODUCT_VERSION;
 
 function rejected(code) { return { code, status: "rejected" }; }
 
@@ -27,7 +28,7 @@ export async function resolveCocoRuntime({ root }) {
     const coco = await packageJson(join(canonicalRoot, "package.json"));
     const piRoot = join(canonicalRoot, "node_modules", ...CORE_NAME.split("/"));
     const pi = await packageJson(join(piRoot, "package.json"));
-    if (coco.name !== "coco" || coco.version !== COCO_VERSION || coco.piConfig?.name !== "coco" || coco.piConfig?.configDir !== ".coco") return rejected("RUNTIME_COCO_IDENTITY_INVALID");
+    if (coco.name !== PRODUCT_NAME || coco.version !== PRODUCT_VERSION || coco.piConfig?.name !== PRODUCT_COMMAND || coco.piConfig?.configDir !== PRODUCT_CONFIG_DIR) return rejected("RUNTIME_COCO_IDENTITY_INVALID");
     if (coco.dependencies?.[CORE_NAME] !== CORE_VERSION || pi.name !== CORE_NAME || pi.version !== CORE_VERSION) return rejected("RUNTIME_CORE_VERSION_MISMATCH");
     const cli = join(piRoot, "dist", "cli.js");
     const cliInfo = await lstat(cli);
@@ -35,11 +36,11 @@ export async function resolveCocoRuntime({ root }) {
     return {
       identity: {
         agentEnv: "COCO_CODING_AGENT_DIR",
-        appName: "coco",
-        configDir: ".coco",
-        packageName: "coco",
+        appName: PRODUCT_COMMAND,
+        configDir: PRODUCT_CONFIG_DIR,
+        packageName: PRODUCT_NAME,
         sessionEnv: "COCO_CODING_AGENT_SESSION_DIR",
-        version: COCO_VERSION,
+        version: PRODUCT_VERSION,
       },
       piCli: cli,
       piRoot,
@@ -53,7 +54,7 @@ export async function resolveCocoRuntime({ root }) {
 }
 
 export function cocoStatePaths(env = process.env) {
-  const agentDir = env.COCO_CODING_AGENT_DIR || join(env.HOME || homedir(), ".coco", "agent");
+  const agentDir = env.COCO_CODING_AGENT_DIR || join(env.HOME || homedir(), PRODUCT_CONFIG_DIR, "agent");
   return { agentDir, sessionsDir: env.COCO_CODING_AGENT_SESSION_DIR || join(agentDir, "sessions") };
 }
 
