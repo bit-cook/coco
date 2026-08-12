@@ -1,6 +1,11 @@
 # CoCo 文档
 
 - [任务、Agent 与控制后台](tasks.md) - 后台任务、活跃 Agent、工作树、触发器、MCP、控制后台、远程控制和 VS Code。
+- [2026-2027 战略路线图](strategy-roadmap-2026.md) - 最新战略、MiMo-Code 研究和命名里程碑。
+- [Artifact Patch 清单](patch-inventory.md) - 当前 patch 域、风险、冻结规则和移除目标。
+- [能力矩阵](capability-matrix.md) - Production、contract、experimental、platform-limited 和 planned 边界。
+- [Product Manifest RFC](product-manifest-rfc.md) - 产品元数据单一事实源迁移方案。
+- [Pi Upstream Dashboard](upstream-dashboard.md) - 当前 baseline、release lag 和离线/在线检查规则。
 
 ## CoCo 操作文档
 

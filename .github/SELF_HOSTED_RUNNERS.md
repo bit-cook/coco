@@ -16,3 +16,12 @@ CoCo uses a dedicated self-hosted runner for GitHub Pages because the GitHub-hos
 Prefer the dedicated self-hosted path for Pages and other explicitly approved local publication jobs. Do not wait on GitHub-hosted runners when the same deterministic job can run on an online, dedicated CoCo runner.
 
 Runner registration tokens are short-lived operational secrets. They must never be committed, logged in reports, or stored in repository configuration.
+
+## CI runner
+
+- Required labels: `self-hosted`, `Linux`, `X64`, `coco-ci`.
+- Scope: CI verification and integrity jobs only.
+- High-load jobs run serially on one dedicated runner.
+- Fork pull requests must never execute on a self-hosted runner. They require maintainer review and a controlled branch run.
+- `TMPDIR` and `COCO_SCANNER_TMPDIR` must use `/root/coco-tmp`; the shared `/tmp` tmpfs is not suitable for package extraction or integrity tests.
+- Release publication remains on a separately reviewed runner boundary.
