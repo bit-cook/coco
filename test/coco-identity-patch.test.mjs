@@ -295,6 +295,8 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.match(interactive, /fetchCustomProviderModels/);
     assert.match(interactive, /saveCustomProvider/);
     assert.match(interactive, /Select a model \/ 选择模型/);
+    assert.match(interactive, /const availableModels = await this\.session\.modelRuntime\.getAvailable\(\);/);
+    assert.match(interactive, /await this\.session\.setModel\(selectedModel\);/);
     assert.match(extensionInput, /opts\?\.secret/);
     assert.match(extensionInput, /"\*"\.repeat\(value\.length\)/);
     assert.match(interactive, /invalidate\(\)/);

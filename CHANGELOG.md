@@ -5292,3 +5292,7 @@ Initial public release.
 ## 0.3.11
 
 - Persist the legacy-dark-to-orange migration in the installer initialization path.
+
+## 0.3.12
+
+- Immediately activate the selected Custom API provider/model in the current session after setup.

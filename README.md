@@ -19,8 +19,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 Or install an explicitly reviewed release:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.3.11/install.sh
-COCO_VERSION=0.3.11 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.3.12/install.sh
+COCO_VERSION=0.3.12 bash install.sh
 ```
 
 The installer verifies the exact-tag release tarball and the pinned public Agnes credential against their published SHA-256 values, safely extracts CoCo, and preserves existing `~/.coco/agent` configuration during updates and reinstalls.
