@@ -6,8 +6,9 @@ import { canonicalJson } from "./canonical-json.mjs";
 import { ownedProviderPointers, ownedSettingsPointers, parseStrictJson, StateError, validateOwnership } from "./state-schema.mjs";
 import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
+import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
 
-const PROVIDERS = ["idepub", "achai", "agnes", "deepseek", "stepfun"];
+const PROVIDERS = MANAGED_PROVIDER_IDS.includes("idepub") ? ["idepub", ...MANAGED_PROVIDER_IDS.filter((provider) => provider !== "idepub")] : [...MANAGED_PROVIDER_IDS];
 const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, lastChangelogVersion: "0.5.2", theme: "coco-orange-light/coco-orange" };
 
 function hash(bytes) { return createHash("sha256").update(bytes).digest("hex"); }

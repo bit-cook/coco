@@ -4,8 +4,9 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 import { COCO_VERSION, CORE_VERSION } from "./coco-runtime-identity.mjs";
+import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
 
-const MANAGED_PROVIDERS = new Set(["idepub", "achai", "agnes", "deepseek", "stepfun"]);
+const MANAGED_PROVIDERS = new Set(MANAGED_PROVIDER_IDS);
 const NATIVE_COMMANDS = new Set(["manage", "doctor", "core", "task", "runner", "control", "mcp"]);
 
 function help() {

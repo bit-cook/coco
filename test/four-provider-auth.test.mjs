@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -67,6 +67,9 @@ test("Given a fresh agent directory, when CoCo bootstraps public provider state,
     assert.deepEqual(Object.keys(models.providers).sort(), providers.map(([provider]) => provider).sort());
     assert.equal(JSON.stringify(models).includes("apiKey"), false);
     assert.deepEqual(Object.fromEntries(Object.entries(models.providers).map(([provider, model]) => [provider, model.baseUrl])), Object.fromEntries(Object.entries(publicEndpoints).map(([provider, endpoint]) => [provider, endpoint.baseUrl])));
+    const ownership = JSON.parse(await readFile(join(agentDir, "ownership.json"), "utf8"));
+    const providerOrder = ownership.managedFiles["models.json"].ownedJsonPointers.filter((pointer) => pointer.endsWith("/baseUrl")).map((pointer) => pointer.split("/")[2]);
+    assert.deepEqual(providerOrder, ["idepub", "achai", "agnes", "deepseek", "stepfun"]);
   } finally {
     await rm(root, { force: true, recursive: true });
   }
@@ -115,4 +118,22 @@ test("Given legacy official DeepSeek credentials, when state migrates, then the 
   } finally {
     await rm(root, { force: true, recursive: true });
   }
+});
+
+test("Given all legacy managed credentials, when state migrates, then persisted compatibility order remains stable", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coco-provider-order-"));
+  const agentDir = join(root, "agent");
+  const legacyOrder = ["idepub", "achai", "agnes", "deepseek", "stepfun"];
+  try {
+    await mkdir(agentDir, { recursive: true, mode: 0o700 });
+    await writeFile(join(agentDir, "models.json"), JSON.stringify({ providers: Object.fromEntries(legacyOrder.map((provider) => [provider, { apiKey: `${provider}-legacy` }])) }));
+    const result = await migrateState({ agentDir });
+    assert.deepEqual(result.rotationRequired, [...legacyOrder].sort());
+    const [backupName] = await readdir(join(agentDir, "backups"));
+    const backup = JSON.parse(await readFile(join(agentDir, "backups", backupName), "utf8"));
+    assert.deepEqual(backup.migratedProviders, legacyOrder);
+    const ownership = JSON.parse(await readFile(join(agentDir, "ownership.json"), "utf8"));
+    const providerOrder = ownership.managedFiles["models.json"].ownedJsonPointers.filter((pointer) => pointer.endsWith("/baseUrl")).map((pointer) => pointer.split("/")[2]);
+    assert.deepEqual(providerOrder, legacyOrder);
+  } finally { await rm(root, { force: true, recursive: true }); }
 });
