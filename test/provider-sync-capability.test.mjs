@@ -95,7 +95,7 @@ test("Given the official DeepSeek fixture response, when provider sync normalize
   try {
     process.env.NODE_ENV = "test";
     await writeFile(join(agentDir, "auth.json"), JSON.stringify({ deepseek: { key: "deepseek-fixture-key", type: "api_key" } }));
-    await syncProviderModelsForTest({ agentDir, capability, origin: `http://127.0.0.1:${address.port}`, provider: "deepseek", root });
+    const result = await syncProviderModelsForTest({ agentDir, capability, origin: `http://127.0.0.1:${address.port}`, provider: "deepseek", root });
     const models = JSON.parse(await readFile(join(agentDir, "models.json"), "utf8"));
     assert.deepEqual(models.providers.deepseek.models, [
       { compat: { requiresReasoningContentOnAssistantMessages: true, supportsDeveloperRole: false, supportsStore: false, thinkingFormat: "deepseek" }, contextWindow: 1000000, cost: { cacheRead: 0.0028, cacheWrite: 0, input: 0.14, output: 0.28 }, id: "deepseek-v4-flash", input: ["text"], maxTokens: 384000, name: "DeepSeek V4 Flash", reasoning: true, thinkingLevelMap: { high: "high", low: null, max: "max", medium: null, minimal: null } },
@@ -104,10 +104,49 @@ test("Given the official DeepSeek fixture response, when provider sync normalize
     assert.deepEqual(models.providers.deepseek.compat, { supportsDeveloperRole: false, supportsReasoningEffort: true });
     assert.equal(models.providers.achai, undefined);
     assert.deepEqual(requests, [{ authorization: "Bearer deepseek-fixture-key", path: "/models" }]);
+    assert.equal(result.status, "applied");
+    assert.equal(result.modelCount, 2);
+    assert.equal(result.providers[0].provider, "deepseek");
+    assert.equal(result.providers[0].modelCount, 2);
+    assert.match(result.providers[0].catalogSha256, /^[a-f0-9]{64}$/);
+    assert.deepEqual(result.providers[0].readiness, { catalog: { status: "synced" }, configuration: { status: "configured" }, credential: { rotationRequired: false, source: "auth", status: "available" }, localStatus: "ready", model: { id: null, status: "available" }, provider: "deepseek", schemaVersion: 1, verification: { scope: "models-endpoint", status: "verified" } });
   } finally {
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previousNodeEnv;
     await new Promise((resolve) => server.close(resolve));
     await rm(agentDir, { force: true, recursive: true });
+  }
+});
+
+test("Given successful catalog syncs, readiness preserves credential, rotation, and empty-model boundaries", async () => {
+  const directories = await Promise.all(["public", "rotation", "empty"].map((name) => mkdtemp(join(tmpdir(), `coco-sync-${name}-`))));
+  const capability = createProviderSyncTestCapability(root);
+  const previousNodeEnv = process.env.NODE_ENV;
+  let responseModels = [{ id: "public-model" }];
+  const requests = [];
+  const server = createServer((request, response) => { requests.push(request.headers.authorization ?? null); response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ data: responseModels })); });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address(); if (address === null || typeof address === "string") throw new Error("TEST_SERVER_INVALID");
+  const origin = `http://127.0.0.1:${address.port}`;
+  try {
+    process.env.NODE_ENV = "test";
+    const publicResult = await syncProviderModelsForTest({ agentDir: directories[0], capability, origin, provider: "idepub", root });
+    assert.equal(publicResult.providers[0].readiness.localStatus, "credential-missing");
+    assert.deepEqual(publicResult.providers[0].readiness.verification, { scope: "models-endpoint", status: "verified" });
+    await writeFile(join(directories[1], "auth.json"), JSON.stringify({ idepub: { key: "rotating", type: "api_key" } }));
+    await writeFile(join(directories[1], "migration.json"), JSON.stringify({ rotationRequired: ["idepub"], schemaVersion: 1 }));
+    const rotationResult = await syncProviderModelsForTest({ agentDir: directories[1], capability, origin, provider: "idepub", root });
+    assert.equal(rotationResult.providers[0].readiness.localStatus, "rotation-required");
+    assert.equal(rotationResult.providers[0].readiness.credential.rotationRequired, true);
+    responseModels = [];
+    await writeFile(join(directories[2], "auth.json"), JSON.stringify({ idepub: { key: "empty", type: "api_key" } }));
+    const emptyResult = await syncProviderModelsForTest({ agentDir: directories[2], allowEmpty: true, capability, origin, provider: "idepub", root });
+    assert.equal(emptyResult.modelCount, 0);
+    assert.equal(emptyResult.providers[0].readiness.localStatus, "model-missing");
+    assert.deepEqual(requests, [null, "Bearer rotating", "Bearer empty"]);
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previousNodeEnv;
+    await new Promise((resolve) => server.close(resolve));
+    await Promise.all(directories.map((directory) => rm(directory, { force: true, recursive: true })));
   }
 });
 

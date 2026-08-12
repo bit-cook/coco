@@ -10,6 +10,8 @@ import { StateError, ownedProviderPointers, parseStrictJson, resolveCredential, 
 import { inspectRegular, statePaths } from "./state-paths.mjs";
 import { applyStateTransaction } from "./state-transaction.mjs";
 import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
+import { projectProviderReadiness } from "./provider-readiness.mjs";
+import { rotationProviders } from "./auth-management.mjs";
 
 export const PROVIDER_REGISTRY_SHA256 = "1ca4283d560af09b9301de2e260fc8b9a73587a71110822a8bc214409cf30da1";
 export const PROVIDER_TRANSFORMATIONS_SHA256 = "f79110eab47af63e59309af68a9bc28a8b6ba24f2cabb32b0e6a44f3d968014c";
@@ -113,15 +115,17 @@ export async function syncModels({ agentDir, allowEmpty = false, fetchCatalog, p
   if (!object(currentModels) || !object(currentModels.providers)) fail("MODELS_SCHEMA_INVALID");
   const auth = await optionalJson(paths.auth, "AUTH_SCHEMA_INVALID", {});
   validateAuth(auth);
+  const rotation = new Set(await rotationProviders(agentDir));
   // Provider catalogues are independent network reads. Promise.all preserves
   // the sorted input order, so transaction output remains deterministic.
   const prepared = await Promise.all(ids.map(async (provider) => {
     const entry = registry.providers[provider];
-    const fetched = await fetchCatalog({ authorization: resolveCredential({ auth, legacyModels: currentModels, provider }).key, entry, provider });
+    const credential = resolveCredential({ auth, legacyModels: currentModels, provider });
+    const fetched = await fetchCatalog({ authorization: credential.key, entry, provider });
     const models = normalizeModels({ provider, response: fetched.response, transformations });
     if (!allowEmpty && models.length === 0) fail("EMPTY_CATALOG_REJECTED");
     const metadata = { catalogSha256: catalogSha256(provider, models), fetchedAtUtc: new Date().toISOString(), modelCount: models.length, providerId: provider, registryVersion: 1, responseSha256: sha256(fetched.bytes), schemaVersion: 1 };
-    return { entry, metadata, models, provider };
+    return { credentialSource: credential.source, entry, metadata, models, provider, rotationRequired: rotation.has(provider) };
   }));
   await applySyncTransaction({ agentDir, operations: async () => {
     const latestModels = await optionalJson(paths.models, "MODELS_SCHEMA_INVALID", { providers: {} });
@@ -145,7 +149,7 @@ export async function syncModels({ agentDir, allowEmpty = false, fetchCatalog, p
     operations.push({ bytes: canonicalJson(nextModels), path: paths.models }, { bytes: canonicalJson(ownershipNext(latestOwnership, ids)), path: paths.ownership });
     return operations;
   } });
-  return { modelCount: prepared.reduce((count, item) => count + item.models.length, 0), providers: prepared.map((item) => ({ catalogSha256: item.metadata.catalogSha256, modelCount: item.models.length, provider: item.provider })), status: "applied" };
+  return { modelCount: prepared.reduce((count, item) => count + item.models.length, 0), providers: prepared.map((item) => ({ catalogSha256: item.metadata.catalogSha256, modelCount: item.models.length, provider: item.provider, readiness: projectProviderReadiness({ catalogStatus: "synced", configurationStatus: "configured", credentialSource: item.credentialSource, credentialStatus: item.credentialSource === "none" ? "missing" : "available", modelStatus: item.models.length === 0 ? "missing" : "available", provider: item.provider, rotationRequired: item.rotationRequired, verificationScope: "models-endpoint", verificationStatus: "verified" }) })), status: "applied" };
 }
 
 export async function syncProviderModels({ agentDir, allowEmpty = false, providerIds = MANAGED_PROVIDER_IDS, root }) {

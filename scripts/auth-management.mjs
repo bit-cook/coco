@@ -35,7 +35,7 @@ async function existingAuth(agentDir) {
   return validateAuth(parseStrictJson(await readFile(path), "AUTH_SCHEMA_INVALID"));
 }
 
-async function rotationProviders(agentDir) {
+export async function rotationProviders(agentDir) {
   const path = `${agentDir}/migration.json`;
   if (await inspectRegular(path) === null) return [];
   const document = parseStrictJson(await readFile(path), "MIGRATION_SCHEMA_INVALID");
