@@ -69,6 +69,7 @@ async function fixture() {
   await mkdir(server);
   await writeFile(join(packageRoot, "bin", "coco"), "#!/usr/bin/env bash\nif [ \"$1\" = \"--version\" ]; then exit 0; fi\n");
   await writeFile(join(packageRoot, "resources", "provider-registry.v1.json"), JSON.stringify({ providers: Object.fromEntries(Object.entries(publicBaseUrls).map(([provider, baseUrl]) => [provider, { api: "openai-completions", authHeader: true, baseUrl, compat: provider === "deepseek" ? { supportsDeveloperRole: false, supportsReasoningEffort: true } : {} }])), schemaVersion: 1 }));
+  await writeFile(join(packageRoot, "resources", "provider-model-seeds.v1.json"), await readFile(join(cocoRoot, "resources", "provider-model-seeds.v1.json")));
   await writeFile(join(packageRoot, "resources", "append-system-v1.md"), "CoCo managed prompt.\n");
   await chmod(join(packageRoot, "bin", "coco"), 0o755);
   await exec("tar", ["-czf", tarball, "package"], { cwd: root });

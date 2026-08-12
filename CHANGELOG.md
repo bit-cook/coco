@@ -5328,3 +5328,8 @@ Initial public release.
 ## 0.5.1
 
 - Preserve the paired orange light/dark theme through the final installer state write and migrate only unowned legacy defaults.
+
+## 0.5.2
+
+- Seed managed provider models from one shared catalog so `manage bootstrap`, installer setup, model listing, and explicit idepub selection stay consistent.
+- Stop forcing an Agnes-only model cycle that produced a false warning when using an explicitly selected idepub model.

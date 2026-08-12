@@ -8,7 +8,7 @@ import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
 
 const PROVIDERS = ["idepub", "achai", "agnes", "deepseek", "stepfun"];
-const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, enabledModels: ["agnes/agnes-2.5-flash"], lastChangelogVersion: "0.5.1", theme: "coco-orange-light/coco-orange" };
+const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, lastChangelogVersion: "0.5.2", theme: "coco-orange-light/coco-orange" };
 
 function hash(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
@@ -23,6 +23,16 @@ function registryDocument(value) {
     if (!object(entry) || typeof entry.baseUrl !== "string" || typeof entry.api !== "string" || entry.authHeader !== true || !object(entry.compat)) throw new StateError("REGISTRY_SCHEMA_INVALID");
   }
   return value;
+}
+
+function seedDocument(value) {
+  if (!object(value) || value.schemaVersion !== 1 || !object(value.providers)) throw new StateError("MODEL_SEEDS_INVALID");
+  for (const provider of PROVIDERS) if (!Array.isArray(value.providers[provider]) || value.providers[provider].some((model) => !object(model) || typeof model.id !== "string" || typeof model.name !== "string")) throw new StateError("MODEL_SEEDS_INVALID");
+  return value;
+}
+
+function seededModels(models) {
+  return models.map((model) => ({ contextWindow: 128000, cost: { cacheRead: 0, cacheWrite: 0, input: 0, output: 0 }, input: ["text"], maxTokens: 16384, reasoning: false, ...structuredClone(model) }));
 }
 
 function mergeSettings(existing, ownership) {
@@ -40,12 +50,12 @@ function mergeSettings(existing, ownership) {
   return { created, skipped, value };
 }
 
-function mergeModels(existing, registry) {
+function mergeModels(existing, registry, seeds) {
   const value = structuredClone(existing ?? { providers: {} }); const created = []; const skipped = [];
   for (const provider of PROVIDERS) {
     const source = registry.providers[provider]; const current = value.providers[provider];
     if (current === undefined) {
-      value.providers[provider] = { api: source.api, authHeader: true, baseUrl: source.baseUrl, compat: structuredClone(source.compat), models: [] };
+      value.providers[provider] = { api: source.api, authHeader: true, baseUrl: source.baseUrl, compat: structuredClone(source.compat), models: seededModels(seeds.providers[provider]) };
       created.push(...ownedProviderPointers(provider)); continue;
     }
     if (!object(current)) { skipped.push(`/providers/${provider}`); continue; }
@@ -53,7 +63,7 @@ function mergeModels(existing, registry) {
       skipped.push(`/providers/${provider}`); continue;
     }
     for (const field of ["baseUrl", "api", "authHeader", "compat", "models"]) {
-      if (!(field in current)) { current[field] = field === "models" ? [] : structuredClone(source[field]); created.push(`/providers/${provider}/${field}`); }
+      if (!(field in current)) { current[field] = field === "models" ? seededModels(seeds.providers[provider]) : structuredClone(source[field]); created.push(`/providers/${provider}/${field}`); }
     }
   }
   return { created, skipped, value };
@@ -84,10 +94,11 @@ export async function bootstrapState({ agentDir, dryRun = false, root }) {
   if (!dryRun) { await ensureAgentDirectory(agentDir); await recoverTransactions(agentDir); }
   const paths = statePaths(agentDir);
   const registry = registryDocument(parseStrictJson(await readFile(join(root, "resources", "provider-registry.v1.json")), "REGISTRY_SCHEMA_INVALID"));
+  const seeds = seedDocument(parseStrictJson(await readFile(join(root, "resources", "provider-model-seeds.v1.json")), "MODEL_SEEDS_INVALID"));
   const settings = await existingJson(paths.settings, "SETTINGS_SCHEMA_INVALID", settingsDocument);
   const models = await existingJson(paths.models, "MODELS_SCHEMA_INVALID", modelsDocument);
   const ownership = await existingJson(paths.ownership, "OWNERSHIP_SCHEMA_INVALID", validateOwnership);
-  const settingPlan = mergeSettings(settings, ownership); const modelPlan = mergeModels(models, registry); const prompt = await promptPlan(agentDir, root, ownership);
+  const settingPlan = mergeSettings(settings, ownership); const modelPlan = mergeModels(models, registry, seeds); const prompt = await promptPlan(agentDir, root, ownership);
   const ownershipNext = ownershipDocument(ownership, settingPlan.created, modelPlan.created, prompt);
   const ownershipChanged = JSON.stringify(ownershipNext) !== JSON.stringify(ownership ?? null);
   const created = [...prompt.created, ...(modelPlan.created.length > 0 ? ["models.json"] : []), ...(settingPlan.created.length > 0 ? ["settings.json"] : []), ...(ownershipChanged ? ["ownership.json"] : [])];

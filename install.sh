@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.5.1}"
+COCO_VERSION="${COCO_VERSION:-0.5.2}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/bit-cook/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key"
@@ -308,10 +308,11 @@ NODE
   if [ "${COCO_INSTALL_TEST_MODE:-0}" = "1" ]; then
     return
   fi
-  "$NODE_BIN" - "$COCO_AGENT_DIR" "$COCO_INSTALL_DIR/resources/provider-registry.v1.json" "$agnes_key_path" "$CREATED_MODELS" <<'NODE'
+  "$NODE_BIN" - "$COCO_AGENT_DIR" "$COCO_INSTALL_DIR/resources/provider-registry.v1.json" "$COCO_INSTALL_DIR/resources/provider-model-seeds.v1.json" "$agnes_key_path" "$CREATED_MODELS" <<'NODE'
 const fs = require("fs");
-const [agentDir, registryPath, , createdModels] = process.argv.slice(2);
+const [agentDir, registryPath, seedsPath, , createdModels] = process.argv.slice(2);
 const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+const seeds = JSON.parse(fs.readFileSync(seedsPath, "utf8"));
 const modelsPath = `${agentDir}/models.json`;
 const settingsPath = `${agentDir}/settings.json`;
 const agnes = registry.providers.agnes;
@@ -389,6 +390,8 @@ models.providers.stepfun = {
     { id: "step-3.5-flash", name: "Step 3.5 Flash", reasoning: true, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 }
   ]
 };
+const seeded = (model) => ({ contextWindow: 128000, maxTokens: 16384, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, reasoning: false, ...model });
+for (const [provider, providerModels] of Object.entries(seeds.providers)) models.providers[provider].models = providerModels.map(seeded);
 fs.writeFileSync(modelsPath, JSON.stringify(models) + "\n", { mode: 0o600 });
 }
 const settingsExisted = fs.existsSync(settingsPath);

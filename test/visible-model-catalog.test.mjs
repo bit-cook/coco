@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -8,6 +8,7 @@ import { listModels } from "../node_modules/@earendil-works/pi-coding-agent/dist
 import { ModelRuntime } from "../node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.js";
 import { stream } from "../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/api/openai-completions.js";
 import { clampThinkingLevel, getSupportedThinkingLevels } from "../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/models.js";
+import { bootstrapState } from "../scripts/bootstrap-state.mjs";
 
 const declaredModel = {
   contextWindow: 128000,
@@ -18,6 +19,21 @@ const declaredModel = {
   name: "GPT-5.6",
   reasoning: false,
 };
+
+test("managed bootstrap seeds stable idepub and default models without forcing an Agnes-only cycle", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "coco-seeded-models-"));
+  await chmod(directory, 0o700);
+  try {
+    await bootstrapState({ agentDir: directory, root: new URL("..", import.meta.url).pathname });
+    const models = JSON.parse(await readFile(join(directory, "models.json"), "utf8"));
+    const settings = JSON.parse(await readFile(join(directory, "settings.json"), "utf8"));
+    assert.deepEqual(models.providers.idepub.models.map((model) => model.id), ["gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]);
+    assert.deepEqual(models.providers.agnes.models.map((model) => model.id), ["agnes-2.5-flash"]);
+    assert.equal("enabledModels" in settings, false);
+  } finally {
+    await rm(directory, { force: true, recursive: true });
+  }
+});
 
 test("Given an unauthenticated explicitly declared model, when the runtime projects visible models, then it remains visible but unavailable", async () => {
   const directory = await mkdtemp(join(tmpdir(), "coco-visible-models-"));

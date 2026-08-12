@@ -24,7 +24,7 @@ async function main() {
     const models = JSON.parse(await readFile(join(agent, "models.json"), "utf8"));
     const ownership = JSON.parse(await readFile(join(agent, "ownership.json"), "utf8"));
     const guidance = await readFile(join(root, "resources", "append-system-v1.md"));
-    cases.push(result("empty-state-creates-owned-defaults", true, applied.status === "applied" && settings.defaultProvider === "agnes" && settings.defaultModel === "agnes-2.5-flash" && settings.defaultThinkingLevel === "max" && models.providers.idepub.models.length === 0 && models.providers.achai.models.length === 0 && ownership.managedFiles["APPEND_SYSTEM.md"].sourceSha256 === digest(guidance)));
+    cases.push(result("empty-state-creates-owned-defaults", true, applied.status === "applied" && settings.defaultProvider === "agnes" && settings.defaultModel === "agnes-2.5-flash" && settings.defaultThinkingLevel === "max" && models.providers.idepub.models.some((model) => model.id === "gpt-5.6") && models.providers.agnes.models.some((model) => model.id === "agnes-2.5-flash") && ownership.managedFiles["APPEND_SYSTEM.md"].sourceSha256 === digest(guidance)));
     cases.push(result("owned-append-is-created-once", true, digest(guidance) === digest(await readFile(join(agent, "APPEND_SYSTEM.md"))) && (await bootstrapState({ agentDir: agent, root })).status === "noop"));
 
     const system = join(fixture, "system");
