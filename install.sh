@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.4.3}"
+COCO_VERSION="${COCO_VERSION:-0.4.4}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/bit-cook/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key"
@@ -122,10 +122,10 @@ download() {
   local filename="coco-${COCO_VERSION}.tgz" sidecar line expected actual
   TARBALL="${TMPDIR_install}/${filename}"; sidecar="${TARBALL}.sha256"
   if command -v curl >/dev/null 2>&1; then
-    curl -fSL --retry 3 --retry-delay 2 -o "$TARBALL" "${COCO_RELEASE_BASE}/${filename}?cache=${COCO_VERSION}"
-    curl -fSL --retry 3 --retry-delay 2 -o "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256?cache=${COCO_VERSION}"
+    curl -fSL --retry 3 --retry-delay 2 -o "$TARBALL" "${COCO_RELEASE_BASE}/${filename}?cache=${COCO_VERSION}-$$"
+    curl -fSL --retry 3 --retry-delay 2 -o "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256?cache=${COCO_VERSION}-$$"
   elif command -v wget >/dev/null 2>&1; then
-    wget -q --tries=3 -O "$TARBALL" "${COCO_RELEASE_BASE}/${filename}?cache=${COCO_VERSION}"; wget -q --tries=3 -O "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256?cache=${COCO_VERSION}"
+    wget -q --tries=3 -O "$TARBALL" "${COCO_RELEASE_BASE}/${filename}?cache=${COCO_VERSION}-$$"; wget -q --tries=3 -O "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256?cache=${COCO_VERSION}-$$"
   else die "Neither curl nor wget found. Install one and retry."; fi
   line="$(cat "$sidecar")"
   printf '%s\n' "$line" | grep -Eq "^[0-9a-fA-F]{64}  ${filename}$" || die "Invalid SHA-256 sidecar for ${filename}"

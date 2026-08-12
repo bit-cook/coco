@@ -5316,3 +5316,7 @@ Initial public release.
 ## 0.4.3
 
 - Add a versioned cache key to installer package and checksum URLs so stale GitHub CDN sidecars cannot block a valid release install.
+
+## 0.4.4
+
+- Make installer release cache keys unique per run so even a previously cached bad edge response cannot be reused.
