@@ -1,14 +1,34 @@
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import { readCredentialObservations } from "./auth-management.mjs";
+import { canonicalJson } from "./canonical-json.mjs";
 import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
 import { projectProviderReadiness } from "./provider-readiness.mjs";
+import { catalogPayload, catalogSha256 } from "./state-catalog.mjs";
 import { StateError, parseStrictJson } from "./state-schema.mjs";
 import { inspectRegular, statePaths } from "./state-paths.mjs";
 
 function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
 function fail(code) { throw new StateError(code); }
 async function optional(path, code, fallback) { if (await inspectRegular(path) === null) return fallback; return parseStrictJson(await readFile(path), code); }
+const modelId = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
+
+async function catalogStatus(paths, provider, configuredModels) {
+  try {
+    const modelsPath = join(paths.catalogs, provider, "current.models.json"); const metaPath = join(paths.catalogs, provider, "current.meta.json");
+    const [modelsInfo, metaInfo] = await Promise.all([inspectRegular(modelsPath), inspectRegular(metaPath)]);
+    if (modelsInfo === null && metaInfo === null) return "unknown";
+    if (modelsInfo === null || metaInfo === null) throw new Error("PARTIAL");
+    const [modelsBytes, metaBytes] = await Promise.all([readFile(modelsPath), readFile(metaPath)]);
+    const payload = parseStrictJson(modelsBytes, "CATALOG_EVIDENCE_INVALID"); const metadata = parseStrictJson(metaBytes, "CATALOG_EVIDENCE_INVALID");
+    if (modelsBytes.toString("utf8") !== canonicalJson(payload) || metaBytes.toString("utf8") !== canonicalJson(metadata) || !object(payload) || !object(metadata)) throw new Error("NONCANONICAL");
+    if (JSON.stringify(Object.keys(payload).sort()) !== JSON.stringify(["models", "providerId", "schemaVersion"]) || payload.schemaVersion !== 1 || payload.providerId !== provider || !Array.isArray(payload.models) || payload.models.some((model) => !object(model) || typeof model.id !== "string" || !modelId.test(model.id)) || canonicalJson(payload) !== canonicalJson(catalogPayload(provider, payload.models))) throw new Error("PAYLOAD");
+    const fields = ["catalogSha256", "fetchedAtUtc", "modelCount", "providerId", "registryVersion", "responseSha256", "schemaVersion"];
+    if (JSON.stringify(Object.keys(metadata).sort()) !== JSON.stringify(fields) || metadata.schemaVersion !== 1 || metadata.registryVersion !== 1 || metadata.providerId !== provider || !/^[a-f0-9]{64}$/.test(metadata.catalogSha256) || !/^[a-f0-9]{64}$/.test(metadata.responseSha256) || !Number.isInteger(metadata.modelCount) || metadata.modelCount < 0 || typeof metadata.fetchedAtUtc !== "string" || Number.isNaN(Date.parse(metadata.fetchedAtUtc)) || new Date(metadata.fetchedAtUtc).toISOString() !== metadata.fetchedAtUtc || metadata.modelCount !== payload.models.length || metadata.catalogSha256 !== catalogSha256(provider, payload.models)) throw new Error("METADATA");
+    return Array.isArray(configuredModels) && canonicalJson(configuredModels) === canonicalJson(payload.models) ? "synced" : "unknown";
+  } catch { throw new StateError("CATALOG_EVIDENCE_INVALID"); }
+}
 
 export async function providerStatus({ agentDir, provider } = {}) {
   if (provider !== undefined && !MANAGED_PROVIDER_IDS.includes(provider)) fail("PROVIDER_INVALID");
@@ -20,10 +40,11 @@ export async function providerStatus({ agentDir, provider } = {}) {
   const defaultProvider = typeof settings.defaultProvider === "string" ? settings.defaultProvider : null;
   const defaultModel = typeof settings.defaultModel === "string" ? settings.defaultModel : null;
   const ids = provider === undefined ? MANAGED_PROVIDER_IDS : [provider];
+  const catalogs = new Map(await Promise.all(ids.map(async (id) => [id, await catalogStatus(paths, id, models.providers[id]?.models)])));
   const providers = ids.map((id) => {
     const definition = models.providers[id]; const configured = object(definition); const isDefault = id === defaultProvider; const modelId = isDefault ? defaultModel : null;
     const available = configured && (modelId === null ? definition.models.length > 0 : definition.models.some((model) => model?.id === modelId)); const credential = credentials.get(id);
-    return projectProviderReadiness({ configurationStatus: configured ? "configured" : "missing", credentialSource: credential.source, credentialStatus: credential.status, modelId, modelStatus: available ? "available" : "missing", provider: id, rotationRequired: credential.rotationRequired });
+    return projectProviderReadiness({ catalogStatus: catalogs.get(id), configurationStatus: configured ? "configured" : "missing", credentialSource: credential.source, credentialStatus: credential.status, modelId, modelStatus: available ? "available" : "missing", provider: id, rotationRequired: credential.rotationRequired });
   });
   return { command: "manage providers status", defaultModel: { id: defaultModel, provider: defaultProvider }, providers, schemaVersion: 1, scope: provider === undefined ? "all-managed" : "provider" };
 }

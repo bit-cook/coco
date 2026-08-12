@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -7,8 +7,16 @@ import test from "node:test";
 import { bootstrapState } from "../scripts/bootstrap-state.mjs";
 import { dispatchCoco } from "../scripts/coco-dispatcher.mjs";
 import { formatProviderStatus, providerStatus } from "../scripts/provider-status.mjs";
+import { canonicalJson } from "../scripts/canonical-json.mjs";
+import { catalogPayload, catalogSha256 } from "../scripts/state-catalog.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
+
+async function writeCatalog(agentDir, provider, models, overrides = {}) {
+  const directory = join(agentDir, "catalogs", provider); await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, "current.models.json"), canonicalJson(catalogPayload(provider, models)));
+  await writeFile(join(directory, "current.meta.json"), canonicalJson({ catalogSha256: catalogSha256(provider, models), fetchedAtUtc: "2026-08-12T00:00:00.000Z", modelCount: models.length, providerId: provider, registryVersion: 1, responseSha256: "a".repeat(64), schemaVersion: 1, ...overrides }));
+}
 
 test("provider status observes fresh state in deterministic all-managed order without writing", async () => {
   const sandbox = await mkdtemp(join(tmpdir(), "coco-provider-status-")); const agentDir = join(sandbox, "agent");
@@ -54,6 +62,31 @@ test("provider status fails closed on malformed configured models", async () => 
     await assert.rejects(() => providerStatus({ agentDir }), (error) => error.code === "MODELS_SCHEMA_INVALID");
     await assert.rejects(lstat(join(agentDir, ".state.lock")), (error) => error.code === "ENOENT");
   } finally { await rm(sandbox, { force: true, recursive: true }); }
+});
+
+test("provider status reports synced only for complete matching catalog evidence", async () => {
+  const sandbox = await mkdtemp(join(tmpdir(), "coco-provider-catalog-")); const agentDir = join(sandbox, "agent");
+  try {
+    await bootstrapState({ agentDir, root }); const modelsPath = join(agentDir, "models.json"); const models = JSON.parse(await readFile(modelsPath, "utf8")); const idepub = catalogPayload("idepub", models.providers.idepub.models).models; models.providers.idepub.models = idepub; await writeFile(modelsPath, canonicalJson(models));
+    await writeCatalog(agentDir, "idepub", idepub);
+    assert.equal((await providerStatus({ agentDir, provider: "idepub" })).providers[0].catalog.status, "synced");
+    models.providers.idepub.models = [...idepub].reverse(); await writeFile(modelsPath, canonicalJson(models));
+    assert.equal((await providerStatus({ agentDir, provider: "idepub" })).providers[0].catalog.status, "unknown");
+  } finally { await rm(sandbox, { force: true, recursive: true }); }
+});
+
+test("provider status fails closed on partial, corrupt, or symlinked catalog evidence while preserving selected scope", async () => {
+  for (const fixture of ["partial", "hash", "symlink"]) {
+    const sandbox = await mkdtemp(join(tmpdir(), `coco-provider-catalog-${fixture}-`)); const agentDir = join(sandbox, "agent");
+    try {
+      await bootstrapState({ agentDir, root }); const models = JSON.parse(await readFile(join(agentDir, "models.json"), "utf8")); const idepub = models.providers.idepub.models; const directory = join(agentDir, "catalogs", "idepub");
+      if (fixture === "partial") { await mkdir(directory, { recursive: true }); await writeFile(join(directory, "current.models.json"), canonicalJson(catalogPayload("idepub", idepub))); }
+      if (fixture === "hash") await writeCatalog(agentDir, "idepub", idepub, { catalogSha256: "b".repeat(64) });
+      if (fixture === "symlink") { await writeCatalog(agentDir, "idepub", idepub); const target = join(sandbox, "outside.json"); await writeFile(target, canonicalJson(catalogPayload("idepub", idepub))); await rm(join(directory, "current.models.json")); await symlink(target, join(directory, "current.models.json")); }
+      assert.equal((await providerStatus({ agentDir, provider: "agnes" })).providers[0].catalog.status, "unknown");
+      await assert.rejects(() => providerStatus({ agentDir, provider: "idepub" }), (error) => error.code === "CATALOG_EVIDENCE_INVALID" && error.message === "CATALOG_EVIDENCE_INVALID");
+    } finally { await rm(sandbox, { force: true, recursive: true }); }
+  }
 });
 
 test("native provider status emits JSON and rejects malformed grammar", async () => {
