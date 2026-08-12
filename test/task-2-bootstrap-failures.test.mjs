@@ -45,7 +45,7 @@ async function waitForTermination(pid) {
       const stat = await readFile(`/proc/${pid}/stat`, "utf8");
       if (stat.slice(stat.lastIndexOf(") ") + 2).startsWith("Z ")) return true;
     } catch (error) {
-      if (error?.code === "ENOENT") return true;
+      if (error?.code === "ENOENT" || error?.code === "ESRCH") return true;
       throw error;
     }
     await new Promise((resolve) => setTimeout(resolve, 10));
