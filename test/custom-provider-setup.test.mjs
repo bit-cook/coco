@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { fetchCustomProviderModels, normalizeCustomBaseUrl, saveCustomProvider } from "../scripts/custom-provider-setup.mjs";
+import { ModelRuntime } from "../node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.js";
 
 test("custom provider setup fetches, sorts, and deduplicates OpenAI-compatible models", async () => {
   let request;
@@ -34,4 +35,15 @@ test("custom provider setup rejects unsafe or malformed endpoints", () => {
   for (const value of ["", "ftp://example.test/v1", "https://user:pass@example.test/v1", "https://example.test/v1?key=secret"]) {
     assert.throws(() => normalizeCustomBaseUrl(value), /CUSTOM_BASE_URL_INVALID/);
   }
+});
+
+test("custom provider setup refreshes an existing runtime before activating its model", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-custom-runtime-"));
+  const runtime = await ModelRuntime.create({ allowModelNetwork: false, authPath: join(agentDir, "auth.json"), modelsPath: join(agentDir, "models.json") });
+  const configured = await saveCustomProvider({ agentDir, baseUrl: "https://api.example.test/v1", key: "secret", modelId: "alpha" });
+  assert.equal(runtime.getModel(configured.providerId, configured.modelId), undefined);
+  await runtime.refresh({ allowNetwork: false });
+  await runtime.setRuntimeApiKey(configured.providerId, "secret", { allowNetwork: false });
+  assert.equal(runtime.getModel(configured.providerId, configured.modelId)?.id, "alpha");
+  assert.equal((await runtime.getAvailable(configured.providerId)).some((model) => model.id === "alpha"), true);
 });

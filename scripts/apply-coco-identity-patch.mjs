@@ -374,13 +374,13 @@ const patchedCustomProviderLogin = `    async startCustomProviderLogin() {
         try {
             this.showStatus("Querying available models / 正在查询可用模型...");
             const models = await fetchCustomProviderModels({ baseUrl, key });
-            const modelId = await this.showExtensionSelector("Select a model / 选择模型", models);
-            if (!modelId) return;
+             const modelId = await this.showExtensionSelector("Select a model / 选择模型", models);
+             if (!modelId) return;
              const configured = await saveCustomProvider({ agentDir: getAgentDir(), baseUrl, key, modelId });
-             await this.session.reload();
-             const availableModels = await this.session.modelRuntime.getAvailable();
-             const selectedModel = availableModels.find((model) => model.provider === configured.providerId && model.id === configured.modelId);
-             if (!selectedModel) throw new Error(\`Configured model \${configured.providerId}/\${configured.modelId} is not available after reload.\`);
+             await this.session.modelRuntime.refresh({ allowNetwork: false });
+             await this.session.modelRuntime.setRuntimeApiKey(configured.providerId, key, { allowNetwork: false });
+             const selectedModel = this.session.modelRuntime.getModel(configured.providerId, configured.modelId);
+             if (!selectedModel) throw new Error(\`Configured model \${configured.providerId}/\${configured.modelId} was not loaded.\`);
              await this.session.setModel(selectedModel);
              this.footer.invalidate();
              this.ui.requestRender();

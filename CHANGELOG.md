@@ -5296,3 +5296,7 @@ Initial public release.
 ## 0.3.12
 
 - Immediately activate the selected Custom API provider/model in the current session after setup.
+
+## 0.3.13
+
+- Refresh models.json and inject the saved key into the live ModelRuntime before activating a Custom API model.
