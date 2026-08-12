@@ -123,6 +123,7 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   assert.match(ciWorkflow, /COCO_SCANNER_TMPDIR: \/root\/coco-tmp/);
   assert.equal((ciWorkflow.match(/runs-on: \[self-hosted, Linux, X64, coco-ci\]/g) ?? []).length, 2);
   assert.equal((ciWorkflow.match(/if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository/g) ?? []).length, 2);
+  assert.match(ciWorkflow, /  integrity:\n    needs: verify/);
   for (const workflow of [ciWorkflow, pagesWorkflow]) assert.match(workflow, /timeout-minutes: 20/);
   assert.match(releaseWorkflow, /timeout-minutes: 40/);
   for (const workflow of [ciWorkflow, releaseWorkflow, pagesWorkflow]) assert.match(workflow, /actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09/);
