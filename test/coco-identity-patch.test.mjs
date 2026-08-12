@@ -166,6 +166,20 @@ const interactiveLoginSource = `function getLoginProviderCompletionOptions(provi
         }
         return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
     }
+    async startCustomProviderLogin(authType) {
+        const input = await this.showExtensionInput("Custom / 自定义", "Provider ID");
+        const providerRef = input?.trim().toLowerCase();
+        if (!providerRef) {
+            return;
+        }
+        const providerOption = this.getLoginProviderOptions(authType).find((provider) => provider.custom &&
+            (provider.id.toLowerCase() === providerRef || provider.name.toLowerCase() === providerRef));
+        if (!providerOption) {
+            this.showError(\`Custom provider "\${input.trim()}" is not configured for this authentication method. Add it to models.json or an extension first.\`);
+            return;
+        }
+        await this.startProviderLogin(providerOption);
+    }
     showLoginProviderSelector(authType, initialSearchInput) {
         const providerOptions = this.getLoginProviderOptions(authType);
         if (providerOptions.length === 0) return;
@@ -214,12 +228,13 @@ async function createFixture() {
   await writeFile(join(agent, "dist/utils/version-check.js"), identitySource);
   await writeFile(join(agent, "dist/modes/interactive/components/first-time-setup.js"), firstTimeSetupSource);
   await writeFile(join(agent, "dist/utils/tools-manager.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/utils/tools-manager.js"), "utf8"));
-  await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, ProcessTerminal, Spacer, setKeybindings, Text, TruncatedText, TUI, visibleWidth, } from "@earendil-works/pi-tui";\n${expandableTextSource}\n${identitySource}\n${headerSource}\n${quietHeaderSource}\n${startupExpansionSource}\n${resourceListingSource}\n${toolBootstrapSource}\n${compactExpansionHintSource}\n${startupPolicySource}`);
+  await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `import { CombinedAutocompleteProvider, Container, fuzzyFilter, getCapabilities, hyperlink, Markdown, matchesKey, ProcessTerminal, Spacer, setKeybindings, Text, TruncatedText, TUI, visibleWidth, } from "@earendil-works/pi-tui";\nimport { checkForNewPiVersion } from "../../utils/version-check.js";\n${expandableTextSource}\n${identitySource}\n${headerSource}\n${quietHeaderSource}\n${startupExpansionSource}\n${resourceListingSource}\n${toolBootstrapSource}\n${compactExpansionHintSource}\n${startupPolicySource}`);
   await writeFile(join(agent, "dist/core/model-runtime.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.js"), "utf8"));
   await writeFile(join(agent, "dist/core/model-runtime.d.ts"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.d.ts"), "utf8"));
   await writeFile(join(agent, "dist/cli/list-models.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/cli/list-models.js"), "utf8"));
   await writeFile(join(agent, "dist/modes/interactive/components/model-selector.js"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/model-selector.js"), "utf8"));
   await writeFile(join(agent, "dist/modes/interactive/components/model-selector.d.ts"), await readFile(join(repositoryRoot, "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/model-selector.d.ts"), "utf8"));
+  await writeFile(join(agent, "dist/modes/interactive/components/extension-input.js"), `import { Input } from "@earendil-works/pi-tui";\nclass ExtensionInput {\n    constructor(opts) {\n        this.input = new Input();\n        this.addChild(this.input);\n    }\n}`);
   await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `${await readFile(join(agent, "dist/modes/interactive/interactive-mode.js"), "utf8")}\n${interactiveModelSelectionSource}\n${interactiveLoginSource}`);
   await writeFile(join(tui, "dist/tui.js"), tuiSource);
   return root;
@@ -258,6 +273,7 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     const systemPrompt = await readPatched(root, "dist/core/system-prompt.js");
     const firstTimeSetup = await readPatched(root, "dist/modes/interactive/components/first-time-setup.js");
     const toolsManager = await readPatched(root, "dist/utils/tools-manager.js");
+    const extensionInput = await readPatched(root, "dist/modes/interactive/components/extension-input.js");
     const tui = await readPatched(root, "node_modules/@earendil-works/pi-tui/dist/tui.js");
     assert.match(interactive, /new ResponsiveStartupWordmark\(this\.getStartupExpansionState\(\), this\.version, compactInstructions, expandedInstructions\)/);
     assert.match(interactive, /class ResponsiveStartupWordmark/);
@@ -268,9 +284,14 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.match(interactive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange"/);
     assert.match(bundledInteractive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange"/);
     assert.match(interactive, /Number\(Boolean\(b\.custom\)\) - Number\(Boolean\(a\.custom\)\)/);
-    assert.match(interactive, /providerOptions\.unshift\(\{\s*id: "__coco_custom_provider__",\s*name: "Custom \/ 自定义"/);
+    assert.match(interactive, /if \(authType === "api_key"\) \{\s*providerOptions\.unshift\(\{\s*id: "__coco_custom_provider__",\s*name: "Custom \/ 自定义"/);
     assert.match(interactive, /if \(providerId === "__coco_custom_provider__"\) \{\s*await this\.startCustomProviderLogin\(selectedAuthType\);/);
-    assert.match(interactive, /provider\.custom &&/);
+    assert.match(interactive, /Custom provider Base URL \/ 自定义提供商地址/);
+    assert.match(interactive, /fetchCustomProviderModels/);
+    assert.match(interactive, /saveCustomProvider/);
+    assert.match(interactive, /Select a model \/ 选择模型/);
+    assert.match(extensionInput, /opts\?\.secret/);
+    assert.match(extensionInput, /"\*"\.repeat\(value\.length\)/);
     assert.match(interactive, /invalidate\(\)/);
     assert.match(interactive, /setExpanded\(expanded\)/);
     assert.match(interactive, /new ResponsiveStartupWordmark\(false/);

@@ -333,7 +333,7 @@ const patchedLoginProviderSelector = `    async startCustomProviderLogin(authTyp
     }
     showLoginProviderSelector(authType, initialSearchInput) {
         const providerOptions = this.getLoginProviderOptions(authType);
-        if (authType) {
+        if (authType === "api_key") {
             providerOptions.unshift({
                 id: "__coco_custom_provider__",
                 name: "Custom / 自定义",
@@ -349,6 +349,41 @@ const patchedLoginProviderSelection = `                if (providerId === "__coc
                 }
                 const providerOption = providerOptions.find((provider) => provider.id === providerId && provider.authType === selectedAuthType);
                 if (!providerOption) {`;
+const customProviderImportAnchor = `import { checkForNewPiVersion } from "../../utils/version-check.js";`;
+const patchedCustomProviderImport = `${customProviderImportAnchor}
+import { fetchCustomProviderModels, saveCustomProvider } from "../../../../../../scripts/custom-provider-setup.mjs";`;
+const legacyCustomProviderLogin = `    async startCustomProviderLogin(authType) {
+        const input = await this.showExtensionInput("Custom / 自定义", "Provider ID");
+        const providerRef = input?.trim().toLowerCase();
+        if (!providerRef) {
+            return;
+        }
+        const providerOption = this.getLoginProviderOptions(authType).find((provider) => provider.custom &&
+            (provider.id.toLowerCase() === providerRef || provider.name.toLowerCase() === providerRef));
+        if (!providerOption) {
+            this.showError(\`Custom provider "\${input.trim()}" is not configured for this authentication method. Add it to models.json or an extension first.\`);
+            return;
+        }
+        await this.startProviderLogin(providerOption);
+    }`;
+const patchedCustomProviderLogin = `    async startCustomProviderLogin() {
+        const baseUrl = await this.showExtensionInput("Custom provider Base URL / 自定义提供商地址", "https://api.example.com/v1");
+        if (!baseUrl?.trim()) return;
+        const key = await this.showExtensionInput("API key / 密钥 (input is hidden / 输入已隐藏)", "sk-...", { secret: true });
+        if (!key) return;
+        try {
+            this.showStatus("Querying available models / 正在查询可用模型...");
+            const models = await fetchCustomProviderModels({ baseUrl, key });
+            const modelId = await this.showExtensionSelector("Select a model / 选择模型", models);
+            if (!modelId) return;
+            const configured = await saveCustomProvider({ agentDir: getAgentDir(), baseUrl, key, modelId });
+            await this.session.reload();
+            this.showStatus(\`Configured \${configured.providerId}/\${configured.modelId}\`);
+        }
+        catch (error) {
+            this.showError(error instanceof Error ? error.message : String(error));
+        }
+    }`;
 const defaultThemeAnchor = `currentTheme: this.settingsManager.getThemeSetting() || "dark",`;
 const patchedDefaultTheme = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",`;
 const builtinThemesAnchor = `        BUILTIN_THEMES = {
@@ -361,6 +396,35 @@ const patchedBuiltinThemes = `        const orangePath = path.join(themesDir, "c
             dark: JSON.parse(fs.readFileSync(darkPath, "utf-8")),
             light: JSON.parse(fs.readFileSync(lightPath, "utf-8")),
         };`;
+const extensionInputAnchor = `        this.input = new Input();
+        this.addChild(this.input);`;
+const intermediateExtensionInput = `        this.input = new Input();
+        if (opts?.secret) {
+            const render = this.input.render.bind(this.input);
+            this.input.render = (width) => {
+                const value = this.input.getValue();
+                this.input.setValue("*".repeat(value.length));
+                const lines = render(width);
+                this.input.setValue(value);
+                return lines;
+            };
+        }
+        this.addChild(this.input);`;
+const patchedExtensionInput = `        this.input = new Input();
+        if (opts?.secret) {
+            const render = this.input.render.bind(this.input);
+            this.input.render = (width) => {
+                const value = this.input.getValue();
+                try {
+                    this.input.setValue("*".repeat(value.length));
+                    return render(width);
+                }
+                finally {
+                    this.input.setValue(value);
+                }
+            };
+        }
+        this.addChild(this.input);`;
 
 function patchError(code) {
   return new Error(code);
@@ -405,6 +469,15 @@ function replaceUpgrade(source, anchor, legacy, replacement) {
   if (count(source, replacement) === 1) return source;
   for (const candidate of Array.isArray(legacy) ? legacy : [legacy]) if (count(source, candidate) === 1) return source.replace(candidate, replacement);
   return replaceExact(source, anchor, replacement);
+}
+
+function replaceCustomProviderLogin(source) {
+  if (count(source, patchedCustomProviderLogin) === 1) return source;
+  const end = "    showLoginProviderSelector(authType, initialSearchInput) {";
+  if (count(source, end) !== 1) throw patchError(count(source, end) > 1 ? "COCO_PATCH_DUPLICATE_ANCHOR" : "COCO_PATCH_UNKNOWN_ANCHOR");
+  const withoutCustomMethods = source.replace(/\n    async startCustomProviderLogin\([\s\S]*?(?=\n    showLoginProviderSelector\(authType, initialSearchInput\) \{)/g, "");
+  const endIndex = withoutCustomMethods.indexOf(end);
+  return withoutCustomMethods.slice(0, endIndex) + "\n" + patchedCustomProviderLogin + withoutCustomMethods.slice(endIndex);
 }
 
 function replaceOwnedResponsiveStartupWordmark(source) {
@@ -531,6 +604,13 @@ async function patchBuiltinThemeRegistry(projectRoot) {
   }
 }
 
+async function patchSecretExtensionInput(projectRoot) {
+  const path = join(agentPath(projectRoot), "dist", "modes", "interactive", "components", "extension-input.js");
+  let source = await readFile(path, "utf8");
+  source = replaceUpgrade(source, extensionInputAnchor, intermediateExtensionInput, patchedExtensionInput);
+  await writeFile(path, source, "utf8");
+}
+
 export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) {
   const agent = agentPath(projectRoot);
   const tui = join(agent, "node_modules", "@earendil-works", "pi-tui");
@@ -552,6 +632,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   const originals = await Promise.all([...targets, tuiPath].map((path) => readFile(path, "utf8")));
   const patched = originals.slice(0, -1).map(applyIdentityReplacements);
   patched[7] = replaceExact(patched[7], tuiImportAnchor, patchedTuiImport);
+  patched[7] = replaceExact(patched[7], customProviderImportAnchor, patchedCustomProviderImport);
   patched[7] = replaceOwnedResponsiveStartupWordmark(patched[7]);
   patched[1] = replaceExact(patched[1], listModelsVisibleAnchor, patchedListModelsVisible);
   patched[1] = replaceExact(patched[1], listModelsRowsAnchor, patchedListModelsRows);
@@ -589,8 +670,9 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[7] = replaceExact(patched[7], loginApiKeyOptionAnchor, patchedLoginApiKeyOption);
   patched[7] = replaceUpgrade(patched[7], loginOptionsSortAnchor, [`        return options.sort((a, b) => Number(b.custom) - Number(a.custom) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`, `        return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`, loginOptionsDirectSortAnchor, patchedLoginOptionsDirectSort], patchedLoginOptionsSort);
   patched[7] = replaceUpgrade(patched[7], loginOptionsDirectSortAnchor, patchedLoginOptionsSort, patchedLoginOptionsDirectSort);
-  patched[7] = replaceExact(patched[7], loginProviderSelectorAnchor, patchedLoginProviderSelector);
+  if (!patched[7].includes('if (authType === "api_key") {')) patched[7] = replaceUpgrade(patched[7], loginProviderSelectorAnchor, [], patchedLoginProviderSelector);
   patched[7] = replaceExact(patched[7], loginProviderSelectionAnchor, patchedLoginProviderSelection);
+  patched[7] = replaceCustomProviderLogin(patched[7]);
   patched[7] = replaceExact(patched[7], defaultThemeAnchor, patchedDefaultTheme);
   if (!patched[7].endsWith("\n")) patched[7] += "\n";
   patched[0] = replaceExact(patched[0], helpIdentityAnchor, patchedHelpIdentity);
@@ -602,6 +684,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   await Promise.all(patched.map((source, index) => source === originals[index] ? undefined : writeFile([...targets, tuiPath][index], source, "utf8")));
   await patchRuntimeDefaultTheme(projectRoot);
   await patchBuiltinThemeRegistry(projectRoot);
+  await patchSecretExtensionInput(projectRoot);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -2,7 +2,7 @@
   "name": "coco-agent",
   "displayName": "CoCo Agent",
   "description": "Native CoCo tasks, context, diff review, approvals and history for VS Code",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "publisher": "bit-cook",
   "engines": { "vscode": "^1.95.0" },
   "categories": ["Other", "Machine Learning"],
