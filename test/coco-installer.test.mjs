@@ -125,6 +125,7 @@ for (const installer of installers) {
     const source = await readFile(installer, "utf8");
     assert.equal(source.includes("apiKey"), false);
     assert.match(source, /https:\/\/github\.com\/bit-cook\/coco\/releases\/download\/v\$\{COCO_VERSION\}/);
+    assert.doesNotMatch(source, /\$\{filename\}(?:\.sha256)?\?v=/);
     assert.equal(source.includes(agnesAssetUrl), true);
     assert.equal(source.includes(agnesAssetDigest), true);
   });

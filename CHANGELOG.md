@@ -5264,3 +5264,7 @@ Initial public release.
 ## 0.3.4
 
 - Put an explicit `Custom / 自定义` entry first in both Account and API login provider menus.
+
+## 0.3.5
+
+- Publish the pinned Custom login entry with installer-safe checksum asset URLs.
