@@ -103,3 +103,34 @@ test("provider status runtime has no network, recovery, bootstrap, or transactio
   const source = await readFile(join(root, "scripts", "provider-status.mjs"), "utf8");
   for (const forbidden of ["node:http", "node:https", "provider-sync.mjs", "diagnostics.mjs", "bootstrap-state.mjs", "state-transaction.mjs", "recoverTransactions"]) assert.equal(source.includes(forbidden), false);
 });
+
+test("provider status includes configured custom providers after managed providers without broadening managed auth", async () => {
+  const sandbox = await mkdtemp(join(tmpdir(), "coco-provider-custom-")); const agentDir = join(sandbox, "agent");
+  try {
+    await mkdir(agentDir, { recursive: true, mode: 0o700 });
+    const custom = (id) => ({ api: "openai-completions", authHeader: true, baseUrl: `https://${id}.example/v1`, models: [{ id: `${id}-model` }] });
+    await writeFile(join(agentDir, "models.json"), canonicalJson({ providers: { "custom-zeta": custom("zeta"), "custom-alpha": custom("alpha") } }));
+    await writeFile(join(agentDir, "auth.json"), canonicalJson({ "custom-alpha": { key: "custom-secret", type: "api_key" } }));
+    await writeFile(join(agentDir, "settings.json"), canonicalJson({ defaultModel: "alpha-model", defaultProvider: "custom-alpha" }));
+    const result = await providerStatus({ agentDir });
+    assert.deepEqual(result.providers.map(({ provider }) => provider), ["achai", "agnes", "deepseek", "idepub", "stepfun", "custom-alpha", "custom-zeta"]);
+    const alpha = result.providers.at(-2); const zeta = result.providers.at(-1);
+    assert.equal(alpha.localStatus, "ready"); assert.deepEqual(alpha.model, { id: "alpha-model", status: "available" }); assert.equal(alpha.catalog.status, "unknown");
+    assert.equal(zeta.localStatus, "credential-missing"); assert.deepEqual(zeta.model, { id: null, status: "available" });
+    assert.equal(JSON.stringify(result).includes("custom-secret"), false);
+    assert.deepEqual((await providerStatus({ agentDir, provider: "custom-alpha" })).providers.map(({ provider }) => provider), ["custom-alpha"]);
+  } finally { await rm(sandbox, { force: true, recursive: true }); }
+});
+
+test("provider status rejects malformed custom provider and custom auth state", async () => {
+  for (const fixture of ["provider", "auth"]) {
+    const sandbox = await mkdtemp(join(tmpdir(), `coco-provider-custom-${fixture}-`)); const agentDir = join(sandbox, "agent");
+    try {
+      await mkdir(agentDir, { recursive: true });
+      await writeFile(join(agentDir, "models.json"), canonicalJson({ providers: { "custom-test": fixture === "provider" ? { api: "openai-completions", authHeader: true, baseUrl: "https://example.test", models: [] } : { api: "openai-completions", authHeader: true, baseUrl: "https://example.test", models: [{ id: "model" }] } } }));
+      if (fixture === "auth") await writeFile(join(agentDir, "auth.json"), canonicalJson({ "custom-test": { key: "", type: "api_key" } }));
+      const expected = fixture === "provider" ? "CUSTOM_PROVIDER_SCHEMA_INVALID" : "CUSTOM_AUTH_SCHEMA_INVALID";
+      await assert.rejects(() => providerStatus({ agentDir }), (error) => error.code === expected);
+    } finally { await rm(sandbox, { force: true, recursive: true }); }
+  }
+});

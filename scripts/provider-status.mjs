@@ -13,6 +13,7 @@ function object(value) { return value !== null && typeof value === "object" && !
 function fail(code) { throw new StateError(code); }
 async function optional(path, code, fallback) { if (await inspectRegular(path) === null) return fallback; return parseStrictJson(await readFile(path), code); }
 const modelId = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
+const customProviderId = /^[a-z0-9][a-z0-9._-]*$/;
 
 async function catalogStatus(paths, provider, configuredModels) {
   try {
@@ -31,16 +32,22 @@ async function catalogStatus(paths, provider, configuredModels) {
 }
 
 export async function providerStatus({ agentDir, provider } = {}) {
-  if (provider !== undefined && !MANAGED_PROVIDER_IDS.includes(provider)) fail("PROVIDER_INVALID");
   const paths = statePaths(agentDir);
   const settings = await optional(paths.settings, "SETTINGS_SCHEMA_INVALID", {}); if (!object(settings)) fail("SETTINGS_SCHEMA_INVALID");
   const models = await optional(paths.models, "MODELS_SCHEMA_INVALID", { providers: {} }); if (!object(models) || !object(models.providers)) fail("MODELS_SCHEMA_INVALID");
   for (const id of MANAGED_PROVIDER_IDS) if (id in models.providers && (!object(models.providers[id]) || !Array.isArray(models.providers[id].models))) fail("MODELS_SCHEMA_INVALID");
+  const customIds = Object.keys(models.providers).filter((id) => !MANAGED_PROVIDER_IDS.includes(id)).sort();
+  for (const id of customIds) { const definition = models.providers[id]; if (!customProviderId.test(id) || !object(definition) || definition.api !== "openai-completions" || definition.authHeader !== true || typeof definition.baseUrl !== "string" || !Array.isArray(definition.models) || definition.models.length === 0 || definition.models.some((model) => !object(model) || typeof model.id !== "string" || !modelId.test(model.id))) fail("CUSTOM_PROVIDER_SCHEMA_INVALID"); }
+  if (provider !== undefined && !MANAGED_PROVIDER_IDS.includes(provider) && !customIds.includes(provider)) fail("PROVIDER_INVALID");
   const credentials = new Map((await readCredentialObservations({ agentDir })).providers.map((entry) => [entry.provider, entry.credential]));
+  if (customIds.length > 0) {
+    const auth = await optional(paths.auth, "AUTH_SCHEMA_INVALID", {}); if (!object(auth)) fail("AUTH_SCHEMA_INVALID");
+    for (const id of customIds) { const entry = auth[id]; if (entry !== undefined && (!object(entry) || entry.type !== "api_key" || typeof entry.key !== "string" || entry.key.length === 0)) fail("CUSTOM_AUTH_SCHEMA_INVALID"); credentials.set(id, Object.freeze({ rotationRequired: false, source: entry === undefined ? "none" : "auth", status: entry === undefined ? "missing" : "available" })); }
+  }
   const defaultProvider = typeof settings.defaultProvider === "string" ? settings.defaultProvider : null;
   const defaultModel = typeof settings.defaultModel === "string" ? settings.defaultModel : null;
-  const ids = provider === undefined ? MANAGED_PROVIDER_IDS : [provider];
-  const catalogs = new Map(await Promise.all(ids.map(async (id) => [id, await catalogStatus(paths, id, models.providers[id]?.models)])));
+  const ids = provider === undefined ? [...MANAGED_PROVIDER_IDS, ...customIds] : [provider];
+  const catalogs = new Map(await Promise.all(ids.map(async (id) => [id, MANAGED_PROVIDER_IDS.includes(id) ? await catalogStatus(paths, id, models.providers[id]?.models) : "unknown"])));
   const providers = ids.map((id) => {
     const definition = models.providers[id]; const configured = object(definition); const isDefault = id === defaultProvider; const modelId = isDefault ? defaultModel : null;
     const available = configured && (modelId === null ? definition.models.length > 0 : definition.models.some((model) => model?.id === modelId)); const credential = credentials.get(id);

@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { fetchCustomProviderModels, normalizeCustomBaseUrl, saveCustomProvider } from "../scripts/custom-provider-setup.mjs";
 import { ModelRuntime } from "../node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.js";
+import { providerStatus } from "../scripts/provider-status.mjs";
 
 test("custom provider setup fetches, sorts, and deduplicates OpenAI-compatible models", async () => {
   let request;
@@ -29,6 +30,11 @@ test("custom provider setup stores selected model separately from its private ke
   assert.equal(settings.defaultProvider, result.providerId);
   assert.equal(settings.defaultModel, "alpha");
   assert.equal((await stat(join(agentDir, "auth.json"))).mode & 0o077, 0);
+  const status = await providerStatus({ agentDir, provider: result.providerId });
+  assert.equal(status.providers[0].localStatus, "ready");
+  assert.deepEqual(status.providers[0].credential, { rotationRequired: false, source: "auth", status: "available" });
+  assert.deepEqual(status.providers[0].model, { id: "alpha", status: "available" });
+  assert.equal(JSON.stringify(status).includes("secret"), false);
 });
 
 test("custom provider setup rejects unsafe or malformed endpoints", () => {

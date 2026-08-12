@@ -119,6 +119,8 @@ coco manage providers status agnes --json
 
 This command does not use the network, recover transactions, mutate state, or print credentials, environment-variable names, endpoints, or paths. `localStatus: ready` means only that local configuration, the required model, and a non-rotating credential candidate are present. Use `coco doctor --connectivity` for an explicit network check.
 
+Configured custom OpenAI-compatible providers are listed after managed providers in provider-ID order. Custom status is observational only; managed `coco manage auth` commands remain restricted to CoCo's managed providers.
+
 Current-process credentials may instead use `AGNES_API_KEY`, `IDEPUB_API_KEY`, `ACHAI_API_KEY`, `STEPFUN_API_KEY`, or `DEEPSEEK_API_KEY`. Stored credentials are in `~/.coco/agent/auth.json` with mode `0600`.
 
 ## Configuration scope

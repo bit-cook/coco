@@ -42,3 +42,5 @@ Bootstrap 通过只读 sanitized observation 读取 auth、environment、legacy 
 Doctor local readiness 与 connectivity 复用同一 sanitized observation，不执行 transaction recovery。Legacy models credential 可参与 default AUTH_STATUS 和 connectivity probe，但 key 仅瞬时传给 probe，不进入结果。
 
 `coco manage providers status [provider] [--json]` 提供 all-managed 或单 Provider 的统一本地只读视图。它不联网、不恢复 transaction、不修改状态；catalog 保守显示 `unknown`，verification 固定为 `not-checked`。
+
+Provider status 也包含已配置的 custom OpenAI-compatible Providers，排序在 managed Providers 之后。Custom credential 只观察 stored auth，不扩展 managed auth mutation 或 environment mapping。

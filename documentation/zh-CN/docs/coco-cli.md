@@ -119,6 +119,8 @@ coco manage providers status agnes --json
 
 该命令不联网、不恢复 transaction、不修改状态，也不显示 credential、环境变量名、endpoint 或文件路径。`localStatus: ready` 只表示本地配置、所需模型和非 rotation credential 候选齐备，不表示 Provider 接受 credential 或 inference 可用；需要显式网络检查时使用 `coco doctor --connectivity`。
 
+已配置的自定义 OpenAI-compatible Provider 会在 managed Providers 后按 ID 排序显示。Custom status 仅用于观察；`coco manage auth` 仍严格只管理 CoCo managed Providers。
+
 当前进程也可使用 `AGNES_API_KEY`、`IDEPUB_API_KEY`、`ACHAI_API_KEY`、`STEPFUN_API_KEY` 或 `DEEPSEEK_API_KEY` 提供凭据。已存储的凭据位于 `~/.coco/agent/auth.json`，权限为 `0600`。
 
 ## 配置范围
