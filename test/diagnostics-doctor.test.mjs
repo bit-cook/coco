@@ -50,6 +50,52 @@ test("doctor connectivity probes configured providers only and skips when none a
     const configured = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async (url, key) => { calls.push({ key, url: url.href }); return { kind: "ok" }; } });
     assert.deepEqual(calls, [{ key: "configured-provider-only", url: "https://apihub.agnes-ai.com/v1/models" }]);
     assert.equal(configured.checks.find((entry) => entry.id === "PROVIDER_CONNECTIVITY").status, "pass");
+    assert.equal(configured.providers[0].localStatus, "ready");
+    assert.deepEqual(configured.providers[0].verification, { scope: "models-endpoint", status: "verified" });
+  } finally {
+    if (previous === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previous;
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("doctor connectivity projects every configured provider without changing aggregate failure semantics or exposing credentials", async () => {
+  const { agentDir, root } = await fixture();
+  const previous = process.env.COCO_CODING_AGENT_DIR;
+  const providers = ["achai", "agnes", "deepseek", "idepub", "stepfun"];
+  const outcomes = { achai: { kind: "ok" }, agnes: { kind: "auth", status: 401 }, deepseek: { kind: "http", status: 429 }, idepub: { kind: "schema" }, stepfun: { failureCode: "TIMEOUT", kind: "error" } };
+  const calls = [];
+  try {
+    process.env.COCO_CODING_AGENT_DIR = agentDir;
+    for (const provider of providers) await setAuthKey({ agentDir, key: `${provider}-doctor-secret`, provider });
+    const result = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async (url, key) => { const provider = key.split("-")[0]; calls.push({ key, provider, url: url.href }); return outcomes[provider]; } });
+    assert.equal(calls.length, 5);
+    assert.equal(new Set(calls.map(({ provider }) => provider)).size, 5);
+    assert.deepEqual(result.providers.map(({ provider }) => provider), ["agnes", "achai", "deepseek", "idepub", "stepfun"]);
+    assert.deepEqual(Object.fromEntries(result.providers.map(({ provider, verification }) => [provider, verification])), {
+      achai: { scope: "models-endpoint", status: "verified" }, agnes: { scope: "models-endpoint", status: "rejected" }, deepseek: { scope: "models-endpoint", status: "inconclusive" }, idepub: { scope: "models-endpoint", status: "inconclusive" }, stepfun: { scope: "models-endpoint", status: "inconclusive" },
+    });
+    assert.equal(result.providers[0].localStatus, "ready");
+    assert.deepEqual(result.checks.find((entry) => entry.id === "PROVIDER_CONNECTIVITY"), { details: { failureCode: "AUTH_REJECTED", httpStatus: 401 }, id: "PROVIDER_CONNECTIVITY", message: "Provider rejected credentials.", severity: "fatal", status: "fail" });
+    assert.equal(result.status, "fatal"); assert.equal(result.exitCode, 1);
+    const serialized = JSON.stringify(result); for (const provider of providers) assert.equal(serialized.includes(`${provider}-doctor-secret`), false);
+  } finally {
+    if (previous === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previous;
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("doctor keeps an uncredentialed default projection when a non-default provider is verified", async () => {
+  const { agentDir, root } = await fixture(); const previous = process.env.COCO_CODING_AGENT_DIR; const calls = [];
+  try {
+    process.env.COCO_CODING_AGENT_DIR = agentDir;
+    await setAuthKey({ agentDir, key: "deepseek-only", provider: "deepseek" });
+    const result = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async (url) => { calls.push(url.href); return { kind: "ok" }; } });
+    assert.deepEqual(calls, ["https://api.deepseek.com/models"]);
+    assert.deepEqual(result.providers.map(({ provider }) => provider), ["agnes", "deepseek"]);
+    assert.equal(result.providers[0].localStatus, "credential-missing");
+    assert.deepEqual(result.providers[0].verification, { scope: null, status: "not-checked" });
+    assert.equal(result.providers[1].localStatus, "ready");
+    assert.deepEqual(result.providers[1].verification, { scope: "models-endpoint", status: "verified" });
   } finally {
     if (previous === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previous;
     await rm(root, { force: true, recursive: true });

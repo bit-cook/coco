@@ -96,7 +96,7 @@ export async function doctor({ connectivity = false, providerProbe: probe = prov
   const runtime = await resolveCocoRuntime({ root }); const integrity = await verifyRuntimeIntegrity({ root });
   checks.push(item("NODE_VERSION", runtime.status === "approved" ? "info" : "fatal", runtime.status === "approved" ? "pass" : "fail", runtime.status === "approved" ? "Supported Node runtime is active." : runtime.code));
   checks.push(item("RUNTIME_INTEGRITY", integrity.status === "approved" ? "info" : "fatal", integrity.status === "approved" ? "pass" : "fail", integrity.status === "approved" ? "Runtime integrity is verified." : integrity.code));
-  let settings; let models; let ownership; let providerReadiness;
+  let settings; let models; let ownership; const providerReadiness = new Map();
   try { settings = await validJson(paths.settings, "SETTINGS_SCHEMA_INVALID", (value) => object(value) ? value : (() => { throw new Error("SETTINGS_SCHEMA_INVALID"); })()); models = await validJson(paths.models, "MODELS_SCHEMA_INVALID", (value) => object(value) && object(value.providers) ? value : (() => { throw new Error("MODELS_SCHEMA_INVALID"); })()); await validJson(paths.auth, "AUTH_SCHEMA_INVALID", validateAuth); checks.push(item("CONFIG_SCHEMA", "info", "pass", "Managed state files are valid.")); } catch (error) { checks.push(item("CONFIG_SCHEMA", "fatal", "fail", code(error, "CONFIG_SCHEMA_INVALID"))); }
   const defaultProvider = typeof settings?.defaultProvider === "string" ? settings.defaultProvider : null;
   const defaultModel = typeof settings?.defaultModel === "string" ? settings.defaultModel : null;
@@ -109,7 +109,7 @@ export async function doctor({ connectivity = false, providerProbe: probe = prov
     if (typeof provider !== "string") throw new Error("DEFAULT_PROVIDER_INVALID");
     const [entry] = await getAuthStatus({ agentDir, provider });
     const failed = !entry.available || entry.rotationRequired;
-    providerReadiness = projectProviderReadiness({ catalogStatus: "unknown", configurationStatus: providerConfigured ? "configured" : "missing", credentialSource: entry.source, credentialStatus: entry.available ? "available" : "missing", modelId: defaultModel, modelStatus: modelAvailable ? "available" : "missing", provider, rotationRequired: entry.rotationRequired });
+    providerReadiness.set(provider, projectProviderReadiness({ catalogStatus: "unknown", configurationStatus: providerConfigured ? "configured" : "missing", credentialSource: entry.source, credentialStatus: entry.available ? "available" : "missing", modelId: defaultModel, modelStatus: modelAvailable ? "available" : "missing", provider, rotationRequired: entry.rotationRequired }));
     checks.push(item("AUTH_STATUS", failed ? "warning" : "info", failed ? "fail" : "pass", "Default provider credential availability was checked.", { provider: entry.provider, present: entry.available, source: entry.source, rotationRequired: entry.rotationRequired }));
   } catch (error) { checks.push(item("AUTH_STATUS", "fatal", "fail", code(error, "AUTH_SCHEMA_INVALID"))); }
   try { const directory = await lstat(agentDir); const auth = await lstat(paths.auth); const safe = directory.isDirectory() && !directory.isSymbolicLink() && auth.isFile() && !auth.isSymbolicLink() && (process.platform === "win32" || ((directory.mode & 0o077) === 0 && (auth.mode & 0o077) === 0)); checks.push(item("SECRET_PERMISSIONS", safe ? "info" : "fatal", safe ? "pass" : "fail", safe ? "Secret storage permissions are restricted." : "Secret storage permissions are unsafe.")); } catch { checks.push(item("SECRET_PERMISSIONS", "warning", "skipped", "No auth store is present.")); }
@@ -125,12 +125,19 @@ export async function doctor({ connectivity = false, providerProbe: probe = prov
     try {
       let auth = {};
       try { auth = await validJson(paths.auth, "AUTH_SCHEMA_INVALID", validateAuth); } catch (error) { if (code(error, "") !== "ENOENT") throw error; }
-      const { registry: providers } = await readFrozenProviderContracts(root);
-      const configured = Object.entries(providers.providers).filter(([provider]) => resolveCredential({ auth, provider }).key !== null);
-      if (configured.length === 0) { checks.push(item("PROVIDER_CONNECTIVITY", "info", "skipped", "No configured providers were available to probe.")); }
-      else {
-      const probes = await Promise.all(configured.map(async ([provider, definition]) => probe(new URL(definition.modelsPath, definition.origin), resolveCredential({ auth, provider }).key)));
-      const failure = probes.find((entry) => entry.kind !== "ok");
+       const { registry: providers } = await readFrozenProviderContracts(root);
+       const authStatuses = new Map((await getAuthStatus({ agentDir })).map((entry) => [entry.provider, entry]));
+       const configured = Object.entries(providers.providers).map(([provider, definition]) => ({ credential: resolveCredential({ auth, provider }), definition, provider })).filter(({ credential }) => credential.key !== null);
+       if (configured.length === 0) { checks.push(item("PROVIDER_CONNECTIVITY", "info", "skipped", "No configured providers were available to probe.")); }
+       else {
+       const probes = await Promise.all(configured.map(({ credential, definition }) => probe(new URL(definition.modelsPath, definition.origin), credential.key)));
+       for (let index = 0; index < configured.length; index += 1) {
+         const { credential, provider } = configured[index]; const result = probes[index]; const authStatus = authStatuses.get(provider);
+         const isDefault = provider === defaultProvider; const configuredProvider = object(models?.providers?.[provider]);
+         const availableModel = isDefault ? modelAvailable : configuredProvider && Array.isArray(models.providers[provider].models) && models.providers[provider].models.length > 0;
+         providerReadiness.set(provider, projectProviderReadiness({ catalogStatus: "unknown", configurationStatus: configuredProvider ? "configured" : "missing", credentialSource: credential.source, credentialStatus: "available", modelId: isDefault ? defaultModel : null, modelStatus: availableModel ? "available" : "missing", provider, rotationRequired: authStatus?.rotationRequired === true, verificationScope: "models-endpoint", verificationStatus: result.kind === "ok" ? "verified" : result.kind === "auth" ? "rejected" : "inconclusive" }));
+       }
+       const failure = probes.find((entry) => entry.kind !== "ok");
       if (failure === undefined) checks.push(item("PROVIDER_CONNECTIVITY", "info", "pass", "Provider connectivity is healthy."));
       else if (failure.kind === "auth") checks.push(item("PROVIDER_CONNECTIVITY", "fatal", "fail", "Provider rejected credentials.", { failureCode: "AUTH_REJECTED", httpStatus: failure.status }));
       else if (failure.kind === "http") checks.push(item("PROVIDER_CONNECTIVITY", "warning", "fail", "Provider returned an unexpected status.", { failureCode: "HTTP_STATUS", httpStatus: failure.status }));
@@ -139,5 +146,5 @@ export async function doctor({ connectivity = false, providerProbe: probe = prov
     } catch (error) { checks.push(item("PROVIDER_CONNECTIVITY", "fatal", "fail", code(error, "RESPONSE_SCHEMA"))); }
   }
   const ids = new Set(checks.map((entry) => entry.id)); if (DOCTOR_IDS.some((id) => !ids.has(id))) throw new Error("DIAGNOSTIC_CHECK_MISSING");
-  return { ...report("doctor", checks), providers: providerReadiness === undefined ? [] : [providerReadiness] };
+  return { ...report("doctor", checks), providers: [...providerReadiness.values()] };
 }

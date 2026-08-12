@@ -32,3 +32,5 @@ Auth status JSON 已 additive 返回该 projection，并保留所有原有字段
 Doctor JSON 已增加顶层 `providers` 数组，并组合默认 Provider 的 configuration、model、credential 和 rotation observations。本地条件齐备时可返回 `localStatus: ready`，但在没有网络 probe 证据时 verification 仍为 `not-checked`。
 
 Provider sync 的每个成功结果已增加 `readiness`，并将成功证据限定为 `verification.scope: models-endpoint`。原有 `status`、`modelCount`、`provider` 和 `catalogSha256` 字段保持不变。允许 empty catalog 时 verification 可以是 `verified`，但 model/local status 仍必须是 `missing`/`model-missing`。
+
+启用 connectivity 的 Doctor 会为每个实际 probe 的 Provider 保留 verification projection：401/403 是 `rejected`，其他 HTTP、schema 或 network failure 是 `inconclusive`。Default Provider 始终排在首位且即使没有 credential 也保留 local projection。原有 aggregate `PROVIDER_CONNECTIVITY` check、status 和 exit code 保持不变。

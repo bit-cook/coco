@@ -30,7 +30,7 @@ async function main() {
     const localDoctor = await doctor({ root });
     const serialized = JSON.stringify(localDoctor);
     cases.push(result("doctor-schema-sorted-and-redacted", true, shape(localDoctor, "doctor") && localDoctor.checks.every((entry, index, array) => index === 0 || array[index - 1].id.localeCompare(entry.id) <= 0) && !serialized.includes("task-11-secret-sentinel")));
-    cases.push(result("rotation-reports-redacted-warning", true, localDoctor.status === "warning" && localDoctor.exitCode === 0 && localDoctor.checks.some((entry) => entry.id === "AUTH_STATUS" && entry.status === "fail" && entry.details?.provider === "idepub" && entry.details?.rotationRequired === true && entry.details?.present === true && entry.details?.source === "auth")));
+    cases.push(result("non-default-rotation-does-not-replace-default-auth-check", true, localDoctor.checks.some((entry) => entry.id === "AUTH_STATUS" && entry.details?.provider === "agnes" && entry.details?.rotationRequired === false && entry.details?.present === false) && localDoctor.providers.every((entry) => entry.provider !== "idepub")));
     cases.push(result("diagnostics-do-not-mutate-auth", before, sha256(await readFile(join(agent, "auth.json")))));
     await chmod(join(agent, "auth.json"), 0o644);
     const permissions = await doctor({ root });
@@ -41,7 +41,7 @@ async function main() {
     cases.push(result("invalid-config-is-fatal", true, invalid.status === "fatal" && invalid.checks.some((entry) => entry.id === "CONFIG_SCHEMA" && entry.status === "fail" && entry.severity === "fatal")));
     process.env.PI_OFFLINE = "1";
     const offline = await coreCheck({ root });
-    cases.push(result("offline-core-check-is-inconclusive", true, offline.status === "inconclusive" && offline.exitCode === 1 && offline.checks.some((entry) => entry.id === "CORE_REGISTRY_CHECK" && entry.details?.failureCode === "OFFLINE")));
+    cases.push(result("offline-core-check-is-explicitly-skipped", true, offline.status === "healthy" && offline.exitCode === 0 && offline.checks.some((entry) => entry.id === "CORE_REGISTRY_CHECK" && entry.status === "skipped" && entry.details?.failureCode === "OFFLINE")));
     const connectivity = await doctor({ connectivity: true, root });
     cases.push(result("doctor-connectivity-is-explicit-and-nonmutating", true, connectivity.checks.some((entry) => entry.id === "PROVIDER_CONNECTIVITY" && entry.status === "skipped" && entry.details?.failureCode === "OFFLINE") && sha256(await readFile(join(agent, "auth.json"))) === before));
     const statusText = JSON.stringify(await coreStatus({ root }));
