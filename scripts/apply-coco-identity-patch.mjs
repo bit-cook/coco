@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { copyFile, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -517,7 +517,11 @@ async function patchRuntimeDefaultTheme(projectRoot) {
 }
 
 async function patchBuiltinThemeRegistry(projectRoot) {
-  for (const path of [join(projectRoot, "dist", "modes", "interactive", "theme", "theme.js"), join(agentPath(projectRoot), "dist", "modes", "interactive", "theme", "theme.js")]) {
+  const bundledThemeDir = join(agentPath(projectRoot), "dist", "modes", "interactive", "theme");
+  const orangeTheme = join(projectRoot, "dist", "modes", "interactive", "theme", "coco-orange.json");
+  const bundledOrangeTheme = join(bundledThemeDir, "coco-orange.json");
+  try { await copyFile(orangeTheme, bundledOrangeTheme); } catch (error) { if (error?.code !== "ENOENT") throw error; }
+  for (const path of [join(projectRoot, "dist", "modes", "interactive", "theme", "theme.js"), join(bundledThemeDir, "theme.js")]) {
     let source;
     try { source = await readFile(path, "utf8"); }
     catch (error) { if (error?.code === "ENOENT") continue; throw error; }

@@ -5272,3 +5272,7 @@ Initial public release.
 ## 0.3.6
 
 - Apply the orange default theme to the bundled runtime actually launched after npm installation.
+
+## 0.3.7
+
+- Include the orange theme definition in the bundled runtime so it can resolve instead of falling back to dark.
