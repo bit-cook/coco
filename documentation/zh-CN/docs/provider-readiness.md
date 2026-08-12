@@ -40,3 +40,5 @@ Bootstrap 结果新增 `providerReadiness.current` 和 `providerReadiness.projec
 Bootstrap 通过只读 sanitized observation 读取 auth、environment、legacy models credential 和 rotation metadata。结果只包含 `available/missing`、source 和 rotation boolean，不包含 key、环境变量名或 credential 内容。读取在 bootstrap 创建目录、恢复 transaction 或写状态前完成；无效或 symlinked credential state fail closed。
 
 Doctor local readiness 与 connectivity 复用同一 sanitized observation，不执行 transaction recovery。Legacy models credential 可参与 default AUTH_STATUS 和 connectivity probe，但 key 仅瞬时传给 probe，不进入结果。
+
+`coco manage providers status [provider] [--json]` 提供 all-managed 或单 Provider 的统一本地只读视图。它不联网、不恢复 transaction、不修改状态；catalog 保守显示 `unknown`，verification 固定为 `not-checked`。

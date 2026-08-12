@@ -19,6 +19,7 @@ Usage:
   coco manage auth set <provider> [--stdin] [--json]
   coco manage auth status [provider] [--json]
   coco manage auth remove <provider> [--yes] [--json]
+  coco manage providers status [provider] [--json]
   coco manage models sync [--provider <provider>] [--allow-empty] [--yes] [--json]
   coco manage migrate [--dry-run] [--json] [--yes]
   coco manage bootstrap [--dry-run] [--json] [--yes]
@@ -131,6 +132,10 @@ function parseManage(argv) {
     }
     return hasOnlyFlags(normalized, new Set(["--provider", "--allow-empty", "--yes", "--json"])) ? null : usage("NATIVE_USAGE");
   }
+  if (area === "providers" && action === "status") {
+    const positional = flags.filter((token) => token !== "--json");
+    return positional.length <= 1 && flags.filter((token) => token === "--json").length <= 1 && flags.every((token) => token === "--json" || !token.startsWith("-")) ? null : usage("NATIVE_USAGE");
+  }
   return usage("NATIVE_USAGE");
 }
 
@@ -195,6 +200,13 @@ async function native(argv, root) {
   if (validation !== null) return validation;
   if (argv[1] === "auth") return manageAuth(argv.slice(2));
   if (argv[1] === "models") return manageModels(argv.slice(2), root);
+  if (argv[1] === "providers") {
+    try {
+      const { agentDirectory } = await import("./state-paths.mjs"); const { formatProviderStatus, providerStatus } = await import("./provider-status.mjs");
+      const flags = argv.slice(3); const provider = flags.find((token) => token !== "--json"); const result = await providerStatus({ agentDir: agentDirectory(), provider });
+      process.stdout.write(flags.includes("--json") ? `${JSON.stringify(result)}\n` : formatProviderStatus(result)); return { exitCode: 0, kind: "native" };
+    } catch (error) { return failure(error instanceof Error && "code" in error && typeof error.code === "string" ? error.code : "PROVIDER_STATUS_FAILED"); }
+  }
   if (argv[1] !== "migrate" && argv[1] !== "bootstrap") return failure("NATIVE_COMMAND_UNAVAILABLE");
   const flags = argv.slice(2);
   if (!flags.includes("--dry-run") && !flags.includes("--yes") && !process.stdin.isTTY) return usage("CONFIRMATION_REQUIRED");

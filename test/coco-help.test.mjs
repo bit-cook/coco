@@ -25,6 +25,7 @@ test("CoCo help forms are native and document the active native grammar", async 
     assert.match(stdout, new RegExp(`^CoCo ${COCO_VERSION.replaceAll(".", "\\.")}$`, "m"));
     assert.match(stdout, /coco manage auth set <provider> \[--stdin\] \[--json\]/);
     assert.match(stdout, /coco manage models sync \[--provider <provider>\] \[--allow-empty\] \[--yes\] \[--json\]/);
+    assert.match(stdout, /coco manage providers status \[provider\] \[--json\]/);
     assert.match(stdout, /coco manage migrate \[--dry-run\] \[--json\] \[--yes\]/);
     assert.match(stdout, /coco doctor \[--json\] \[--connectivity\]/);
     assert.match(stdout, /coco core <status\|check> \[--json\]/);

@@ -110,6 +110,15 @@ coco manage auth status
 coco manage auth remove idepub
 ```
 
+Use the read-only provider status command to inspect local configuration, models, credential source, rotation policy, and readiness:
+
+```bash
+coco manage providers status
+coco manage providers status agnes --json
+```
+
+This command does not use the network, recover transactions, mutate state, or print credentials, environment-variable names, endpoints, or paths. `localStatus: ready` means only that local configuration, the required model, and a non-rotating credential candidate are present. Use `coco doctor --connectivity` for an explicit network check.
+
 Current-process credentials may instead use `AGNES_API_KEY`, `IDEPUB_API_KEY`, `ACHAI_API_KEY`, `STEPFUN_API_KEY`, or `DEEPSEEK_API_KEY`. Stored credentials are in `~/.coco/agent/auth.json` with mode `0600`.
 
 ## Configuration scope
