@@ -11,7 +11,7 @@ test("competitive landscape report is public, sourced, responsive, and linked fr
     readFile(new URL("site/landscape.css", root), "utf8"),
   ]);
 
-  assert.match(homepage, /href="landscape\.html">Product report/);
+  assert.match(homepage, /href="landscape\.html">Legacy research/);
   assert.match(report, /<html lang="zh-CN">/);
   assert.match(report, /https:\/\/bit-cook\.github\.io\/coco\/landscape\.html/);
   for (const product of ["CoCo", "Codex", "Claude Code", "Gemini", "Copilot", "Cursor", "Aider", "Pi Agent", "OpenClaw"]) {
