@@ -483,13 +483,14 @@ async function patchRuntimeDefaultTheme(projectRoot) {
 }
 
 async function patchBuiltinThemeRegistry(projectRoot) {
-  const path = join(projectRoot, "dist", "modes", "interactive", "theme", "theme.js");
-  let source;
-  try { source = await readFile(path, "utf8"); }
-  catch (error) { if (error?.code === "ENOENT") return; throw error; }
-  if (source.includes('"coco-orange": JSON.parse(fs.readFileSync(orangePath')) return;
-  if (!source.includes(builtinThemesAnchor)) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
-  await writeFile(path, source.replace(builtinThemesAnchor, patchedBuiltinThemes), "utf8");
+  for (const path of [join(projectRoot, "dist", "modes", "interactive", "theme", "theme.js"), join(agentPath(projectRoot), "dist", "modes", "interactive", "theme", "theme.js")]) {
+    let source;
+    try { source = await readFile(path, "utf8"); }
+    catch (error) { if (error?.code === "ENOENT") continue; throw error; }
+    if (source.includes('"coco-orange": JSON.parse(fs.readFileSync(orangePath')) continue;
+    if (!source.includes(builtinThemesAnchor)) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+    await writeFile(path, source.replace(builtinThemesAnchor, patchedBuiltinThemes), "utf8");
+  }
 }
 
 export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) {

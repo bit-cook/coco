@@ -116,6 +116,8 @@ test("CoCo's default theme uses a vivid orange accent system", async () => {
 });
 
 test("CoCo registers the orange theme as a runtime built-in", async () => {
-  const source = await readFile(join(root, "dist", "modes", "interactive", "theme", "theme.js"), "utf8");
-  assert.match(source, /"coco-orange": JSON\.parse\(fs\.readFileSync\(orangePath/);
+  for (const sourcePath of [join(root, "dist", "modes", "interactive", "theme", "theme.js"), join(root, "node_modules", "@earendil-works", "pi-coding-agent", "dist", "modes", "interactive", "theme", "theme.js")]) {
+    const source = await readFile(sourcePath, "utf8");
+    assert.match(source, /"coco-orange": JSON\.parse\(fs\.readFileSync\(orangePath/);
+  }
 });

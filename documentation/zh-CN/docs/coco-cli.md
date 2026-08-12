@@ -13,8 +13,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 如需安装已审阅的发布版，请下载该发布版的 `install.sh`，并使用匹配的 `COCO_VERSION` 运行：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.3.1/install.sh
-COCO_VERSION=0.3.1 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.3.2/install.sh
+COCO_VERSION=0.3.2 bash install.sh
 ```
 
 升级时再次运行稳定安装程序。它会验证发行包，并在更新和重新安装时保留现有的 `~/.coco/agent` 配置。`coco update` 不可用。

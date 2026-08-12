@@ -1,6 +1,6 @@
 # CoCo Agent for VS Code
 
-Install the `coco-agent-0.3.1.vsix` asset from the CoCo `v0.3.1` release, start the local service with `coco control start`, and obtain its token with `coco control token`. Verify it first with the release `coco-agent-0.3.1.vsix.sha256` sidecar.
+Install the `coco-agent-0.3.2.vsix` asset from the CoCo `v0.3.2` release, start the local service with `coco control start`, and obtain its token with `coco control token`. Verify it first with the release `coco-agent-0.3.2.vsix.sha256` sidecar.
 
 Commands:
 

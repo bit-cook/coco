@@ -5253,3 +5253,6 @@ Initial public release.
 
 - Fix the fresh-install TUI default so the CoCo orange theme is registered as a runtime built-in instead of falling back to green Solarized.
 - Keep custom providers at the top of post-login provider options and autocomplete choices.
+## 0.3.2
+
+- Register the orange theme in both packaged runtime trees so the actual installed TUI cannot fall back to green.

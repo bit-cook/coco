@@ -8,7 +8,7 @@ import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
 
 const PROVIDERS = ["idepub", "achai", "agnes", "deepseek", "stepfun"];
-const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, enabledModels: ["agnes/agnes-2.5-flash"], lastChangelogVersion: "0.3.1" };
+const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, enabledModels: ["agnes/agnes-2.5-flash"], lastChangelogVersion: "0.3.2" };
 
 function hash(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
