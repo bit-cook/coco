@@ -34,3 +34,5 @@ Doctor JSON 已增加顶层 `providers` 数组，并组合默认 Provider 的 co
 Provider sync 的每个成功结果已增加 `readiness`，并将成功证据限定为 `verification.scope: models-endpoint`。原有 `status`、`modelCount`、`provider` 和 `catalogSha256` 字段保持不变。允许 empty catalog 时 verification 可以是 `verified`，但 model/local status 仍必须是 `missing`/`model-missing`。
 
 启用 connectivity 的 Doctor 会为每个实际 probe 的 Provider 保留 verification projection：401/403 是 `rejected`，其他 HTTP、schema 或 network failure 是 `inconclusive`。Default Provider 始终排在首位且即使没有 credential 也保留 local projection。原有 aggregate `PROVIDER_CONNECTIVITY` check、status 和 exit code 保持不变。
+
+Bootstrap 结果新增 `providerReadiness.current` 和 `providerReadiness.projected`，scope 为 `all-managed`。Dry run 的 projected 是应用安全、非冲突修改后的预测状态；apply 返回同一计划对应的 committed projection；noop 时 current 与 projected 相同。Bootstrap 第一阶段不读取 secret 或 migration state，因此 credential status/source 和 rotation 分别为 `unknown`/`unknown`/`null`，不会把未观察状态误报为缺失或无需 rotation。

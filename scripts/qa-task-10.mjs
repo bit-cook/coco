@@ -46,7 +46,8 @@ async function main() {
     await writeFile(join(conflict, "settings.json"), canonicalJson({ defaultModel: "manual-model", theme: "dark" }), { mode: 0o600 });
     const conflictResult = await bootstrapState({ agentDir: conflict, root });
     const conflictSettings = JSON.parse(await readFile(join(conflict, "settings.json"), "utf8"));
-    cases.push(result("settings-conflicts-stay-user-owned", true, conflictResult.skipped.includes("/defaultModel") && conflictResult.warnings.includes("SETTING_CONFLICT:/defaultModel") && conflictSettings.defaultModel === "manual-model" && conflictSettings.theme === "dark" && conflictSettings.defaultProvider === "idepub"));
+    const projectedAgnes = conflictResult.providerReadiness.projected.find(({ provider }) => provider === "agnes");
+    cases.push(result("settings-conflicts-stay-user-owned", true, conflictResult.skipped.includes("/defaultModel") && conflictResult.warnings.includes("SETTING_CONFLICT:/defaultModel") && conflictSettings.defaultModel === "manual-model" && conflictSettings.theme === "coco-orange-light/coco-orange" && conflictSettings.defaultProvider === "agnes" && projectedAgnes.localStatus === "model-missing"));
     const status = cases.every((entry) => entry.status === "passed") ? "approved" : "rejected";
     await writeFile(evidence, canonicalJson({ artifacts: { guidanceSha256: digest(guidance) }, cases, schemaVersion: 1, status, task: 10 }), { encoding: "utf8", flag: "wx", mode: 0o600 });
     process.exitCode = status === "approved" ? 0 : 1;

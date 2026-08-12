@@ -7,6 +7,7 @@ import { ownedProviderPointers, ownedSettingsPointers, parseStrictJson, StateErr
 import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
 import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
+import { projectProviderReadiness } from "./provider-readiness.mjs";
 
 const PROVIDERS = MANAGED_PROVIDER_IDS.includes("idepub") ? ["idepub", ...MANAGED_PROVIDER_IDS.filter((provider) => provider !== "idepub")] : [...MANAGED_PROVIDER_IDS];
 const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, lastChangelogVersion: "0.5.2", theme: "coco-orange-light/coco-orange" };
@@ -91,6 +92,15 @@ function ownershipDocument(previous, settings, models, prompt) {
   return { managedFiles, schemaVersion: 1 };
 }
 
+function providerSnapshot(settings, models, catalogStatuses = {}) {
+  return MANAGED_PROVIDER_IDS.map((provider) => {
+    const definition = models?.providers?.[provider]; const configured = object(definition);
+    const isDefault = settings?.defaultProvider === provider; const modelId = isDefault && typeof settings?.defaultModel === "string" ? settings.defaultModel : null;
+    const available = configured && Array.isArray(definition.models) && (modelId === null ? definition.models.length > 0 : definition.models.some((model) => model?.id === modelId));
+    return projectProviderReadiness({ catalogStatus: catalogStatuses[provider] ?? "unknown", configurationStatus: configured ? "configured" : "missing", credentialSource: "unknown", credentialStatus: "unknown", modelId, modelStatus: available ? "available" : "missing", provider, rotationRequired: null });
+  });
+}
+
 export async function bootstrapState({ agentDir, dryRun = false, root }) {
   if (!dryRun) { await ensureAgentDirectory(agentDir); await recoverTransactions(agentDir); }
   const paths = statePaths(agentDir);
@@ -105,13 +115,15 @@ export async function bootstrapState({ agentDir, dryRun = false, root }) {
   const created = [...prompt.created, ...(modelPlan.created.length > 0 ? ["models.json"] : []), ...(settingPlan.created.length > 0 ? ["settings.json"] : []), ...(ownershipChanged ? ["ownership.json"] : [])];
   const skipped = [...prompt.skipped, ...settingPlan.skipped, ...modelPlan.skipped];
   const warnings = [...prompt.warnings, ...settingPlan.skipped.map((pointer) => `SETTING_CONFLICT:${pointer}`), ...modelPlan.skipped.map((pointer) => `PROVIDER_CONFLICT:${pointer}`)];
-  if (created.length === 0 && skipped.length === 0) return { created: [], dryRun, skipped: [], status: "noop", warnings };
-  if (dryRun) return { created, dryRun, skipped, status: "planned", warnings };
+  const seeded = Object.fromEntries(PROVIDERS.filter((provider) => modelPlan.created.some((pointer) => pointer === `/providers/${provider}/models`)).map((provider) => [provider, "seeded"]));
+  const providerReadiness = { current: providerSnapshot(settings, models), projected: providerSnapshot(settingPlan.value, modelPlan.value, seeded), schemaVersion: 1, scope: "all-managed" };
+  if (created.length === 0) return { created: [], dryRun, providerReadiness, skipped, status: "noop", warnings };
+  if (dryRun) return { created, dryRun, providerReadiness, skipped, status: "planned", warnings };
   const operations = [];
   if (prompt.action === "create") operations.push({ bytes: prompt.bytes, path: join(agentDir, "APPEND_SYSTEM.md") });
   if (modelPlan.created.length > 0) operations.push({ bytes: canonicalJson(modelPlan.value), path: paths.models });
   if (settingPlan.created.length > 0) operations.push({ bytes: canonicalJson(settingPlan.value), path: paths.settings });
   if (ownershipChanged) operations.push({ bytes: canonicalJson(ownershipNext), path: paths.ownership });
   if (operations.length > 0) await applyStateTransaction({ agentDir, operations });
-  return { created, dryRun, skipped, status: "applied", warnings };
+  return { created, dryRun, providerReadiness, skipped, status: "applied", warnings };
 }

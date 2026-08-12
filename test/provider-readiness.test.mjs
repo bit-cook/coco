@@ -27,3 +27,9 @@ test("provider readiness rejects ambiguous verification and unknown vocabulary",
   assert.throws(() => projectProviderReadiness({ ...base, verificationScope: "models-endpoint" }), (error) => error.code === "PROVIDER_READINESS_INVALID");
   assert.throws(() => projectProviderReadiness({ ...base, credentialStatus: "ready" }), (error) => error.code === "PROVIDER_READINESS_INVALID");
 });
+
+test("provider readiness represents unobserved rotation without claiming false", () => {
+  const readiness = projectProviderReadiness({ configurationStatus: "configured", credentialSource: "unknown", credentialStatus: "unknown", modelStatus: "available", provider: "agnes", rotationRequired: null });
+  assert.equal(readiness.credential.rotationRequired, null);
+  assert.equal(readiness.localStatus, "unknown");
+});
