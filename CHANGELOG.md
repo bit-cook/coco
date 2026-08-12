@@ -5312,3 +5312,7 @@ Initial public release.
 ## 0.4.2
 
 - Replace opaque autocomplete source tags such as `[t]`, `[u]`, and `[p]` with readable CoCo, user, project, npm, and Git source labels.
+
+## 0.4.3
+
+- Add a versioned cache key to installer package and checksum URLs so stale GitHub CDN sidecars cannot block a valid release install.
