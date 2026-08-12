@@ -5300,3 +5300,7 @@ Initial public release.
 ## 0.3.13
 
 - Refresh models.json and inject the saved key into the live ModelRuntime before activating a Custom API model.
+
+## 0.4.0
+
+- Localize the primary CoCo TUI in Chinese, follow the user's environment by default, and preserve explicit language choices across restarts.

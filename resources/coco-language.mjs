@@ -31,6 +31,10 @@ function readPack(path, locale, options) {
 function agentDirectory(environment = process.env) {
   return environment.COCO_CODING_AGENT_DIR || join(environment.HOME || homedir(), ".coco", "agent");
 }
+function environmentLocale(environment = process.env) {
+  const value = [environment.LC_ALL, environment.LC_MESSAGES, environment.LANG].find((entry) => typeof entry === "string" && entry.trim() !== "") ?? "";
+  return /^(?:zh|cmn)(?:[_-](?:CN|SG|Hans))?(?:[.@]|$)/i.test(value) ? "zh-CN" : "en";
+}
 function format(message, values = {}) {
   return message.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (match, key) => key in values ? String(values[key]) : match);
 }
@@ -64,8 +68,8 @@ export function createLanguageService({ agentDir = agentDirectory() } = {}) {
   function savedLocale() {
     try {
       const value = JSON.parse(readFileSync(selectionPath, "utf8"));
-      return object(value) && value.schemaVersion === 1 && safeLocale(value.locale) ? value.locale : "en";
-    } catch { return "en"; }
+      return object(value) && value.schemaVersion === 1 && safeLocale(value.locale) ? value.locale : environmentLocale();
+    } catch { return environmentLocale(); }
   }
   let locale = savedLocale();
   let packs = available();
@@ -123,6 +127,7 @@ export default function cocoLanguage(pi) {
       }
       const pack = service.pack();
       ctx.ui.notify(service.t("language.saved", pack), "info");
+      if (ctx.hasUI && typeof ctx.reload === "function") await ctx.reload();
     },
   });
   pi.on("before_agent_start", async (event) => ({ systemPrompt: `${event.systemPrompt}\n\n<user_language>\n${service.t("agent.responseInstruction")}\n</user_language>` }));

@@ -286,11 +286,11 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.match(interactive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange"/);
     assert.match(bundledInteractive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange"/);
     assert.match(interactive, /Number\(Boolean\(b\.custom\)\) - Number\(Boolean\(a\.custom\)\)/);
-    assert.match(interactive, /if \(authType === "api_key"\) \{\s*providerOptions\.unshift\(\{\s*id: "__coco_custom_provider__",\s*name: "Custom \/ 自定义"/);
+    assert.match(interactive, /if \(authType === "api_key"\) \{\s*providerOptions\.unshift\(\{\s*id: "__coco_custom_provider__",\s*name: uiText\("Custom \/ 自定义"\)/);
     assert.match(interactive, /if \(providerId === "__coco_custom_provider__"\) \{\s*await this\.startCustomProviderLogin\(\);/);
     assert.equal((interactive.match(/async startCustomProviderLogin\(/g) ?? []).length, 1);
     assert.equal((interactive.match(/providerOptions\.unshift\(/g) ?? []).length, 1);
-    assert.equal((interactive.match(/name: "Custom \/ 自定义"/g) ?? []).length, 1);
+    assert.equal((interactive.match(/name: uiText\("Custom \/ 自定义"\)/g) ?? []).length, 1);
     assert.match(interactive, /Custom provider Base URL \/ 自定义提供商地址/);
     assert.match(interactive, /fetchCustomProviderModels/);
     assert.match(interactive, /saveCustomProvider/);
@@ -481,7 +481,7 @@ test("Given supported model artifacts, when patched, then declared models are vi
     assert.equal(interactive.match(/const custom = this\.session\.modelRuntime\.isCustomProvider\(provider\.id\);/g)?.length, 1);
     assert.doesNotMatch(interactive, /const custom = this\.session\.modelRuntime\.isConfiguredProvider\(provider\.id\);/);
     assert.match(interactive, /Number\(Boolean\(b\.custom\)\) - Number\(Boolean\(a\.custom\)\)/);
-    assert.match(interactive, /name: "Custom \/ 自定义"/);
+    assert.match(interactive, /name: uiText\("Custom \/ 自定义"\)/);
   } finally {
     await rm(root, { force: true, recursive: true });
   }

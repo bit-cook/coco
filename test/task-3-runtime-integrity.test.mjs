@@ -42,7 +42,7 @@ test("Given the coco package root, when runtime identity is resolved, then it pi
   assert.equal(runtime.identity.configDir, ".coco");
   assert.equal(runtime.identity.agentEnv, "COCO_CODING_AGENT_DIR");
   assert.equal(runtime.identity.sessionEnv, "COCO_CODING_AGENT_SESSION_DIR");
-  assert.equal(runtime.identity.version, "0.3.13");
+  assert.equal(runtime.identity.version, "0.4.0");
   assert.equal(runtime.piVersion, "0.82.1");
   assert.equal(runtime.root, resolve(root));
 });
@@ -334,7 +334,7 @@ test("Given a replacement after bytes are hashed, when bootstrap creates a cache
     await generateRuntimeIntegrityManifest({ root: packageRoot });
     const target = join(packageRoot, "package.json");
     const original = await readFile(target, "utf8");
-    const replacement = original.replace('"version": "0.3.13"', '"version": "9.9.9"');
+    const replacement = original.replace('"version": "0.4.0"', '"version": "9.9.9"');
     assert.notEqual(replacement, original);
     const sibling = `${target}.replacement`;
     await writeFile(sibling, replacement);

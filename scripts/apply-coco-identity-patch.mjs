@@ -372,9 +372,9 @@ const patchedCustomProviderLogin = `    async startCustomProviderLogin() {
         const key = await this.showExtensionInput("API key / 密钥 (input is hidden / 输入已隐藏)", "sk-...", { secret: true });
         if (!key) return;
         try {
-            this.showStatus("Querying available models / 正在查询可用模型...");
+            this.showStatus(uiText("Querying available models / 正在查询可用模型..."));
             const models = await fetchCustomProviderModels({ baseUrl, key });
-             const modelId = await this.showExtensionSelector("Select a model / 选择模型", models);
+             const modelId = await this.showExtensionSelector(uiText("Select a model / 选择模型"), models);
              if (!modelId) return;
              const configured = await saveCustomProvider({ agentDir: getAgentDir(), baseUrl, key, modelId });
              await this.session.modelRuntime.refresh({ allowNetwork: false });
@@ -396,16 +396,16 @@ const patchedLoginProviderFlow = `${patchedCustomProviderLogin}
         if (authType === "api_key") {
             providerOptions.unshift({
                 id: "__coco_custom_provider__",
-                name: "Custom / 自定义",
+                name: uiText("Custom / 自定义"),
                 authType,
                 custom: true,
             });
         }
         if (providerOptions.length === 0) {
             const message = authType === "oauth"
-                ? "No subscription providers available."
+                ? uiText("No subscription providers available.")
                 : authType === "api_key"
-                    ? "No API key providers available."
+                    ? uiText("No API key providers available.")
                     : "No login providers available.";
             this.showStatus(message);
             return;
@@ -442,6 +442,15 @@ const patchedBuiltinThemes = `        const orangePath = path.join(themesDir, "c
         };`;
 const extensionInputAnchor = `        this.input = new Input();
         this.addChild(this.input);`;
+const uiLanguageImports = new Map([
+  ["interactive-mode.js", `import { uiText } from "../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/oauth-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/model-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/login-dialog.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/theme-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/thinking-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/extension-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+]);
 const intermediateExtensionInput = `        this.input = new Input();
         if (opts?.secret) {
             const render = this.input.render.bind(this.input);
@@ -516,6 +525,7 @@ function replaceUpgrade(source, anchor, legacy, replacement) {
 }
 
 function replaceCustomProviderLogin(source) {
+  if (source.includes(patchedLoginProviderFlow)) return source;
   const selectorStart = "    showLoginProviderSelector(authType, initialSearchInput) {";
   const nextMethod = "    async showOAuthSelector(mode) {";
   const customStart = "    async startCustomProviderLogin(";
@@ -658,6 +668,42 @@ async function patchSecretExtensionInput(projectRoot) {
   await writeFile(path, source, "utf8");
 }
 
+async function patchUiLanguage(projectRoot) {
+  const root = join(agentPath(projectRoot), "dist", "modes", "interactive");
+  for (const [relative, importLine] of uiLanguageImports) {
+    const path = join(root, relative);
+    let source;
+    try { source = await readFile(path, "utf8"); }
+    catch (error) { if (error?.code === "ENOENT" && relative !== "interactive-mode.js") continue; throw error; }
+    if (source.includes(importLine)) continue;
+    source = `${importLine}\n${source}`;
+    source = source
+      .replaceAll('"Sign in with an account"', 'uiText("Login with subscription")')
+      .replaceAll('"Sign in with an API key"', 'uiText("Use API key")')
+      .replaceAll('"Select authentication method:"', 'uiText("Select authentication method:")')
+      .replaceAll('`Select authentication method for ${providerOptions[0].name}:`', 'uiText(`Select authentication method for ${providerOptions[0].name}:`)')
+      .replaceAll('"Select provider to configure:"', 'uiText("Select provider to configure:")')
+      .replaceAll('"Select provider to logout:"', 'uiText("Select provider to logout:")')
+      .replaceAll('"No providers available"', 'uiText("No providers available")')
+      .replaceAll('"No providers logged in. Use /login first."', 'uiText("No providers logged in. Use /login first.")')
+      .replaceAll('"No matching providers"', 'uiText("No matching providers")')
+      .replaceAll('"subscription"', 'uiText("subscription")')
+      .replaceAll('"API key"', 'uiText("API key")')
+      .replaceAll('`Login to ${providerName}`', 'uiText(`Login to ${providerName}`)')
+      .replaceAll('"Only showing models from configured providers. Use /login to add providers."', 'uiText("Only showing models from configured providers. Use /login to add providers.")')
+      .replaceAll('"Refreshing model catalogs…"', 'uiText("Refreshing model catalogs…")')
+      .replaceAll('"Model catalogs refreshed."', 'uiText("Model catalogs refreshed.")')
+      .replaceAll('"  No matching models"', '`  ${uiText("No matching models")}`')
+      .replaceAll('`  Model Name: ${selected.model.name}`', '`  ${uiText(`Model Name: ${selected.model.name}`)}`')
+      .replaceAll('description: name === currentTheme ? "(current)" : undefined', 'description: name === currentTheme ? `(${uiText("Current")})` : undefined')
+      .replaceAll('description: LEVEL_DESCRIPTIONS[level]', 'description: uiText(LEVEL_DESCRIPTIONS[level])')
+      .replaceAll('rawKeyHint("↑↓", "navigate")', 'rawKeyHint("↑↓", uiText("navigate"))')
+      .replaceAll('keyHint("tui.select.confirm", "select")', 'keyHint("tui.select.confirm", uiText("select"))')
+      .replaceAll('keyHint("tui.select.cancel", "cancel")', 'keyHint("tui.select.cancel", uiText("cancel"))');
+    await writeFile(path, source, "utf8");
+  }
+}
+
 export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) {
   const agent = agentPath(projectRoot);
   const tui = join(agent, "node_modules", "@earendil-works", "pi-tui");
@@ -730,6 +776,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   await patchRuntimeDefaultTheme(projectRoot);
   await patchBuiltinThemeRegistry(projectRoot);
   await patchSecretExtensionInput(projectRoot);
+  await patchUiLanguage(projectRoot);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
