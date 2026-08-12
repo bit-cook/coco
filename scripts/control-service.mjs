@@ -163,9 +163,10 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
   });
   await new Promise((done, reject) => { server.once("error", reject); server.listen(port, host, done); });
   const address = server.address(); const selectedPort = typeof address === "object" && address ? address.port : port;
+  const close = () => { server.close(); server.closeIdleConnections?.(); server.closeAllConnections?.(); }; process.once("SIGINT", close); process.once("SIGTERM", close); signal?.addEventListener("abort", close, { once: true });
+  const closed = new Promise((done) => server.once("close", done)); if (signal?.aborted) close();
   await atomicReplace({ agentDir, containsSecret: true, path: statePaths(agentDir).control, bytes: canonicalJson({ host, pid: process.pid, port: selectedPort, processIdentity: await processIdentity(process.pid), schemaVersion: 1, startedAt: new Date().toISOString(), token }) });
-  const close = () => server.close(); process.once("SIGINT", close); process.once("SIGTERM", close); signal?.addEventListener("abort", close, { once: true });
-  await new Promise((done) => server.once("close", done));
+  await closed;
   process.removeListener("SIGINT", close); process.removeListener("SIGTERM", close); signal?.removeEventListener("abort", close);
   await rm(statePaths(agentDir).control, { force: true });
 }

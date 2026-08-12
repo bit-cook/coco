@@ -14,7 +14,7 @@ import { createTaskStore } from "../scripts/task-state.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 
-test("control plane authenticates task projections", async () => {
+test("control plane authenticates task projections", { timeout: 10_000 }, async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-control-"));
   const controller = new AbortController();
   const running = runControlServer({ agentDir, host: "127.0.0.1", port: 0, root, signal: controller.signal });
@@ -44,7 +44,7 @@ test("legacy control state remains visible and IPv6 loopback URLs are valid", as
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });
 
-test("control plane replaces stale state and remains loopback-only", async () => {
+test("control plane replaces stale state and remains loopback-only", { timeout: 10_000 }, async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-control-stale-")); const controller = new AbortController();
   try {
     await writeFile(statePaths(agentDir).control, `${JSON.stringify({ host: "127.0.0.1", pid: 99999999, port: 3210, processIdentity: "linux:1", schemaVersion: 1, startedAt: new Date().toISOString(), token: "stale" })}\n`, { mode: 0o600 });
@@ -67,7 +67,7 @@ test("control server and its direct entry point reject non-loopback hosts", asyn
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });
 
-test("control plane exposes authenticated paginated events and logs only for the bound task", async () => {
+test("control plane exposes authenticated paginated events and logs only for the bound task", { timeout: 10_000 }, async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-control-observe-"));
   const controller = new AbortController();
   try {
