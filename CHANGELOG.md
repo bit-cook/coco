@@ -5256,3 +5256,7 @@ Initial public release.
 ## 0.3.2
 
 - Register the orange theme in both packaged runtime trees so the actual installed TUI cannot fall back to green.
+
+## 0.3.3
+
+- Publish the dual-runtime orange theme fix from a clean source tag.

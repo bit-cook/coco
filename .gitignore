@@ -12,6 +12,7 @@ coverage/
 !resources/runtime-integrity-manifest.v1.json.sha256
 !scripts/protected-baseline.json.sha256
 release/
+release-v*/
 tmp/
 temp/
 evidence/
