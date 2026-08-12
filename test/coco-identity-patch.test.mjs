@@ -323,7 +323,7 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.match(systemPrompt, /reading files, executing commands, editing code, and writing new files/);
     assert.match(args, /General AI assistant with read, bash, edit, write tools/);
     assert.match(args, /default: general AI assistant prompt/);
-    assert.match(firstTimeSetup, /Welcome to \$\{APP_NAME\}, your general AI assistant\./);
+    assert.match(firstTimeSetup, /uiText\("Welcome to \{app\}, your general AI assistant\."/);
     assert.doesNotMatch(toolsManager, /Offline mode enabled, skipping download/);
     assert.match(toolsManager, /not found\. Downloading/);
     assert.match(toolsManager, /Failed to download/);

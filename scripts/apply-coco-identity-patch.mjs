@@ -242,12 +242,12 @@ const patchedSelectorVisible = `        const models = this.modelRuntime.getVisi
 const selectorLoginMarkerAnchor = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
                 line = \`${"${prefix + theme.fg(\"accent\", modelText)}"} ${"${providerBadge}"}${"${checkmark}"}\`;`;
 const patchedSelectorLoginMarker = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
-                const loginRequired = item.loginRequired ? theme.fg("warning", " login-required") : "";
+                const loginRequired = item.loginRequired ? theme.fg("warning", \` ${"${uiText(\"login-required\")}"}\`) : "";
                 line = \`${"${prefix + theme.fg(\"accent\", modelText)}"} ${"${providerBadge}"}${"${checkmark}"}${"${loginRequired}"}\`;`;
 const selectorLoginMarkerElseAnchor = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
                 line = \`${"${modelText}"} ${"${providerBadge}"}${"${checkmark}"}\`;`;
 const patchedSelectorLoginMarkerElse = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
-                const loginRequired = item.loginRequired ? theme.fg("warning", " login-required") : "";
+                const loginRequired = item.loginRequired ? theme.fg("warning", \` ${"${uiText(\"login-required\")}"}\`) : "";
                 line = \`${"${modelText}"} ${"${providerBadge}"}${"${checkmark}"}${"${loginRequired}"}\`;`;
 const selectorHandleSelectAnchor = `    handleSelect(model) {
         this.close();
@@ -450,6 +450,22 @@ const uiLanguageImports = new Map([
   ["components/theme-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/thinking-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/extension-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/keybinding-hints.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/settings-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/scoped-models-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/status-indicator.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/bash-execution.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/first-time-setup.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/assistant-message.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/show-images-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/extension-editor.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/extension-input.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/bordered-loader.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/session-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/user-message-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/tree-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/trust-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/config-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
 ]);
 const intermediateExtensionInput = `        this.input = new Input();
         if (opts?.secret) {
@@ -700,8 +716,171 @@ async function patchUiLanguage(projectRoot) {
       .replaceAll('rawKeyHint("↑↓", "navigate")', 'rawKeyHint("↑↓", uiText("navigate"))')
       .replaceAll('keyHint("tui.select.confirm", "select")', 'keyHint("tui.select.confirm", uiText("select"))')
       .replaceAll('keyHint("tui.select.cancel", "cancel")', 'keyHint("tui.select.cancel", uiText("cancel"))');
+    if (relative === "components/keybinding-hints.js") {
+      source = source
+        .replace('` ${description}`', '` ${uiText(description)}`');
+    }
+    if (relative === "components/settings-selector.js") {
+      source = source
+        .replace('const SETTINGS_SUBMENU_SELECT_LIST_LAYOUT = {', 'function localizeItems(items) { return items.map((item) => ({ ...item, label: uiText(item.label), description: item.description ? uiText(item.description) : item.description })); }\nconst SETTINGS_SUBMENU_SELECT_LIST_LAYOUT = {')
+        .replaceAll('new SettingsList(items,', 'new SettingsList(localizeItems(items),')
+        .replace('this.selectList = new SelectList(options,', 'this.selectList = new SelectList(localizeItems(options),')
+        .replace('theme.bold(theme.fg("accent", title))', 'theme.bold(theme.fg("accent", uiText(title)))')
+        .replace('theme.fg("muted", description)', 'theme.fg("muted", uiText(description))')
+        .replace('theme.fg("dim", "  Enter to select · Esc to go back")', 'theme.fg("dim", `  ${uiText("Enter to select · Esc to go back")}`)')
+        .replace('theme.bold(theme.fg("accent", "Automatic Theme"))', 'theme.bold(theme.fg("accent", uiText("Automatic Theme")))')
+        .replace('theme.fg("muted", "Choose themes for terminal light and dark appearance.")', 'theme.fg("muted", uiText("Choose themes for terminal light and dark appearance."))')
+        .replace('theme.fg("muted", "Light/dark detection requires terminal support.")', 'theme.fg("muted", uiText("Light/dark detection requires terminal support."))')
+        .replace('description: THINKING_DESCRIPTIONS[level]', 'description: uiText(THINKING_DESCRIPTIONS[level])');
+    }
+    if (relative === "components/scoped-models-selector.js") {
+      source = source
+        .replace('theme.bold("Model Configuration")', 'theme.bold(uiText("Model Configuration"))')
+        .replace('`Session-only. ${keyText("app.models.save")} to save to settings.`', 'uiText("Session-only. {key} to save to settings.", { key: keyText("app.models.save") })')
+        .replace('"all enabled"', 'uiText("all enabled")')
+        .replace('`${enabledCount}/${this.allIds.length} enabled${unavailableCount ? ` · ${unavailableCount} unavailable` : ""}`', '`${enabledCount}/${this.allIds.length} ${uiText("enabled")}${unavailableCount ? ` · ${unavailableCount} ${uiText("unavailable")}` : ""}`')
+        .replace('`${keyText("tui.select.confirm")} toggle`', '`${keyText("tui.select.confirm")} ${uiText("toggle")}`')
+        .replace('`${keyText("app.models.enableAll")} all`', '`${keyText("app.models.enableAll")} ${uiText("all")}`')
+        .replace('`${keyText("app.models.clearAll")} clear`', '`${keyText("app.models.clearAll")} ${uiText("clear")}`')
+        .replace('`${keyText("app.models.toggleProvider")} provider`', '`${keyText("app.models.toggleProvider")} ${uiText("provider")}`')
+        .replace('`${keyText("app.models.reorderUp")}/${keyText("app.models.reorderDown")} reorder`', '`${keyText("app.models.reorderUp")}/${keyText("app.models.reorderDown")} ${uiText("reorder")}`')
+        .replace('`${keyText("app.models.save")} save`', '`${keyText("app.models.save")} ${uiText("save")}`')
+        .replace('"(unsaved)"', '`(${uiText("unsaved")})`')
+        .replace('"  No matching models"', '`  ${uiText("No matching models")}`')
+        .replace('" [unavailable]"', '` [${uiText("unavailable")}]`')
+        .replace('`${selected.model ? `Model Name: ${selected.model.name}` : "Model unavailable"}`', '`${selected.model ? uiText(`Model Name: ${selected.model.name}`) : uiText("Model unavailable")}`');
+    }
+    if (relative === "components/status-indicator.js") {
+      source = source
+        .replace('`Retrying (${attempt}/${maxAttempts}) in ${seconds}s... (${keyText("app.interrupt")} to cancel)`', 'uiText("Retrying ({attempt}/{max}) in {seconds}s... ({key} to cancel)", { attempt, max: maxAttempts, seconds, key: keyText("app.interrupt") })')
+        .replace('`(${keyText("app.interrupt")} to cancel)`', '`(${keyText("app.interrupt")} ${uiText("to cancel")})`')
+        .replace('`Compacting context... ${cancelHint}`', '`${uiText("Compacting context...")} ${cancelHint}`')
+        .replace('`${reason === "overflow" ? "Context overflow detected, " : ""}Auto-compacting... ${cancelHint}`', '`${reason === "overflow" ? `${uiText("Context overflow detected,")} ` : ""}${uiText("Auto-compacting...")} ${cancelHint}`')
+        .replace('`Summarizing branch... (${keyText("app.interrupt")} to cancel)`', '`${uiText("Summarizing branch...")} (${keyText("app.interrupt")} ${uiText("to cancel")})`');
+    }
+    if (relative === "components/bash-execution.js") {
+      source = source
+        .replace('`Running... (${keyText("tui.select.cancel")} to cancel)`', '`${uiText("Running...")} (${keyText("tui.select.cancel")} ${uiText("to cancel")})`')
+        .replace('keyHint("app.tools.expand", "to collapse")', 'keyHint("app.tools.expand", uiText("to collapse"))')
+        .replace('keyHint("app.tools.expand", "to expand")', 'keyHint("app.tools.expand", uiText("to expand"))')
+        .replace('`... ${hiddenLineCount} more lines (`', 'uiText("... {count} more lines (", { count: hiddenLineCount })')
+        .replace('"(cancelled)"', '`(${uiText("cancelled")})`')
+        .replace('`(exit ${this.exitCode})`', '`(${uiText("exit")} ${this.exitCode})`')
+        .replace('`Output truncated. Full output: ${this.fullOutputPath}`', 'uiText("Output truncated. Full output: {path}", { path: this.fullOutputPath })');
+    }
+    if (relative === "components/first-time-setup.js") {
+      source = source
+        .replace('THEME_OPTIONS.map((option) => option.label)', 'THEME_OPTIONS.map((option) => uiText(option.label))')
+        .replace('ANALYTICS_OPTIONS.map((option) => option.label)', 'ANALYTICS_OPTIONS.map((option) => uiText(option.label))')
+        .replace('theme.bold(`Welcome to ${APP_NAME}, your general AI assistant.`)', 'theme.bold(uiText("Welcome to {app}, your general AI assistant.", { app: APP_NAME }))')
+        .replace('theme.fg("text", "Pick a theme.")', 'theme.fg("text", uiText("Pick a theme."))')
+        .replace('theme.fg("muted", `Detected system appearance: ${this.options.detectedTheme}`)', 'theme.fg("muted", uiText(`Detected system appearance: ${this.options.detectedTheme}`))')
+        .replace('theme.fg("text", "Opt-in to anonymous usage data sharing?")', 'theme.fg("text", uiText("Opt-in to anonymous usage data sharing?"))')
+        .replace('rawKeyHint("↑↓", "navigate")', 'rawKeyHint("↑↓", uiText("navigate"))')
+        .replace('this.step === "theme" ? "continue" : "finish"', 'uiText(this.step === "theme" ? "continue" : "finish")')
+        .replace('keyHint("tui.select.cancel", "skip setup")', 'keyHint("tui.select.cancel", uiText("skip setup"))');
+    }
+    if (relative === "components/assistant-message.js") {
+      source = source
+        .replace('hiddenThinkingLabel = "Thinking..."', 'hiddenThinkingLabel = uiText("Thinking...")')
+        .replace('"Operation aborted"', 'uiText("Operation aborted")')
+        .replace('"Unknown error"', 'uiText("Unknown error")');
+    }
+    if (relative === "components/show-images-selector.js") {
+      source = source
+        .replace('{ value: "yes", label: "Yes", description: "Show images inline in terminal" }', '{ value: "yes", label: uiText("Yes"), description: uiText("Show images inline in terminal") }')
+        .replace('{ value: "no", label: "No", description: "Show text placeholder instead" }', '{ value: "no", label: uiText("No"), description: uiText("Show text placeholder instead") }');
+    }
+    if (["components/extension-editor.js", "components/extension-input.js", "components/bordered-loader.js"].includes(relative)) {
+      for (const label of ["submit", "newline", "cancel", "external editor"]) source = source.replaceAll(`"${label}"`, `uiText("${label}")`);
+    }
+    if (relative === "interactive-mode.js") {
+      source = source
+        .replace('description: command.description,', 'description: uiText(command.description),')
+        .replace('new Text(theme.bold(theme.fg("accent", "What\'s New"))', 'new Text(theme.bold(theme.fg("accent", uiText("What\'s New")))')
+        .replace('const text = new Text(theme.fg("dim", message), 1, 0);', 'const text = new Text(theme.fg("dim", uiText(message)), 1, 0);')
+        .replace('`Error: ${errorMessage}`', '`${uiText("Error:")} ${uiText(errorMessage)}`')
+        .replace('`Warning: ${warningMessage}`', '`${uiText("Warning:")} ${uiText(warningMessage)}`')
+        .replaceAll('theme.fg("warning", "Update Available")', 'theme.fg("warning", uiText("Update Available"))')
+        .replaceAll('theme.fg("warning", "Package Updates Available")', 'theme.fg("warning", uiText("Package Updates Available"))')
+        .replaceAll('theme.fg("muted", "Packages:")', 'theme.fg("muted", uiText("Packages:"))')
+        .replaceAll('theme.fg("accent", "Keyboard Shortcuts")', 'theme.fg("accent", uiText("Keyboard Shortcuts"))')
+        .replaceAll('this.showStatus("Forked to new session")', 'this.showStatus(uiText("Forked to new session"))')
+        .replaceAll('this.showStatus("Navigated to selected point")', 'this.showStatus(uiText("Navigated to selected point"))')
+        .replaceAll('this.showWarning("A bash command is already running. Press Esc to cancel it first.")', 'this.showWarning(uiText("A bash command is already running. Press Esc to cancel it first."))');
+    }
+    if (relative === "components/session-selector.js") {
+      for (const label of ["now", "Resume Session (Current Folder)", "Resume Session (All)", "Threaded", "Recent", "Fuzzy", "Sort:", "All", "Named", "Name:", "Current Folder", "Delete session?", "No sessions found", "Session moved to trash", "Session deleted", "Rename Session"]) {
+        source = source.replaceAll(`"${label}"`, `uiText("${label}")`);
+      }
+      source = source
+        .replace('theme.fg("muted", "Sort: ")', 'theme.fg("muted", `${uiText("Sort:")} `)')
+        .replace('theme.fg("muted", "Name: ")', 'theme.fg("muted", `${uiText("Name:")} `)')
+        .replaceAll('"○ Current Folder | "', '`${"○ " + uiText("Current Folder") + " | "}`')
+        .replaceAll('"◉ Current Folder"', '`${"◉ " + uiText("Current Folder")}`')
+        .replaceAll('" | ○ All"', '`${" | ○ " + uiText("All")}`')
+        .replaceAll('"◉ All"', '`${"◉ " + uiText("All")}`')
+        .replace('`Delete session? ${keyHint("tui.select.confirm", "confirm")}', '`${uiText("Delete session?")} ${keyHint("tui.select.confirm", uiText("confirm"))}')
+        .replace('theme.fg("muted", \'re:<pattern> regex · "phrase" exact\')', 'theme.fg("muted", `re:<pattern> regex · "phrase" exact`)')
+        .replace('"No sessions in current folder. Press Tab to view all."', 'uiText("No sessions in current folder. Press Tab to view all.")')
+        .replace('emptyMessage = "  No sessions found";', 'emptyMessage = `  ${uiText("No sessions found")}`;')
+        .replace('emptyMessage = "  No sessions in current folder. Press Tab to view all.";', 'emptyMessage = `  ${uiText("No sessions in current folder. Press Tab to view all.")}`;')
+        .replace('`Loading ${this.progress.loaded}/${this.progress.total}`', '`${uiText("Loading")} ${this.progress.loaded}/${this.progress.total}`')
+        .replace('`Failed to delete: ${errorMessage}`', 'uiText("Failed to delete: {error}", { error: errorMessage })')
+        .replace('`Failed to load sessions: ${message}`', 'uiText("Failed to load sessions: {error}", { error: message })');
+    }
+    if (relative === "components/user-message-selector.js") {
+      for (const label of ["No user messages found", "Fork from Message", "Select a user message to copy the active path up to that point into a new session"]) source = source.replaceAll(`"${label}"`, `uiText("${label}")`);
+      source = source.replace('`Message ${currentPosition} of ${this.entries.length}`', 'uiText("Message {position} of {total}", { position: currentPosition, total: this.entries.length })');
+    }
+    if (relative === "components/tree-selector.js") {
+      for (const label of ["No entries found", "Session Tree", "save", "cancel"]) source = source.replaceAll(`"${label}"`, `uiText("${label}")`);
+      source = source
+        .replaceAll('theme.fg("muted", "Type to search:")', 'theme.fg("muted", uiText("Type to search:"))')
+        .replace('return labelFirst ? `${label} ${text}` : `${text} ${label}`;', 'const localizedLabel = uiText(label); return labelFirst ? `${localizedLabel} ${text}` : `${text} ${localizedLabel}`;')
+        .replace('theme.fg("muted", "Label (empty to remove):")', 'theme.fg("muted", uiText("Label (empty to remove):"))')
+        .replace('theme.fg("muted", "  No entries found")', 'theme.fg("muted", `  ${uiText("No entries found")}`)')
+        .replace('theme.bold("  Session Tree")', 'theme.bold(`  ${uiText("Session Tree")}`)')
+        .replaceAll('uiText(uiText("cancel"))', 'uiText("cancel")');
+    }
+    if (relative === "components/model-selector.js") {
+      source = source
+        .replaceAll('theme.fg("accent", "all")', 'theme.fg("accent", uiText("all"))')
+        .replaceAll('theme.fg("muted", "all")', 'theme.fg("muted", uiText("all"))')
+        .replaceAll('theme.fg("accent", "scoped")', 'theme.fg("accent", uiText("scoped"))')
+        .replaceAll('theme.fg("muted", "scoped")', 'theme.fg("muted", uiText("scoped"))')
+        .replace('theme.fg("muted", "Scope: ")', 'theme.fg("muted", `${uiText("Scope:")} `)')
+        .replace('keyHint("tui.input.tab", "scope")', 'keyHint("tui.input.tab", uiText("scope"))')
+        .replaceAll('theme.fg("warning", " login-required")', 'theme.fg("warning", ` ${uiText("login-required")}`)')
+        .replace('this.errorMessage = "Model refresh timed out; showing cached models.";', 'this.errorMessage = uiText("Model refresh timed out; showing cached models.");')
+        .replace('this.errorMessage = `Could not refresh ${result.errors.keys().next().value}; showing cached models.`;', 'this.errorMessage = uiText(`Could not refresh ${result.errors.keys().next().value}; showing cached models.`);')
+        .replace('this.errorMessage = `Could not refresh ${result.errors.size} model catalogs; showing cached models.`;', 'this.errorMessage = uiText(`Could not refresh ${result.errors.size} model catalogs; showing cached models.`);');
+    }
+    if (relative === "components/trust-selector.js") {
+      for (const label of ["none", "trusted", "untrusted", "Project trust", "Saved decision:", "Current session:", "navigate", "save", "cancel"]) source = source.replaceAll(`"${label}"`, `uiText("${label}")`);
+    }
+    if (relative === "components/config-selector.js") {
+      for (const label of ["Extensions", "Skills", "Prompts", "Themes", "User", "Project", "User settings", "Project settings", "Project Local Resources", "Global Resources", "No resources found", "switch mode", "toggle", "close"]) source = source.replaceAll(`"${label}"`, `uiText("${label}")`);
+    }
     await writeFile(path, source, "utf8");
   }
+}
+
+async function patchSettingsValueDisplay(projectRoot) {
+  const path = join(agentPath(projectRoot), "node_modules", "@earendil-works", "pi-tui", "dist", "components", "settings-list.js");
+  const importLine = `import { uiValue } from "../../../../../../../../resources/coco-ui-language.mjs";`;
+  let source;
+  try { source = await readFile(path, "utf8"); }
+  catch (error) { if (error?.code === "ENOENT") return; throw error; }
+  if (source.includes(importLine)) return;
+  source = `${importLine}\n${source}`.replace(
+    "const valueText = this.theme.value(truncateToWidth(item.currentValue, valueMaxWidth, \"\"), isSelected);",
+    "const valueText = this.theme.value(truncateToWidth(uiValue(item.currentValue), valueMaxWidth, \"\"), isSelected);",
+  );
+  source = source
+    .replace('"  Type to search · Enter/Space to change · Esc to cancel"', '`  ${uiValue("Type to search · Enter/Space to change · Esc to cancel")}`')
+    .replace('"  Enter/Space to change · Esc to cancel"', '`  ${uiValue("Enter/Space to change · Esc to cancel")}`');
+  await writeFile(path, source, "utf8");
 }
 
 export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) {
@@ -769,7 +948,9 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[0] = replaceExact(patched[0], helpIdentityAnchor, patchedHelpIdentity);
   patched[0] = replaceExact(patched[0], helpPromptAnchor, patchedHelpPrompt);
   patched[6] = replaceUpgrade(patched[6], systemPromptIdentityAnchor, legacyPatchedSystemPromptIdentity, patchedSystemPromptIdentity);
-  patched[9] = replaceExact(patched[9], firstTimeSetupAnchor, patchedFirstTimeSetup);
+  if (!patched[9].includes('uiText("Welcome to {app}, your general AI assistant."')) {
+    patched[9] = replaceExact(patched[9], firstTimeSetupAnchor, patchedFirstTimeSetup);
+  }
   patched[10] = replaceOfflineToolNotice(patched[10]);
   patched.push(replaceExact(originals.at(-1), scrollbackAnchor, patchedScrollback));
   await Promise.all(patched.map((source, index) => source === originals[index] ? undefined : writeFile([...targets, tuiPath][index], source, "utf8")));
@@ -777,6 +958,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   await patchBuiltinThemeRegistry(projectRoot);
   await patchSecretExtensionInput(projectRoot);
   await patchUiLanguage(projectRoot);
+  await patchSettingsValueDisplay(projectRoot);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

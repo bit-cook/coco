@@ -5304,3 +5304,7 @@ Initial public release.
 ## 0.4.0
 
 - Localize the primary CoCo TUI in Chinese, follow the user's environment by default, and preserve explicit language choices across restarts.
+
+## 0.4.1
+
+- Expand Chinese localization across settings, sessions, session tree, status indicators, startup hints, model scope labels, and stable error guidance without translating technical identifiers or external content.

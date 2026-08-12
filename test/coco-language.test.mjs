@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import cocoLanguage, { createLanguageService } from "../resources/coco-language.mjs";
+import { uiText, uiValue } from "../resources/coco-ui-language.mjs";
 
 async function fixture() {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-language-"));
@@ -22,6 +23,22 @@ test("built-in English and Chinese languages switch and persist", async () => {
     assert.deepEqual(JSON.parse(await readFile(join(setup.agentDir, "language.json"), "utf8")), { locale: "zh-CN", schemaVersion: 1 });
     assert.equal(createLanguageService({ agentDir: setup.agentDir }).locale, "zh-CN");
   } finally { await setup.cleanup(); }
+});
+
+test("localized display values never change stored setting values", async () => {
+  const previous = process.env.COCO_CODING_AGENT_DIR;
+  const setup = await fixture();
+  process.env.COCO_CODING_AGENT_DIR = setup.agentDir;
+  try {
+    assert.equal(createLanguageService({ agentDir: setup.agentDir }).select("zh-CN"), true);
+    assert.equal(uiValue("true"), "开启");
+    assert.equal(uiValue("one-at-a-time"), "逐条发送");
+    assert.equal(uiText("Model Name: {name}", { name: "provider/model" }), "模型名称：provider/model");
+    assert.equal("one-at-a-time", "one-at-a-time");
+  } finally {
+    if (previous === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previous;
+    await setup.cleanup();
+  }
 });
 
 test("language follows the environment until the user explicitly selects one", async () => {
