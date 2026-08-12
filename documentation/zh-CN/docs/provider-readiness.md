@@ -35,4 +35,6 @@ Provider sync 的每个成功结果已增加 `readiness`，并将成功证据限
 
 启用 connectivity 的 Doctor 会为每个实际 probe 的 Provider 保留 verification projection：401/403 是 `rejected`，其他 HTTP、schema 或 network failure 是 `inconclusive`。Default Provider 始终排在首位且即使没有 credential 也保留 local projection。原有 aggregate `PROVIDER_CONNECTIVITY` check、status 和 exit code 保持不变。
 
-Bootstrap 结果新增 `providerReadiness.current` 和 `providerReadiness.projected`，scope 为 `all-managed`。Dry run 的 projected 是应用安全、非冲突修改后的预测状态；apply 返回同一计划对应的 committed projection；noop 时 current 与 projected 相同。Bootstrap 第一阶段不读取 secret 或 migration state，因此 credential status/source 和 rotation 分别为 `unknown`/`unknown`/`null`，不会把未观察状态误报为缺失或无需 rotation。
+Bootstrap 结果新增 `providerReadiness.current` 和 `providerReadiness.projected`，scope 为 `all-managed`。Dry run 的 projected 是应用安全、非冲突修改后的预测状态；apply 返回同一计划对应的 committed projection；noop 时 current 与 projected 相同。
+
+Bootstrap 通过只读 sanitized observation 读取 auth、environment、legacy models credential 和 rotation metadata。结果只包含 `available/missing`、source 和 rotation boolean，不包含 key、环境变量名或 credential 内容。读取在 bootstrap 创建目录、恢复 transaction 或写状态前完成；无效或 symlinked credential state fail closed。

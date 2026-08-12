@@ -8,6 +8,7 @@ import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
 import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
 import { projectProviderReadiness } from "./provider-readiness.mjs";
+import { readCredentialObservations } from "./auth-management.mjs";
 
 const PROVIDERS = MANAGED_PROVIDER_IDS.includes("idepub") ? ["idepub", ...MANAGED_PROVIDER_IDS.filter((provider) => provider !== "idepub")] : [...MANAGED_PROVIDER_IDS];
 const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, lastChangelogVersion: "0.5.2", theme: "coco-orange-light/coco-orange" };
@@ -92,16 +93,19 @@ function ownershipDocument(previous, settings, models, prompt) {
   return { managedFiles, schemaVersion: 1 };
 }
 
-function providerSnapshot(settings, models, catalogStatuses = {}) {
+function providerSnapshot(settings, models, credentials, catalogStatuses = {}) {
   return MANAGED_PROVIDER_IDS.map((provider) => {
     const definition = models?.providers?.[provider]; const configured = object(definition);
     const isDefault = settings?.defaultProvider === provider; const modelId = isDefault && typeof settings?.defaultModel === "string" ? settings.defaultModel : null;
     const available = configured && Array.isArray(definition.models) && (modelId === null ? definition.models.length > 0 : definition.models.some((model) => model?.id === modelId));
-    return projectProviderReadiness({ catalogStatus: catalogStatuses[provider] ?? "unknown", configurationStatus: configured ? "configured" : "missing", credentialSource: "unknown", credentialStatus: "unknown", modelId, modelStatus: available ? "available" : "missing", provider, rotationRequired: null });
+    const observation = credentials.get(provider);
+    return projectProviderReadiness({ catalogStatus: catalogStatuses[provider] ?? "unknown", configurationStatus: configured ? "configured" : "missing", credentialSource: observation.source, credentialStatus: observation.status, modelId, modelStatus: available ? "available" : "missing", provider, rotationRequired: observation.rotationRequired });
   });
 }
 
 export async function bootstrapState({ agentDir, dryRun = false, root }) {
+  const credentialState = await readCredentialObservations({ agentDir });
+  const credentials = new Map(credentialState.providers.map(({ credential, provider }) => [provider, credential]));
   if (!dryRun) { await ensureAgentDirectory(agentDir); await recoverTransactions(agentDir); }
   const paths = statePaths(agentDir);
   const registry = registryDocument(parseStrictJson(await readFile(join(root, "resources", "provider-registry.v1.json")), "REGISTRY_SCHEMA_INVALID"));
@@ -116,7 +120,7 @@ export async function bootstrapState({ agentDir, dryRun = false, root }) {
   const skipped = [...prompt.skipped, ...settingPlan.skipped, ...modelPlan.skipped];
   const warnings = [...prompt.warnings, ...settingPlan.skipped.map((pointer) => `SETTING_CONFLICT:${pointer}`), ...modelPlan.skipped.map((pointer) => `PROVIDER_CONFLICT:${pointer}`)];
   const seeded = Object.fromEntries(PROVIDERS.filter((provider) => modelPlan.created.some((pointer) => pointer === `/providers/${provider}/models`)).map((provider) => [provider, "seeded"]));
-  const providerReadiness = { current: providerSnapshot(settings, models), projected: providerSnapshot(settingPlan.value, modelPlan.value, seeded), schemaVersion: 1, scope: "all-managed" };
+  const providerReadiness = { current: providerSnapshot(settings, models, credentials), projected: providerSnapshot(settingPlan.value, modelPlan.value, credentials, seeded), schemaVersion: 1, scope: "all-managed" };
   if (created.length === 0) return { created: [], dryRun, providerReadiness, skipped, status: "noop", warnings };
   if (dryRun) return { created, dryRun, providerReadiness, skipped, status: "planned", warnings };
   const operations = [];

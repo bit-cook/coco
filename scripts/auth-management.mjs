@@ -35,12 +35,34 @@ async function existingAuth(agentDir) {
   return validateAuth(parseStrictJson(await readFile(path), "AUTH_SCHEMA_INVALID"));
 }
 
+async function existingModels(agentDir) {
+  const path = statePaths(agentDir).models;
+  if (await inspectRegular(path) === null) return { providers: {} };
+  const models = parseStrictJson(await readFile(path), "MODELS_SCHEMA_INVALID");
+  if (models === null || typeof models !== "object" || Array.isArray(models) || models.providers === null || typeof models.providers !== "object" || Array.isArray(models.providers)) fail("MODELS_SCHEMA_INVALID");
+  return models;
+}
+
 export async function rotationProviders(agentDir) {
   const path = `${agentDir}/migration.json`;
   if (await inspectRegular(path) === null) return [];
   const document = parseStrictJson(await readFile(path), "MIGRATION_SCHEMA_INVALID");
   if (document === null || typeof document !== "object" || Array.isArray(document) || document.schemaVersion !== 1 || !Array.isArray(document.rotationRequired) || document.rotationRequired.some((provider) => !MANAGED_PROVIDERS.has(provider))) fail("MIGRATION_SCHEMA_INVALID");
   return document.rotationRequired;
+}
+
+export async function readCredentialObservations({ agentDir, environment = process.env }) {
+  const auth = await existingAuth(agentDir);
+  const models = await existingModels(agentDir);
+  const rotation = new Set(await rotationProviders(agentDir));
+  return Object.freeze({
+    providers: Object.freeze(MANAGED_PROVIDER_IDS.map((provider) => {
+      const credential = resolveCredential({ auth, environment, legacyModels: models, provider });
+      return Object.freeze({ credential: Object.freeze({ rotationRequired: rotation.has(provider), source: credential.source, status: credential.source === "none" ? "missing" : "available" }), provider });
+    })),
+    schemaVersion: 1,
+    scope: "all-managed",
+  });
 }
 
 export function parseStdinKey(bytes) {
