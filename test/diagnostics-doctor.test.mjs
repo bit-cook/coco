@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { lstat, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -100,6 +100,36 @@ test("doctor keeps an uncredentialed default projection when a non-default provi
     if (previous === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previous;
     await rm(root, { force: true, recursive: true });
   }
+});
+
+test("doctor recognizes and probes a legacy default-provider credential without exposing it", async () => {
+  const { agentDir, root } = await fixture(); const previousAgent = process.env.COCO_CODING_AGENT_DIR; const previousKey = process.env.AGNES_API_KEY; const calls = [];
+  try {
+    process.env.COCO_CODING_AGENT_DIR = agentDir; delete process.env.AGNES_API_KEY;
+    await writeFile(join(agentDir, "auth.json"), "{}\n");
+    const modelsPath = join(agentDir, "models.json"); const models = JSON.parse(await readFile(modelsPath, "utf8")); models.providers.agnes.apiKey = "agnes-legacy-doctor-secret"; await writeFile(modelsPath, `${JSON.stringify(models)}\n`);
+    const result = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async (url, key) => { calls.push({ key, url: url.href }); return { kind: "ok" }; } });
+    assert.deepEqual(calls, [{ key: "agnes-legacy-doctor-secret", url: "https://apihub.agnes-ai.com/v1/models" }]);
+    assert.deepEqual(result.checks.find(({ id }) => id === "AUTH_STATUS").details, { present: true, provider: "agnes", rotationRequired: false, source: "legacy" });
+    assert.deepEqual(result.providers[0].credential, { rotationRequired: false, source: "legacy", status: "available" });
+    assert.equal(result.providers[0].localStatus, "ready"); assert.deepEqual(result.providers[0].verification, { scope: "models-endpoint", status: "verified" });
+    assert.equal(JSON.stringify(result).includes("agnes-legacy-doctor-secret"), false); assert.equal(JSON.stringify(result).includes("AGNES_API_KEY"), false);
+  } finally {
+    if (previousAgent === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previousAgent;
+    if (previousKey === undefined) delete process.env.AGNES_API_KEY; else process.env.AGNES_API_KEY = previousKey;
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("doctor credential observation does not recover or mutate a pending transaction", async () => {
+  const { agentDir, root } = await fixture(); const previous = process.env.COCO_CODING_AGENT_DIR;
+  try {
+    process.env.COCO_CODING_AGENT_DIR = agentDir; await setAuthKey({ agentDir, key: "doctor-read-only", provider: "agnes" });
+    const transactions = join(agentDir, "transactions"); await mkdir(transactions, { recursive: true }); const pending = join(transactions, "pending.json"); await writeFile(pending, "{broken"); const before = await readFile(pending);
+    const result = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async () => ({ kind: "ok" }) });
+    assert.equal(result.checks.find(({ id }) => id === "AUTH_STATUS").status, "pass"); assert.equal(result.checks.find(({ id }) => id === "PROVIDER_CONNECTIVITY").status, "pass");
+    assert.deepEqual(await readFile(pending), before); await assert.rejects(lstat(join(agentDir, ".state.lock")), (error) => error.code === "ENOENT");
+  } finally { if (previous === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previous; await rm(root, { force: true, recursive: true }); }
 });
 
 test("core check treats the default offline registry check as skipped", async () => {

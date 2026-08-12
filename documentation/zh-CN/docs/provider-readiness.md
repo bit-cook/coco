@@ -38,3 +38,5 @@ Provider sync 的每个成功结果已增加 `readiness`，并将成功证据限
 Bootstrap 结果新增 `providerReadiness.current` 和 `providerReadiness.projected`，scope 为 `all-managed`。Dry run 的 projected 是应用安全、非冲突修改后的预测状态；apply 返回同一计划对应的 committed projection；noop 时 current 与 projected 相同。
 
 Bootstrap 通过只读 sanitized observation 读取 auth、environment、legacy models credential 和 rotation metadata。结果只包含 `available/missing`、source 和 rotation boolean，不包含 key、环境变量名或 credential 内容。读取在 bootstrap 创建目录、恢复 transaction 或写状态前完成；无效或 symlinked credential state fail closed。
+
+Doctor local readiness 与 connectivity 复用同一 sanitized observation，不执行 transaction recovery。Legacy models credential 可参与 default AUTH_STATUS 和 connectivity probe，但 key 仅瞬时传给 probe，不进入结果。

@@ -3,7 +3,7 @@ import { lstat, readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 
-import { getAuthStatus } from "./auth-management.mjs";
+import { readCredentialObservations } from "./auth-management.mjs";
 import { COCO_VERSION, CORE_VERSION, resolveCocoRuntime } from "./coco-runtime-identity.mjs";
 import { readFrozenProviderContracts } from "./provider-sync.mjs";
 import { projectProviderReadiness } from "./provider-readiness.mjs";
@@ -96,21 +96,23 @@ export async function doctor({ connectivity = false, providerProbe: probe = prov
   const runtime = await resolveCocoRuntime({ root }); const integrity = await verifyRuntimeIntegrity({ root });
   checks.push(item("NODE_VERSION", runtime.status === "approved" ? "info" : "fatal", runtime.status === "approved" ? "pass" : "fail", runtime.status === "approved" ? "Supported Node runtime is active." : runtime.code));
   checks.push(item("RUNTIME_INTEGRITY", integrity.status === "approved" ? "info" : "fatal", integrity.status === "approved" ? "pass" : "fail", integrity.status === "approved" ? "Runtime integrity is verified." : integrity.code));
-  let settings; let models; let ownership; const providerReadiness = new Map();
+  let settings; let models; let ownership; let credentialError; let credentialObservations = new Map(); const providerReadiness = new Map();
   try { settings = await validJson(paths.settings, "SETTINGS_SCHEMA_INVALID", (value) => object(value) ? value : (() => { throw new Error("SETTINGS_SCHEMA_INVALID"); })()); models = await validJson(paths.models, "MODELS_SCHEMA_INVALID", (value) => object(value) && object(value.providers) ? value : (() => { throw new Error("MODELS_SCHEMA_INVALID"); })()); await validJson(paths.auth, "AUTH_SCHEMA_INVALID", validateAuth); checks.push(item("CONFIG_SCHEMA", "info", "pass", "Managed state files are valid.")); } catch (error) { checks.push(item("CONFIG_SCHEMA", "fatal", "fail", code(error, "CONFIG_SCHEMA_INVALID"))); }
   const defaultProvider = typeof settings?.defaultProvider === "string" ? settings.defaultProvider : null;
   const defaultModel = typeof settings?.defaultModel === "string" ? settings.defaultModel : null;
   const providerConfigured = defaultProvider !== null && object(models?.providers?.[defaultProvider]);
   const modelAvailable = providerConfigured && defaultModel !== null && Array.isArray(models.providers[defaultProvider].models) && models.providers[defaultProvider].models.some((model) => model?.id === defaultModel);
   checks.push(item("DEFAULT_MODEL", modelAvailable ? "info" : "warning", modelAvailable ? "pass" : "fail", "Default model resolution was checked."));
+  try { credentialObservations = new Map((await readCredentialObservations({ agentDir })).providers.map(({ credential, provider }) => [provider, credential])); } catch (error) { credentialError = error; }
   try { ownership = await validJson(paths.ownership, "OWNERSHIP_SCHEMA_INVALID", validateOwnership); checks.push(item("CONFIG_OWNERSHIP", "info", "pass", "Ownership metadata is valid.")); } catch (error) { const missing = code(error, "") === "ENOENT"; checks.push(item("CONFIG_OWNERSHIP", missing ? "warning" : "fatal", "fail", missing ? "Ownership metadata is missing; run coco manage bootstrap --yes." : code(error, "OWNERSHIP_SCHEMA_INVALID"))); }
   try {
     const provider = settings?.defaultProvider;
     if (typeof provider !== "string") throw new Error("DEFAULT_PROVIDER_INVALID");
-    const [entry] = await getAuthStatus({ agentDir, provider });
-    const failed = !entry.available || entry.rotationRequired;
-    providerReadiness.set(provider, projectProviderReadiness({ catalogStatus: "unknown", configurationStatus: providerConfigured ? "configured" : "missing", credentialSource: entry.source, credentialStatus: entry.available ? "available" : "missing", modelId: defaultModel, modelStatus: modelAvailable ? "available" : "missing", provider, rotationRequired: entry.rotationRequired }));
-    checks.push(item("AUTH_STATUS", failed ? "warning" : "info", failed ? "fail" : "pass", "Default provider credential availability was checked.", { provider: entry.provider, present: entry.available, source: entry.source, rotationRequired: entry.rotationRequired }));
+    if (credentialError) throw credentialError;
+    const credential = credentialObservations.get(provider); if (!credential) throw Object.assign(new Error("AUTH_PROVIDER_INVALID"), { code: "AUTH_PROVIDER_INVALID" });
+    const available = credential.status === "available"; const failed = !available || credential.rotationRequired;
+    providerReadiness.set(provider, projectProviderReadiness({ catalogStatus: "unknown", configurationStatus: providerConfigured ? "configured" : "missing", credentialSource: credential.source, credentialStatus: credential.status, modelId: defaultModel, modelStatus: modelAvailable ? "available" : "missing", provider, rotationRequired: credential.rotationRequired }));
+    checks.push(item("AUTH_STATUS", failed ? "warning" : "info", failed ? "fail" : "pass", "Default provider credential availability was checked.", { provider, present: available, source: credential.source, rotationRequired: credential.rotationRequired }));
   } catch (error) { checks.push(item("AUTH_STATUS", "fatal", "fail", code(error, "AUTH_SCHEMA_INVALID"))); }
   try { const directory = await lstat(agentDir); const auth = await lstat(paths.auth); const safe = directory.isDirectory() && !directory.isSymbolicLink() && auth.isFile() && !auth.isSymbolicLink() && (process.platform === "win32" || ((directory.mode & 0o077) === 0 && (auth.mode & 0o077) === 0)); checks.push(item("SECRET_PERMISSIONS", safe ? "info" : "fatal", safe ? "pass" : "fail", safe ? "Secret storage permissions are restricted." : "Secret storage permissions are unsafe.")); } catch { checks.push(item("SECRET_PERMISSIONS", "warning", "skipped", "No auth store is present.")); }
   try { const catalog = await catalogStatus(paths.catalogs); checks.push(item("CATALOG_FRESHNESS", catalog.fresh ? "info" : "warning", catalog.fresh ? "pass" : "fail", catalog.fresh ? "Current catalog metadata is present." : "No current catalog is available.")); checks.push(item("CATALOG_HASH", catalog.hashesValid ? "info" : "warning", catalog.hashesValid ? "pass" : "fail", catalog.hashesValid ? "Current catalog hashes are valid." : "Current catalog hashes are invalid or unavailable.")); } catch { checks.push(item("CATALOG_FRESHNESS", "warning", "fail", "No current catalog is available.")); checks.push(item("CATALOG_HASH", "warning", "fail", "Current catalog hashes are invalid or unavailable.")); }
@@ -123,19 +125,19 @@ export async function doctor({ connectivity = false, providerProbe: probe = prov
     checks.push(item("PROVIDER_CONNECTIVITY", "warning", "skipped", connectivity ? "Connectivity was skipped while offline." : "Connectivity was not requested.", { failureCode: "OFFLINE" }));
   } else {
     try {
+      if (credentialError) throw credentialError;
       let auth = {};
       try { auth = await validJson(paths.auth, "AUTH_SCHEMA_INVALID", validateAuth); } catch (error) { if (code(error, "") !== "ENOENT") throw error; }
        const { registry: providers } = await readFrozenProviderContracts(root);
-       const authStatuses = new Map((await getAuthStatus({ agentDir })).map((entry) => [entry.provider, entry]));
-       const configured = Object.entries(providers.providers).map(([provider, definition]) => ({ credential: resolveCredential({ auth, provider }), definition, provider })).filter(({ credential }) => credential.key !== null);
+       const configured = Object.entries(providers.providers).map(([provider, definition]) => ({ credential: resolveCredential({ auth, legacyModels: models, provider }), definition, observation: credentialObservations.get(provider), provider })).filter(({ observation }) => observation?.status === "available");
        if (configured.length === 0) { checks.push(item("PROVIDER_CONNECTIVITY", "info", "skipped", "No configured providers were available to probe.")); }
        else {
        const probes = await Promise.all(configured.map(({ credential, definition }) => probe(new URL(definition.modelsPath, definition.origin), credential.key)));
        for (let index = 0; index < configured.length; index += 1) {
-         const { credential, provider } = configured[index]; const result = probes[index]; const authStatus = authStatuses.get(provider);
+         const { credential, observation, provider } = configured[index]; const result = probes[index];
          const isDefault = provider === defaultProvider; const configuredProvider = object(models?.providers?.[provider]);
          const availableModel = isDefault ? modelAvailable : configuredProvider && Array.isArray(models.providers[provider].models) && models.providers[provider].models.length > 0;
-         providerReadiness.set(provider, projectProviderReadiness({ catalogStatus: "unknown", configurationStatus: configuredProvider ? "configured" : "missing", credentialSource: credential.source, credentialStatus: "available", modelId: isDefault ? defaultModel : null, modelStatus: availableModel ? "available" : "missing", provider, rotationRequired: authStatus?.rotationRequired === true, verificationScope: "models-endpoint", verificationStatus: result.kind === "ok" ? "verified" : result.kind === "auth" ? "rejected" : "inconclusive" }));
+         providerReadiness.set(provider, projectProviderReadiness({ catalogStatus: "unknown", configurationStatus: configuredProvider ? "configured" : "missing", credentialSource: observation.source, credentialStatus: observation.status, modelId: isDefault ? defaultModel : null, modelStatus: availableModel ? "available" : "missing", provider, rotationRequired: observation.rotationRequired, verificationScope: "models-endpoint", verificationStatus: result.kind === "ok" ? "verified" : result.kind === "auth" ? "rejected" : "inconclusive" }));
        }
        const failure = probes.find((entry) => entry.kind !== "ok");
       if (failure === undefined) checks.push(item("PROVIDER_CONNECTIVITY", "info", "pass", "Provider connectivity is healthy."));
