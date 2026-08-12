@@ -5249,3 +5249,7 @@ Initial public release.
 - Message queueing during streaming responses
 - OAuth integration for Gmail and Google Calendar access
 - HTML export with syntax highlighting and collapsible sections
+## 0.3.1
+
+- Fix the fresh-install TUI default so the CoCo orange theme is registered as a runtime built-in instead of falling back to green Solarized.
+- Keep custom providers at the top of post-login provider options and autocomplete choices.

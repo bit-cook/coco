@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { chmod, lstat, mkdtemp, mkdir, readFile, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { execFile, spawn } from "node:child_process";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import test from "node:test";
 import { COCO_VERSION } from "../scripts/coco-runtime-identity.mjs";
 
@@ -90,13 +90,14 @@ async function fixture() {
         COCO_BIN_DIR: bin,
         COCO_CODING_AGENT_DIR: agent,
         COCO_INSTALL_DIR: install,
+      COCO_SYSTEM_BIN: join(root, "system-bin", "coco"),
       COCO_INSTALL_TEST_MODE: "1",
       COCO_TEST_AGNES_ASSET: agnesAsset,
       COCO_TEST_DOWNLOAD_LOG: join(root, "downloads.log"),
       COCO_TEST_SIDECAR: join(server, `coco-${COCO_VERSION}.tgz.sha256`),
       COCO_TEST_TARBALL: tarball,
       HOME: root,
-      PATH: `${bin}:${dirname(process.execPath)}:/usr/bin:/bin`,
+      PATH: `${bin}:/usr/bin:/bin`,
     },
     install,
     root,

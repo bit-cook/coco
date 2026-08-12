@@ -114,3 +114,8 @@ test("CoCo's default theme uses a vivid orange accent system", async () => {
   assert.equal(theme.colors.bashMode, "orangeBright");
   assert.equal(theme.vars.orangeBright, "#ffb15c");
 });
+
+test("CoCo registers the orange theme as a runtime built-in", async () => {
+  const source = await readFile(join(root, "dist", "modes", "interactive", "theme", "theme.js"), "utf8");
+  assert.match(source, /"coco-orange": JSON\.parse\(fs\.readFileSync\(orangePath/);
+});

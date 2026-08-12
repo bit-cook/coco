@@ -32,8 +32,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 Or install an explicitly reviewed release:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.3.0/install.sh
-COCO_VERSION=0.3.0 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.3.1/install.sh
+COCO_VERSION=0.3.1 bash install.sh
 ```
 
 The installer verifies the exact-tag release tarball and the pinned public Agnes credential against their published SHA-256 values, safely extracts CoCo, and preserves existing `~/.coco/agent` configuration during updates and reinstalls. Fresh installs work with Agnes max immediately and show models for Agnes, IDEPub, StepFun, Achai, and DeepSeek, including `deepseek-v4-flash` and `deepseek-v4-pro`. Achai credentials come from `ACHAI_API_KEY` or an existing OpenCode secret; CoCo does not bundle an Achai key. Set `AGNES_API_KEY` to override the default Agnes credential, set `DEEPSEEK_API_KEY` on a fresh install to import a DeepSeek credential, or configure another provider after installation.

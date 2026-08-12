@@ -313,8 +313,20 @@ const patchedLoginApiKeyOption = `                    authType: "api_key",
                     status,`;
 const loginOptionsSortAnchor = `        return options.sort((a, b) => a.name.localeCompare(b.name));`;
 const patchedLoginOptionsSort = `        return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`;
+const loginOptionsDirectSortAnchor = `        return options.sort((a, b) => a.name.localeCompare(b.name));`;
+const patchedLoginOptionsDirectSort = `        return options.sort((a, b) => Number(this.session.modelRuntime.isCustomProvider(b.id)) - Number(this.session.modelRuntime.isCustomProvider(a.id)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`;
 const defaultThemeAnchor = `currentTheme: this.settingsManager.getThemeSetting() || "dark",`;
 const patchedDefaultTheme = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",`;
+const builtinThemesAnchor = `        BUILTIN_THEMES = {
+            dark: JSON.parse(fs.readFileSync(darkPath, "utf-8")),
+            light: JSON.parse(fs.readFileSync(lightPath, "utf-8")),
+        };`;
+const patchedBuiltinThemes = `        const orangePath = path.join(themesDir, "coco-orange.json");
+        BUILTIN_THEMES = {
+            "coco-orange": JSON.parse(fs.readFileSync(orangePath, "utf-8")),
+            dark: JSON.parse(fs.readFileSync(darkPath, "utf-8")),
+            light: JSON.parse(fs.readFileSync(lightPath, "utf-8")),
+        };`;
 
 function patchError(code) {
   return new Error(code);
@@ -470,6 +482,16 @@ async function patchRuntimeDefaultTheme(projectRoot) {
   await writeFile(path, source, "utf8");
 }
 
+async function patchBuiltinThemeRegistry(projectRoot) {
+  const path = join(projectRoot, "dist", "modes", "interactive", "theme", "theme.js");
+  let source;
+  try { source = await readFile(path, "utf8"); }
+  catch (error) { if (error?.code === "ENOENT") return; throw error; }
+  if (source.includes('"coco-orange": JSON.parse(fs.readFileSync(orangePath')) return;
+  if (!source.includes(builtinThemesAnchor)) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+  await writeFile(path, source.replace(builtinThemesAnchor, patchedBuiltinThemes), "utf8");
+}
+
 export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) {
   const agent = agentPath(projectRoot);
   const tui = join(agent, "node_modules", "@earendil-works", "pi-tui");
@@ -526,7 +548,8 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[7] = replaceUpgrade(patched[7], loginOptionsAnchor, intermediatePatchedLoginOptions, patchedLoginOptions);
   patched[7] = replaceExact(patched[7], loginOauthOptionAnchor, patchedLoginOauthOption);
   patched[7] = replaceExact(patched[7], loginApiKeyOptionAnchor, patchedLoginApiKeyOption);
-  patched[7] = replaceUpgrade(patched[7], loginOptionsSortAnchor, [`        return options.sort((a, b) => Number(b.custom) - Number(a.custom) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`, `        return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`], patchedLoginOptionsSort);
+  patched[7] = replaceUpgrade(patched[7], loginOptionsSortAnchor, [`        return options.sort((a, b) => Number(b.custom) - Number(a.custom) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`, `        return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`, loginOptionsDirectSortAnchor, patchedLoginOptionsDirectSort], patchedLoginOptionsSort);
+  patched[7] = replaceUpgrade(patched[7], loginOptionsDirectSortAnchor, patchedLoginOptionsSort, patchedLoginOptionsDirectSort);
   patched[7] = replaceExact(patched[7], defaultThemeAnchor, patchedDefaultTheme);
   if (!patched[7].endsWith("\n")) patched[7] += "\n";
   patched[0] = replaceExact(patched[0], helpIdentityAnchor, patchedHelpIdentity);
@@ -537,6 +560,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched.push(replaceExact(originals.at(-1), scrollbackAnchor, patchedScrollback));
   await Promise.all(patched.map((source, index) => source === originals[index] ? undefined : writeFile([...targets, tuiPath][index], source, "utf8")));
   await patchRuntimeDefaultTheme(projectRoot);
+  await patchBuiltinThemeRegistry(projectRoot);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

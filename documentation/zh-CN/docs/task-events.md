@@ -27,5 +27,6 @@ TaskEvent 是 CoCo v0.3 的有界、非权威可观测层；`tasks.json` 仍是�
 - Discovery evidence 本身使用 exact schema：只包含 normalized absolute path、正数且有界的 byte count、canonical SHA-256 和 schema version。未知字段或畸形 evidence 会被拒绝。
 - 最终 evidence-chain 校验除 attestation、matrix、request binding 和 passed receipt 外，还强制要求这份 verified discovery evidence；缺失 discovery evidence 时 fail closed。
 - Protocol-v1 handshake verifier 只接受预先提供的 exact `ready` response，并将 provider ID、adapter digest/version 和 descriptor digest 绑定到 attestation evidence。它不接受 command、path、callback 或 process launcher，最终 evidence-chain 校验强制要求 verified handshake digest。
+- 最终 chain 还强制要求显式 canonical task/run IDs，并复用完整的 persisted execution-binding 与 Task Receipt v1 validators；跨 task/run 替换、未知字段、畸形时间戳/log reference 和非 passed receipt 都会被拒绝。
 
 事件不能重建 `tasks.json`；旧任务可能没有完整历史，进程崩溃后也不承诺日志字节级完整。

@@ -25,7 +25,7 @@ test("CoCo operational documentation is locale-paired and records the native CLI
   for (const page of [englishCli, chineseCli]) {
     for (const command of [
       "curl -fsSL https://bit-cook.github.io/coco/install.sh | bash",
-      "COCO_VERSION=0.3.0 bash install.sh",
+      "COCO_VERSION=0.3.1 bash install.sh",
       "PI_OFFLINE=0 coco",
       "coco manage auth set idepub",
       "coco manage auth set idepub --stdin",

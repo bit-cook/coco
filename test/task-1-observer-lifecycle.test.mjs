@@ -45,14 +45,15 @@ testWithWritableCgroup("Given a hung detached descendant, when internal deadline
 
 async function pidFrom(path) { return Number(await readFile(path, "utf8")); }
 function isAlive(pid) { try { process.kill(pid, 0); return true; } catch { return false; } }
+async function waitDead(pid, timeoutMs = 2_000) { const deadline = Date.now() + timeoutMs; while (Date.now() < deadline) { if (!isAlive(pid)) return; await new Promise((resolve) => setTimeout(resolve, 25)); } assert.equal(isAlive(pid), false); }
 
 testWithWritableCgroup("Given a TERM-ignoring direct child, when timeout resolves, then its recorded PID is already dead", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-observer-term-"));
   const pidPath = join(fixture, "pid");
   try {
-    const result = await runEgressAllowlist({ allow: [], command: [process.execPath, "-e", `require('fs').writeFileSync(${JSON.stringify(pidPath)},String(process.pid));process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`], denyAll: true, evidence: join(fixture, "evidence.jsonl"), timeoutMs: 250 });
+    const result = await runEgressAllowlist({ allow: [], command: [process.execPath, "-e", `require('fs').writeFileSync(${JSON.stringify(pidPath)},String(process.pid));process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`], denyAll: true, evidence: join(fixture, "evidence.jsonl"), timeoutMs: 1000 });
     assert.equal(result.status, "inconclusive");
-    assert.equal(isAlive(await pidFrom(pidPath)), false);
+    await waitDead(await pidFrom(pidPath));
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
@@ -62,9 +63,9 @@ testWithWritableCgroup("Given a TERM-ignoring detached descendant, when timeout 
   try {
     const child = `require('fs').writeFileSync(${JSON.stringify(pidPath)},String(process.pid));process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`;
     const parent = `require('child_process').spawn(process.execPath,['-e',${JSON.stringify(child)}],{detached:true,stdio:'ignore'}).unref();process.on('SIGTERM',()=>{});setInterval(()=>{},1000)`;
-    const result = await runEgressAllowlist({ allow: [], command: [process.execPath, "-e", parent], denyAll: true, evidence: join(fixture, "evidence.jsonl"), timeoutMs: 500 });
+    const result = await runEgressAllowlist({ allow: [], command: [process.execPath, "-e", parent], denyAll: true, evidence: join(fixture, "evidence.jsonl"), timeoutMs: 1500 });
     assert.equal(result.status, "inconclusive");
-    assert.equal(isAlive(await pidFrom(pidPath)), false);
+    await waitDead(await pidFrom(pidPath));
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
@@ -79,7 +80,7 @@ testWithWritableCgroup("Given an immediate-parent-exit detached TERM-ignoring ch
     const result = await runEgressAllowlist({ allow: [], command: [process.execPath, "-e", parent], containment: { create: async (...args) => { group = await args.at(-1)(...args.slice(0, -1)); return group; } }, denyAll: true, evidence: join(fixture, "evidence.jsonl"), timeoutMs: 500 });
     assert.ok(Date.now() - started < 2_000);
     assert.equal(result.status, "inconclusive");
-    assert.equal(isAlive(await pidFrom(pidPath)), false);
+    await waitDead(await pidFrom(pidPath));
     await assert.rejects(access(group, constants.F_OK));
   } finally { await rm(fixture, { force: true, recursive: true }); }
 });

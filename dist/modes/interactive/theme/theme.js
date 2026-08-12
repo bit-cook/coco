@@ -327,7 +327,9 @@ function getBuiltinThemes() {
         const themesDir = getThemesDir();
         const darkPath = path.join(themesDir, "dark.json");
         const lightPath = path.join(themesDir, "light.json");
+        const orangePath = path.join(themesDir, "coco-orange.json");
         BUILTIN_THEMES = {
+            "coco-orange": JSON.parse(fs.readFileSync(orangePath, "utf-8")),
             dark: JSON.parse(fs.readFileSync(darkPath, "utf-8")),
             light: JSON.parse(fs.readFileSync(lightPath, "utf-8")),
         };
