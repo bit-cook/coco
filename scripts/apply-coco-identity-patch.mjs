@@ -315,6 +315,40 @@ const loginOptionsSortAnchor = `        return options.sort((a, b) => a.name.loc
 const patchedLoginOptionsSort = `        return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`;
 const loginOptionsDirectSortAnchor = `        return options.sort((a, b) => a.name.localeCompare(b.name));`;
 const patchedLoginOptionsDirectSort = `        return options.sort((a, b) => Number(this.session.modelRuntime.isCustomProvider(b.id)) - Number(this.session.modelRuntime.isCustomProvider(a.id)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`;
+const loginProviderSelectorAnchor = `    showLoginProviderSelector(authType, initialSearchInput) {
+        const providerOptions = this.getLoginProviderOptions(authType);`;
+const patchedLoginProviderSelector = `    async startCustomProviderLogin(authType) {
+        const input = await this.showExtensionInput("Custom / 自定义", "Provider ID");
+        const providerRef = input?.trim().toLowerCase();
+        if (!providerRef) {
+            return;
+        }
+        const providerOption = this.getLoginProviderOptions(authType).find((provider) => provider.custom &&
+            (provider.id.toLowerCase() === providerRef || provider.name.toLowerCase() === providerRef));
+        if (!providerOption) {
+            this.showError(\`Custom provider "\${input.trim()}" is not configured for this authentication method. Add it to models.json or an extension first.\`);
+            return;
+        }
+        await this.startProviderLogin(providerOption);
+    }
+    showLoginProviderSelector(authType, initialSearchInput) {
+        const providerOptions = this.getLoginProviderOptions(authType);
+        if (authType) {
+            providerOptions.unshift({
+                id: "__coco_custom_provider__",
+                name: "Custom / 自定义",
+                authType,
+                custom: true,
+            });
+        }`;
+const loginProviderSelectionAnchor = `                const providerOption = providerOptions.find((provider) => provider.id === providerId && provider.authType === selectedAuthType);
+                if (!providerOption) {`;
+const patchedLoginProviderSelection = `                if (providerId === "__coco_custom_provider__") {
+                    await this.startCustomProviderLogin(selectedAuthType);
+                    return;
+                }
+                const providerOption = providerOptions.find((provider) => provider.id === providerId && provider.authType === selectedAuthType);
+                if (!providerOption) {`;
 const defaultThemeAnchor = `currentTheme: this.settingsManager.getThemeSetting() || "dark",`;
 const patchedDefaultTheme = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",`;
 const builtinThemesAnchor = `        BUILTIN_THEMES = {
@@ -551,6 +585,8 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   patched[7] = replaceExact(patched[7], loginApiKeyOptionAnchor, patchedLoginApiKeyOption);
   patched[7] = replaceUpgrade(patched[7], loginOptionsSortAnchor, [`        return options.sort((a, b) => Number(b.custom) - Number(a.custom) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`, `        return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));`, loginOptionsDirectSortAnchor, patchedLoginOptionsDirectSort], patchedLoginOptionsSort);
   patched[7] = replaceUpgrade(patched[7], loginOptionsDirectSortAnchor, patchedLoginOptionsSort, patchedLoginOptionsDirectSort);
+  patched[7] = replaceExact(patched[7], loginProviderSelectorAnchor, patchedLoginProviderSelector);
+  patched[7] = replaceExact(patched[7], loginProviderSelectionAnchor, patchedLoginProviderSelection);
   patched[7] = replaceExact(patched[7], defaultThemeAnchor, patchedDefaultTheme);
   if (!patched[7].endsWith("\n")) patched[7] += "\n";
   patched[0] = replaceExact(patched[0], helpIdentityAnchor, patchedHelpIdentity);

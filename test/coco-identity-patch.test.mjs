@@ -165,6 +165,21 @@ const interactiveLoginSource = `function getLoginProviderCompletionOptions(provi
             }
         }
         return options.sort((a, b) => Number(Boolean(b.custom)) - Number(Boolean(a.custom)) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+    }
+    showLoginProviderSelector(authType, initialSearchInput) {
+        const providerOptions = this.getLoginProviderOptions(authType);
+        if (providerOptions.length === 0) return;
+        this.showSelector((done) => {
+            const selector = new OAuthSelectorComponent("login", providerOptions, async (providerId, selectedAuthType) => {
+                done();
+                const providerOption = providerOptions.find((provider) => provider.id === providerId && provider.authType === selectedAuthType);
+                if (!providerOption) {
+                    return;
+                }
+                await this.startProviderLogin(providerOption);
+            }, () => done(), initialSearchInput);
+            return { component: selector, focus: selector };
+        });
     }`;
 const repositoryRoot = new URL("..", import.meta.url).pathname;
 const patchTargets = [
@@ -251,6 +266,9 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.match(interactive, /theme\.fg\("dim"/);
     assert.match(interactive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange"/);
     assert.match(interactive, /Number\(Boolean\(b\.custom\)\) - Number\(Boolean\(a\.custom\)\)/);
+    assert.match(interactive, /providerOptions\.unshift\(\{\s*id: "__coco_custom_provider__",\s*name: "Custom \/ 自定义"/);
+    assert.match(interactive, /if \(providerId === "__coco_custom_provider__"\) \{\s*await this\.startCustomProviderLogin\(selectedAuthType\);/);
+    assert.match(interactive, /provider\.custom &&/);
     assert.match(interactive, /invalidate\(\)/);
     assert.match(interactive, /setExpanded\(expanded\)/);
     assert.match(interactive, /new ResponsiveStartupWordmark\(false/);
@@ -431,6 +449,7 @@ test("Given supported model artifacts, when patched, then declared models are vi
     assert.equal(interactive.match(/const custom = this\.session\.modelRuntime\.isCustomProvider\(provider\.id\);/g)?.length, 1);
     assert.doesNotMatch(interactive, /const custom = this\.session\.modelRuntime\.isConfiguredProvider\(provider\.id\);/);
     assert.match(interactive, /Number\(Boolean\(b\.custom\)\) - Number\(Boolean\(a\.custom\)\)/);
+    assert.match(interactive, /name: "Custom \/ 自定义"/);
   } finally {
     await rm(root, { force: true, recursive: true });
   }

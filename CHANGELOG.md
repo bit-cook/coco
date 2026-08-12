@@ -5260,3 +5260,7 @@ Initial public release.
 ## 0.3.3
 
 - Publish the dual-runtime orange theme fix from a clean source tag.
+
+## 0.3.4
+
+- Put an explicit `Custom / 自定义` entry first in both Account and API login provider menus.
