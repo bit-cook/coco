@@ -5308,3 +5308,7 @@ Initial public release.
 ## 0.4.1
 
 - Expand Chinese localization across settings, sessions, session tree, status indicators, startup hints, model scope labels, and stable error guidance without translating technical identifiers or external content.
+
+## 0.4.2
+
+- Replace opaque autocomplete source tags such as `[t]`, `[u]`, and `[p]` with readable CoCo, user, project, npm, and Git source labels.

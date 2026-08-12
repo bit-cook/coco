@@ -3,6 +3,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 const ZH = {
+  "CoCo": "CoCo",
+  "User": "用户",
+  "Project": "项目",
+  "Git": "Git",
   "A bash command is already running. Press Esc to cancel it first.": "已有 bash 命令正在运行。请先按 Esc 取消。",
   "Action when pressing Escape twice with empty editor": "编辑器为空时连续按两次 Escape 执行的操作",
   "All": "全部",

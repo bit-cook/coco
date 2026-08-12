@@ -866,6 +866,60 @@ async function patchUiLanguage(projectRoot) {
   }
 }
 
+async function patchAutocompleteSourceLabels(projectRoot) {
+  const path = join(agentPath(projectRoot), "dist", "modes", "interactive", "interactive-mode.js");
+  const importLine = `import { uiText } from "../../../../../../resources/coco-ui-language.mjs";`;
+  let source = await readFile(path, "utf8");
+  if (source.includes('return sourceInfo.scope === "user" ? uiText("User")')) return;
+  const oldMethod = `    getAutocompleteSourceTag(sourceInfo) {
+        if (!sourceInfo) {
+            return undefined;
+        }
+        const scopePrefix = sourceInfo.scope === "user" ? "u" : sourceInfo.scope === "project" ? "p" : "t";
+        const source = sourceInfo.source.trim();
+        if (source === "auto" || source === "local" || source === "cli") {
+            return scopePrefix;
+        }
+        if (source.startsWith("npm:")) {
+            return \`${"${scopePrefix}:${source}"}\`;
+        }
+        const gitSource = parseGitUrl(source);
+        if (gitSource) {
+            const ref = gitSource.ref ? \`@\${gitSource.ref}\` : "";
+            return \`${"${scopePrefix}:git:${gitSource.host}/${gitSource.path}${ref}"}\`;
+        }
+        return scopePrefix;
+    }
+    prefixAutocompleteDescription(description, sourceInfo) {
+        const sourceTag = this.getAutocompleteSourceTag(sourceInfo);
+        if (!sourceTag) {
+            return description;
+        }
+        return description ? \`[\${sourceTag}] \${description}\` : \`[\${sourceTag}]\`;
+    }`;
+  const newMethod = `    getAutocompleteSourceTag(sourceInfo) {
+        if (!sourceInfo) return undefined;
+        const source = sourceInfo.source.trim();
+        if (source.startsWith("npm:")) return \`npm:\${source.slice(4)}\`;
+        const gitSource = parseGitUrl(source);
+        if (gitSource) {
+            const ref = gitSource.ref ? \`@\${gitSource.ref}\` : "";
+            return \`Git:\${gitSource.host}/\${gitSource.path}\${ref}\`;
+        }
+        return sourceInfo.scope === "user" ? uiText("User") : sourceInfo.scope === "project" ? uiText("Project") : uiText("CoCo");
+    }
+    prefixAutocompleteDescription(description, sourceInfo) {
+        const sourceTag = this.getAutocompleteSourceTag(sourceInfo);
+        if (!sourceTag) return description;
+        return description ? \`${"${sourceTag}"} · \${description}\` : sourceTag;
+    }`;
+  const start = source.indexOf("    getAutocompleteSourceTag(sourceInfo) {");
+  const end = source.indexOf("    getBuiltInCommandConflictDiagnostics(extensionRunner) {", start);
+  if (start < 0 || end < 0) return;
+  const patched = source.slice(0, start) + newMethod + "\n" + source.slice(end);
+  await writeFile(path, source.includes(importLine) ? patched : `${importLine}\n${patched}`, "utf8");
+}
+
 async function patchSettingsValueDisplay(projectRoot) {
   const path = join(agentPath(projectRoot), "node_modules", "@earendil-works", "pi-tui", "dist", "components", "settings-list.js");
   const importLine = `import { uiValue } from "../../../../../../../../resources/coco-ui-language.mjs";`;
@@ -958,6 +1012,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) 
   await patchBuiltinThemeRegistry(projectRoot);
   await patchSecretExtensionInput(projectRoot);
   await patchUiLanguage(projectRoot);
+  await patchAutocompleteSourceLabels(projectRoot);
   await patchSettingsValueDisplay(projectRoot);
 }
 
