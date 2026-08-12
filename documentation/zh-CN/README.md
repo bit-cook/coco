@@ -17,8 +17,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 或者安装经过明确审阅的固定版本：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.3.5/install.sh
-COCO_VERSION=0.3.5 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.3.6/install.sh
+COCO_VERSION=0.3.6 bash install.sh
 ```
 
 安装程序会根据已发布的 SHA-256 值验证固定标签发行包和公开 Agnes 凭据，安全解压 CoCo，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。

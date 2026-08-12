@@ -504,16 +504,16 @@ async function ensureVersion(path) {
 }
 
 async function patchRuntimeDefaultTheme(projectRoot) {
-  const path = join(projectRoot, "dist", "modes", "interactive", "interactive-mode.js");
-  let source;
-  try { source = await readFile(path, "utf8"); }
-  catch (error) { if (error?.code === "ENOENT") return; throw error; }
-  const anchor = `currentTheme: this.settingsManager.getThemeSetting() || "dark",`;
-  const replacement = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",`;
-  if (source.includes(replacement)) return;
-  if (!source.includes(anchor)) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
-  source = source.replace(anchor, replacement);
-  await writeFile(path, source, "utf8");
+  for (const path of [join(projectRoot, "dist", "modes", "interactive", "interactive-mode.js"), join(agentPath(projectRoot), "dist", "modes", "interactive", "interactive-mode.js")]) {
+    let source;
+    try { source = await readFile(path, "utf8"); }
+    catch (error) { if (error?.code === "ENOENT") continue; throw error; }
+    const anchor = `currentTheme: this.settingsManager.getThemeSetting() || "dark",`;
+    const replacement = `currentTheme: this.settingsManager.getThemeSetting() || "coco-orange",`;
+    if (source.includes(replacement)) continue;
+    if (!source.includes(anchor)) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+    await writeFile(path, source.replace(anchor, replacement), "utf8");
+  }
 }
 
 async function patchBuiltinThemeRegistry(projectRoot) {

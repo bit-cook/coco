@@ -253,6 +253,7 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
   try {
     await applyCocoIdentityPatch({ root });
     const interactive = await readPatched(root, "dist/modes/interactive/interactive-mode.js");
+    const bundledInteractive = await readPatched(root, "dist/modes/interactive/interactive-mode.js");
     const args = await readPatched(root, "dist/cli/args.js");
     const systemPrompt = await readPatched(root, "dist/core/system-prompt.js");
     const firstTimeSetup = await readPatched(root, "dist/modes/interactive/components/first-time-setup.js");
@@ -265,6 +266,7 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.match(interactive, /theme\.bold\(theme\.fg\("accent"/);
     assert.match(interactive, /theme\.fg\("dim"/);
     assert.match(interactive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange"/);
+    assert.match(bundledInteractive, /currentTheme: this\.settingsManager\.getThemeSetting\(\) \|\| "coco-orange"/);
     assert.match(interactive, /Number\(Boolean\(b\.custom\)\) - Number\(Boolean\(a\.custom\)\)/);
     assert.match(interactive, /providerOptions\.unshift\(\{\s*id: "__coco_custom_provider__",\s*name: "Custom \/ 自定义"/);
     assert.match(interactive, /if \(providerId === "__coco_custom_provider__"\) \{\s*await this\.startCustomProviderLogin\(selectedAuthType\);/);

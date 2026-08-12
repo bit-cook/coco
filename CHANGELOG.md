@@ -5268,3 +5268,7 @@ Initial public release.
 ## 0.3.5
 
 - Publish the pinned Custom login entry with installer-safe checksum asset URLs.
+
+## 0.3.6
+
+- Apply the orange default theme to the bundled runtime actually launched after npm installation.
