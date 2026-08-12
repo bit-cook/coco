@@ -8,7 +8,7 @@ import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.
 import { applyStateTransaction, recoverTransactions } from "./state-transaction.mjs";
 
 const PROVIDERS = ["idepub", "achai", "agnes", "deepseek", "stepfun"];
-const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, enabledModels: ["agnes/agnes-2.5-flash"], lastChangelogVersion: "0.3.9" };
+const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, enabledModels: ["agnes/agnes-2.5-flash"], lastChangelogVersion: "0.3.10", theme: "coco-orange" };
 
 function hash(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
@@ -25,13 +25,18 @@ function registryDocument(value) {
   return value;
 }
 
-function mergeSettings(existing) {
+function mergeSettings(existing, ownership) {
   const value = structuredClone(existing ?? {}); const created = []; const skipped = [];
   for (const pointer of ownedSettingsPointers()) {
     const key = pointer.slice(1);
     if (!(key in value)) { value[key] = structuredClone(DEFAULT_SETTINGS[key]); created.push(pointer); }
     else if (JSON.stringify(value[key]) !== JSON.stringify(DEFAULT_SETTINGS[key])) skipped.push(pointer);
   }
+  if (value.theme === "dark" && !ownership?.managedFiles?.["settings.json"]?.ownedJsonPointers?.includes("/theme")) {
+    value.theme = "coco-orange";
+    created.push("/theme");
+  }
+  if (value.theme === "coco-orange" && !ownership?.managedFiles?.["settings.json"]?.ownedJsonPointers?.includes("/theme")) created.push("/theme");
   return { created, skipped, value };
 }
 
@@ -82,7 +87,7 @@ export async function bootstrapState({ agentDir, dryRun = false, root }) {
   const settings = await existingJson(paths.settings, "SETTINGS_SCHEMA_INVALID", settingsDocument);
   const models = await existingJson(paths.models, "MODELS_SCHEMA_INVALID", modelsDocument);
   const ownership = await existingJson(paths.ownership, "OWNERSHIP_SCHEMA_INVALID", validateOwnership);
-  const settingPlan = mergeSettings(settings); const modelPlan = mergeModels(models, registry); const prompt = await promptPlan(agentDir, root, ownership);
+  const settingPlan = mergeSettings(settings, ownership); const modelPlan = mergeModels(models, registry); const prompt = await promptPlan(agentDir, root, ownership);
   const ownershipNext = ownershipDocument(ownership, settingPlan.created, modelPlan.created, prompt);
   const ownershipChanged = JSON.stringify(ownershipNext) !== JSON.stringify(ownership ?? null);
   const created = [...prompt.created, ...(modelPlan.created.length > 0 ? ["models.json"] : []), ...(settingPlan.created.length > 0 ? ["settings.json"] : []), ...(ownershipChanged ? ["ownership.json"] : [])];

@@ -5284,3 +5284,7 @@ Initial public release.
 ## 0.3.9
 
 - Normalize the API login flow to one Custom entry and one active Base URL/key wizard.
+
+## 0.3.10
+
+- Migrate the historical unowned dark theme setting to CoCo orange during reinstall while preserving user-owned theme choices.

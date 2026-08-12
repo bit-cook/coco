@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.3.9}"
+COCO_VERSION="${COCO_VERSION:-0.3.10}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/bit-cook/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key"
@@ -396,6 +396,11 @@ const settings = settingsExisted ? JSON.parse(fs.readFileSync(settingsPath, "utf
 settings.defaultProvider = "agnes";
 settings.defaultModel = "agnes-2.5-flash";
 settings.defaultThinkingLevel = "max";
+const ownershipPath = `${agentDir}/ownership.json`;
+let ownership = fs.existsSync(ownershipPath) ? JSON.parse(fs.readFileSync(ownershipPath, "utf8")) : null;
+const ownedSettings = ownership?.managedFiles?.["settings.json"]?.ownedJsonPointers || [];
+if (settings.theme === "dark" && !ownedSettings.includes("/theme")) settings.theme = "coco-orange";
+if (!("theme" in settings)) settings.theme = "coco-orange";
 if (!fs.existsSync(settingsPath)) {
   fs.writeFileSync(settingsPath, JSON.stringify(settings) + "\n", { mode: 0o600 });
 }
@@ -406,12 +411,16 @@ if (createdModels === "1" && !settingsExisted && !fs.existsSync(`${agentDir}/own
   if (!fs.existsSync(appendPath)) fs.writeFileSync(appendPath, appendSource, { mode: 0o600, flag: "wx" });
   const providerFields = ["baseUrl", "api", "authHeader", "compat", "models"];
   const providerPointers = Object.keys(registry.providers).flatMap((provider) => providerFields.map((field) => `/providers/${provider}/${field}`));
-  const ownership = { managedFiles: {
+  ownership = { managedFiles: {
     "APPEND_SYSTEM.md": { ownedJsonPointers: [], sourceSha256: crypto.createHash("sha256").update(appendSource).digest("hex") },
     "models.json": { ownedJsonPointers: providerPointers },
-    "settings.json": { ownedJsonPointers: ["/defaultProvider", "/defaultModel", "/defaultThinkingLevel"] }
+    "settings.json": { ownedJsonPointers: ["/defaultProvider", "/defaultModel", "/defaultThinkingLevel", "/theme"] }
   }, schemaVersion: 1 };
   fs.writeFileSync(`${agentDir}/ownership.json`, JSON.stringify(ownership) + "\n", { mode: 0o600, flag: "wx" });
+}
+if (fs.existsSync(ownershipPath) && !ownedSettings.includes("/theme")) {
+  ownership.managedFiles["settings.json"] = { ...(ownership.managedFiles["settings.json"] || {}), ownedJsonPointers: [...ownedSettings, "/theme"] };
+  fs.writeFileSync(ownershipPath, JSON.stringify(ownership) + "\n", { mode: 0o600 });
 }
 NODE
   chmod 600 "$COCO_AGENT_DIR/models.json" "$COCO_AGENT_DIR/settings.json" "$COCO_AGENT_DIR/auth.json"

@@ -62,7 +62,7 @@ export function ownedProviderPointers(provider) {
 }
 
 export function ownedSettingsPointers() {
-  return ["/defaultProvider", "/defaultModel", "/defaultThinkingLevel", "/enableInstallTelemetry", "/enabledModels", "/lastChangelogVersion"];
+  return ["/defaultProvider", "/defaultModel", "/defaultThinkingLevel", "/enableInstallTelemetry", "/enabledModels", "/lastChangelogVersion", "/theme"];
 }
 
 export function mergeOwnedValues({ existing, desired, pointers }) {
