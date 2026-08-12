@@ -5288,3 +5288,7 @@ Initial public release.
 ## 0.3.10
 
 - Migrate the historical unowned dark theme setting to CoCo orange during reinstall while preserving user-owned theme choices.
+
+## 0.3.11
+
+- Persist the legacy-dark-to-orange migration in the installer initialization path.
