@@ -3,9 +3,14 @@ import { projectModelPanel } from "./coco-model-panel-contract.mjs";
 
 export const COCO_MODEL_PANEL_MESSAGE_KEYS = Object.freeze({ authenticationHint: "modelPanel.authenticationHint", loginRequired: "modelPanel.status.loginRequired", modelName: "modelPanel.modelName", noMatches: "modelPanel.noMatches", title: "modelPanel.title" });
 
+export function modelPanelMessageKeyFromLoginRequired(loginRequired) {
+  if (typeof loginRequired !== "boolean") throw new Error("MODEL_PANEL_LOGIN_REQUIRED_INVALID");
+  return loginRequired ? COCO_MODEL_PANEL_MESSAGE_KEYS.loginRequired : null;
+}
+
 export function renderModelPanel(input, { t = translate } = {}) {
   if (typeof t !== "function") throw new Error("MODEL_PANEL_RENDERER_INVALID");
-  const rows = projectModelPanel(input); const loginRequired = t(COCO_MODEL_PANEL_MESSAGE_KEYS.loginRequired);
+  const rows = projectModelPanel(input); const loginRequiredKey = modelPanelMessageKeyFromLoginRequired(true); const loginRequired = t(loginRequiredKey);
   return Object.freeze({
     authenticationHint: t(COCO_MODEL_PANEL_MESSAGE_KEYS.authenticationHint, { marker: loginRequired }),
     noMatches: t(COCO_MODEL_PANEL_MESSAGE_KEYS.noMatches),

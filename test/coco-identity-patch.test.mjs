@@ -473,8 +473,11 @@ test("Given supported model artifacts, when patched, then declared models are vi
     assert.match(list, /modelRuntime\.getVisible\(\)/);
     assert.match(list, /login-required/);
     assert.match(selector, /getVisibleSnapshot\(\)/);
-    assert.match(selector, /login-required/);
+    assert.match(selector, /coco-model-panel-renderer\.mjs/);
     assert.match(selector, /const loginRequired = !this\.modelRuntime\.hasConfiguredAuth\(model\.provider\);/);
+    assert.match(selector, /modelPanelMessageKeyFromLoginRequired\(item\.loginRequired\)/);
+    assert.match(selector, /translate\(loginMessageKey\)/);
+    assert.doesNotMatch(selector, /uiText\("login-required"\)/);
     assert.match(selector, /onSelectCallback\(model, loginRequired\)/);
     assert.match(interactive, /if \(loginRequired\) \{\s*done\(\);\s*await this\.handleLoginCommand\(model\.provider\);/);
     assert.match(interactive, /const custom = this\.session\.modelRuntime\.isCustomProvider\(provider\.id\);/);

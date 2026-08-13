@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { createLanguageService } from "../resources/coco-language.mjs";
-import { COCO_MODEL_PANEL_MESSAGE_KEYS, renderModelPanel } from "../resources/coco-model-panel-renderer.mjs";
+import { COCO_MODEL_PANEL_MESSAGE_KEYS, modelPanelMessageKeyFromLoginRequired, renderModelPanel } from "../resources/coco-model-panel-renderer.mjs";
 
 const model = (provider, id, name) => ({ id, name, provider });
 const current = model("alpha", "alpha/model:one", "Alpha");
@@ -18,6 +18,11 @@ test("renderer requests stable keys and preserves semantic identity and status",
   assert.equal(panel.rows[0].statusText, null); assert.equal(panel.rows[1].statusText, `translated:${COCO_MODEL_PANEL_MESSAGE_KEYS.loginRequired}`);
   const names = calls.filter(({ key }) => key === COCO_MODEL_PANEL_MESSAGE_KEYS.modelName).map(({ values }) => values.name); assert.deepEqual(names, ["Alpha", "zeta-model"]);
   assert.equal(Object.isFrozen(panel), true); assert.equal(Object.isFrozen(panel.rows), true); assert.equal(Object.isFrozen(panel.rows[0]), true); assert.equal(Object.isFrozen(panel.rows[0].ref), true);
+});
+
+test("legacy login boolean maps only to the stable message key", () => {
+  assert.equal(modelPanelMessageKeyFromLoginRequired(false), null); assert.equal(modelPanelMessageKeyFromLoginRequired(true), "modelPanel.status.loginRequired");
+  for (const invalid of [undefined, null, 0, 1, "true"]) assert.throws(() => modelPanelMessageKeyFromLoginRequired(invalid), /MODEL_PANEL_LOGIN_REQUIRED_INVALID/);
 });
 
 test("built-in English and Chinese render exact model-panel labels without translating identifiers", async () => {

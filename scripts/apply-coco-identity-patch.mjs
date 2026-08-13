@@ -241,13 +241,21 @@ const patchedSelectorVisible = `        const models = this.modelRuntime.getVisi
         }));`;
 const selectorLoginMarkerAnchor = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
                 line = \`${"${prefix + theme.fg(\"accent\", modelText)}"} ${"${providerBadge}"}${"${checkmark}"}\`;`;
-const patchedSelectorLoginMarker = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
+const intermediatePatchedSelectorLoginMarker = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
                 const loginRequired = item.loginRequired ? theme.fg("warning", \` ${"${uiText(\"login-required\")}"}\`) : "";
+                line = \`${"${prefix + theme.fg(\"accent\", modelText)}"} ${"${providerBadge}"}${"${checkmark}"}${"${loginRequired}"}\`;`;
+const patchedSelectorLoginMarker = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
+                const loginMessageKey = modelPanelMessageKeyFromLoginRequired(item.loginRequired);
+                const loginRequired = loginMessageKey === null ? "" : theme.fg("warning", \` ${"${translate(loginMessageKey)}"}\`);
                 line = \`${"${prefix + theme.fg(\"accent\", modelText)}"} ${"${providerBadge}"}${"${checkmark}"}${"${loginRequired}"}\`;`;
 const selectorLoginMarkerElseAnchor = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
                 line = \`${"${modelText}"} ${"${providerBadge}"}${"${checkmark}"}\`;`;
-const patchedSelectorLoginMarkerElse = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
+const intermediatePatchedSelectorLoginMarkerElse = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
                 const loginRequired = item.loginRequired ? theme.fg("warning", \` ${"${uiText(\"login-required\")}"}\`) : "";
+                line = \`${"${modelText}"} ${"${providerBadge}"}${"${checkmark}"}${"${loginRequired}"}\`;`;
+const patchedSelectorLoginMarkerElse = `                const checkmark = isCurrent ? theme.fg("success", " ✓") : "";
+                const loginMessageKey = modelPanelMessageKeyFromLoginRequired(item.loginRequired);
+                const loginRequired = loginMessageKey === null ? "" : theme.fg("warning", \` ${"${translate(loginMessageKey)}"}\`);
                 line = \`${"${modelText}"} ${"${providerBadge}"}${"${checkmark}"}${"${loginRequired}"}\`;`;
 const selectorHandleSelectAnchor = `    handleSelect(model) {
         this.close();
@@ -453,7 +461,7 @@ const extensionInputAnchor = `        this.input = new Input();
 const uiLanguageImports = new Map([
   ["interactive-mode.js", `import { uiText } from "../../../../../../resources/coco-ui-language.mjs";`],
   ["components/oauth-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
-  ["components/model-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
+  ["components/model-selector.js", `import { modelPanelMessageKeyFromLoginRequired } from "../../../../../../../resources/coco-model-panel-renderer.mjs";\nimport { translate } from "../../../../../../../resources/coco-language.mjs";\nimport { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/login-dialog.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/theme-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/thinking-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
@@ -707,6 +715,8 @@ async function patchUiLanguage(projectRoot) {
     try { source = await readFile(path, "utf8"); }
     catch (error) { if (error?.code === "ENOENT" && relative !== "interactive-mode.js") continue; throw error; }
     if (source.includes(importLine)) continue;
+    const previousModelImport = `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`;
+    if (relative === "components/model-selector.js" && source.includes(previousModelImport)) { await writeFile(path, source.replace(previousModelImport, importLine), "utf8"); continue; }
     source = `${importLine}\n${source}`;
     source = source
       .replaceAll('"Sign in with an account"', 'uiText("Login with subscription")')
@@ -1057,8 +1067,8 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root, support
   patched[2] = replaceUpgrade(patched[2], modelRuntimeVisibleAnchor, [legacyPatchedModelRuntimeVisible, intermediatePatchedModelRuntimeVisible], patchedModelRuntimeVisible);
   patched[3] = replaceUpgrade(patched[3], modelRuntimeDeclarationAnchor, [legacyPatchedModelRuntimeDeclaration, intermediatePatchedModelRuntimeDeclaration], patchedModelRuntimeDeclaration);
   patched[4] = replaceExact(patched[4], selectorVisibleAnchor, patchedSelectorVisible);
-  patched[4] = replaceExact(patched[4], selectorLoginMarkerAnchor, patchedSelectorLoginMarker);
-  patched[4] = replaceExact(patched[4], selectorLoginMarkerElseAnchor, patchedSelectorLoginMarkerElse);
+  patched[4] = replaceUpgrade(patched[4], selectorLoginMarkerAnchor, intermediatePatchedSelectorLoginMarker, patchedSelectorLoginMarker);
+  patched[4] = replaceUpgrade(patched[4], selectorLoginMarkerElseAnchor, intermediatePatchedSelectorLoginMarkerElse, patchedSelectorLoginMarkerElse);
   patched[4] = replaceExact(patched[4], selectorHandleSelectAnchor, patchedSelectorHandleSelect);
   patched[5] = replaceExact(patched[5], selectorDeclarationAnchor, patchedSelectorDeclaration);
   patched[7] = replaceOwnedHeader(patched[7]);
