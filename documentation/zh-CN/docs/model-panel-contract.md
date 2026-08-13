@@ -25,3 +25,9 @@
 ## Removal Gate
 
 只有 runtime 提供 supported model-panel adapter，且 differential tests 在 source-owned implementation 上通过，才能移除 selector visible/login/selection anchors。Localization renderer 将在该 semantic contract 之上使用 stable message keys，不再用英文显示文本作为 key。
+
+## Stable-Key Renderer
+
+`resources/coco-model-panel-renderer.mjs` 已在 semantic rows 上增加 renderer-neutral view data。它只使用 `modelPanel.*` 稳定 keys；中英文文案位于 `resources/languages/*.json`。Provider ID、model ID、identity、status 和 selection action 不经过翻译。
+
+Renderer 不依赖 `coco-ui-language.mjs`、Pi、TUI、theme 或 command registration。它仍是未来 supported runtime adapter 的前置，不改变当前 `/model` 行为。
