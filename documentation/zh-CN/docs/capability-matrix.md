@@ -20,6 +20,7 @@
 - `isolated-required` / `host-explicit` execution policy 和 evidence chain。
 - Plan → edit → verify 状态机。
 - Unified Provider readiness contract：configuration、model、credential、rotation、catalog、local status 和 network verification projection。
+- Stable-key model-panel TUI contract：semantic rows、renderer、controller、presenter、atomic adapter conformance 和 runtime capability gate。
 
 这些 contract 会拒绝不安全状态，但当前不等于生产 sandbox 或完整自动编辑执行器。
 
@@ -39,7 +40,7 @@ Subagent 的独立 context 不等于 OS isolation。
 ## Planned
 
 - 完整 Provider lifecycle state machine、transition API、selection/activation gate 和 persisted health history。
-- Stable-key source-owned TUI i18n。
+- Source-owned TUI host registration与其他panels的stable-key迁移。
 - Project memory、checkpoint 和 per-model context budget。
 - Controlled workflow engine。
 - OS-enforced sandbox backend。

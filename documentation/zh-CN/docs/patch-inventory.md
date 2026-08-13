@@ -32,7 +32,7 @@ CoCo `v0.5.2` 的 `scripts/apply-coco-identity-patch.mjs` 有 1111 行，包含 
 - 部分视觉替换找不到 anchor 时会静默不修改。
 - `patchAutocompleteSourceLabels` 找不到方法边界时直接返回。
 - Secret input 的运行时 JS 支持 `secret`，但声明文件未同步该类型。
-- Upstream version 精确到 `0.82.1`，但没有 source commit provenance。
+- Upstream `0.82.1` source已验证为tag `v0.82.1` / commit `b4f293684bba718d59cc1157679bcf6157b3a7f5`。
 
 ## 迁移次序
 

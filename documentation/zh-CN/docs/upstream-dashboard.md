@@ -7,13 +7,15 @@
 - Version：`0.82.1`
 - Npm tarball integrity：已记录于 `resources/upstream-baseline.v1.json`
 - Release date：`2026-07-25`
-- Source tag/commit：未记录
+- Source tag：`v0.82.1`
+- Source commit：`b4f293684bba718d59cc1157679bcf6157b3a7f5`
+- Provenance：npm `gitHead`、GitHub lightweight tag 和 Release commit 三重一致
 
-2026-08-12 显式在线检查观察到最新稳定版 `0.84.1`：CoCo 落后 3 个稳定 Release，发布日期差 13 天。由于 baseline source commit 未记录，commit lag 仍为 unknown；该观察不会自动改写 baseline。
+2026-08-12 显式在线检查观察到最新稳定版 `0.84.1`：CoCo 落后 3 个稳定 Release，发布日期差 13 天。Baseline source commit已记录，但dashboard未执行compare API，因此commit lag仍为unknown；该观察不会自动改写 baseline。
 
 Compatibility probe 已确认 `0.84.1` npm integrity 有效，但当前 patch 在第一个漂移 anchor 以 `COCO_PATCH_UNKNOWN_ANCHOR` fail closed，因此该版本为 `incompatible`，不能升级 baseline。
 
-因此离线 dashboard 必须将 `commitsBehind` 显示为 `null`，不能用 package version 猜 source commit。
+离线 dashboard 必须将 `commitsBehind` 显示为 `null`。在线release query也不等于commit compare，必须显示`commit-lag-not-queried`，不能从版本差猜提交数。
 
 ## 命令
 

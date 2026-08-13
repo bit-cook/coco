@@ -29,7 +29,7 @@ export async function upstreamDashboard(argv = []) {
   report.upstream.latestStableVersion = latest.tag_name.replace(/^v/, ""); report.upstream.publishedAt = latest.published_at;
   const relation = compare(report.upstream.latestStableVersion, baseline.package.version); report.status = relation === 0 ? "current" : relation > 0 ? "behind" : "ahead";
   report.lag.releaseCount = releases.filter((release) => compare(release.tag_name, baseline.package.version) > 0).length;
-  report.lag.calendarDays = days(baseline.package.releaseDate, latest.published_at.slice(0, 10)); report.lag.reason = baseline.source.commitSha ? null : "source-commit-not-recorded"; return report;
+  report.lag.calendarDays = days(baseline.package.releaseDate, latest.published_at.slice(0, 10)); report.lag.reason = baseline.source.commitSha ? "commit-lag-not-queried" : "source-commit-not-recorded"; return report;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) upstreamDashboard(process.argv.slice(2)).then((report) => console.log(JSON.stringify(report))).catch((error) => { console.error(error.code ?? error.message); process.exitCode = error.code === "UPSTREAM_DASHBOARD_USAGE" ? 64 : 2; });

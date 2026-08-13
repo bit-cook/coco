@@ -18,6 +18,10 @@ export function verifyPatchInventory(source, inventory) {
   return implemented;
 }
 
+export function verifyUpstreamSource(baseline) {
+  if (!/^[a-f0-9]{40}$/.test(baseline.source.commitSha ?? "") || baseline.source.tag !== `v${baseline.package.version}` || baseline.source.tagObjectSha !== baseline.source.commitSha || baseline.source.provenance !== "npm-gitHead-and-github-lightweight-tag") fail("UPSTREAM_SOURCE_PROVENANCE_INVALID");
+}
+
 export async function verifyArchitectureContracts() {
   const [manifest, inventory, matrix, baseline, pkg, lock, vscode, registry, seeds, patcher, bootstrap, installer] = await Promise.all([
     readJson("resources/product-manifest.v1.json"), readJson("resources/patch-inventory.v1.json"), readJson("resources/capability-matrix.v1.json"), readJson("resources/upstream-baseline.v1.json"),
@@ -25,6 +29,7 @@ export async function verifyArchitectureContracts() {
     readFile(join(root, "scripts/apply-coco-identity-patch.mjs"), "utf8"), readFile(join(root, "scripts/bootstrap-state.mjs"), "utf8"), readFile(join(root, "install.sh"), "utf8"),
   ]);
   if (manifest.schemaVersion !== 1 || inventory.schemaVersion !== 1 || matrix.schemaVersion !== 1 || baseline.schemaVersion !== 1) fail("ARCHITECTURE_SCHEMA_INVALID");
+  verifyUpstreamSource(baseline);
 
   const version = manifest.product.version;
   for (const [name, actual] of [["package", pkg.version], ["lock", lock.version], ["lock-root", lock.packages?.[""]?.version], ["vscode", vscode.version], ["matrix", matrix.version]]) if (actual !== version) fail("PRODUCT_VERSION_DRIFT", { actual, name, version });
