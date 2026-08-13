@@ -7,7 +7,6 @@ import { promisify } from "node:util";
 const PI = "@earendil-works/pi-coding-agent";
 const TUI = "@earendil-works/pi-tui";
 const MCP = "@modelcontextprotocol/sdk";
-const PI_SOURCE = "https://github.com/bit-cook/pi-selective-fork/releases/download/coco-v0.82.1-coco.1/earendil-works-pi-coding-agent-0.82.1.tgz";
 const exec = promisify(execFile);
 function rejected(code) { return { code, status: "rejected" }; }
 async function manifests(root, current = root) {
@@ -25,10 +24,10 @@ async function manifests(root, current = root) {
 }
 async function metadata(root) {
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
-  if (packageJson.packageManager !== "npm@11.18.0" || packageJson.dependencies?.[PI] !== PI_SOURCE || packageJson.dependencies?.[TUI] !== "0.82.1" || packageJson.dependencies?.[MCP] !== "1.30.0" || packageJson.devDependencies?.npm !== "11.18.0" || JSON.stringify(packageJson.bundledDependencies) !== JSON.stringify([PI, TUI, MCP])) throw new Error("PACKAGE_METADATA_INVALID");
+  if (packageJson.packageManager !== "npm@11.18.0" || packageJson.dependencies?.[PI] !== "0.82.1" || packageJson.dependencies?.[TUI] !== "0.82.1" || packageJson.dependencies?.[MCP] !== "1.30.0" || packageJson.devDependencies?.npm !== "11.18.0" || JSON.stringify(packageJson.bundledDependencies) !== JSON.stringify([PI, TUI, MCP])) throw new Error("PACKAGE_METADATA_INVALID");
   try {
     const lock = JSON.parse(await readFile(join(root, "package-lock.json"), "utf8"));
-    if (lock.lockfileVersion !== 3 || lock.packages?.[""]?.dependencies?.[PI] !== PI_SOURCE || lock.packages?.[""]?.dependencies?.[TUI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[MCP] !== "1.30.0") throw new Error("PACKAGE_LOCK_INVALID");
+    if (lock.lockfileVersion !== 3 || lock.packages?.[""]?.dependencies?.[PI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[TUI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[MCP] !== "1.30.0") throw new Error("PACKAGE_LOCK_INVALID");
   } catch (error) { if (!(error instanceof Error && error.code === "ENOENT")) throw error; }
 }
 export async function verifyTarballClosure({ root, tarball }) {

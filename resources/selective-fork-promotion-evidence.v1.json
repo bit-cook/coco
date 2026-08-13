@@ -40,7 +40,7 @@
   },
   "gates": {
     "remoteProvenance": "source-tag-published",
-    "packageIntegrity": "remote-release-asset-verified-and-locked",
+    "packageIntegrity": "remote-release-asset-verified-not-production-locked",
     "productionRegistration": "blocked",
     "fallbackIntegration": "source-verified-not-production"
   },

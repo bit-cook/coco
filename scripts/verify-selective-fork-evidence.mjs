@@ -26,7 +26,7 @@ export async function verifySelectiveForkEvidence({ evidencePath = join(root, ev
   if (!requiredString(evidence.base?.package) || !requiredString(evidence.base?.sourceCommit) || !requiredString(evidence.base?.tag)) return reject("SELECTIVE_FORK_BASE_INVALID");
   if (!requiredString(candidate?.repository) || !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(candidate.repository) || candidate.published !== false || !requiredString(candidate.sourceCommit) || !/^coco-v\d+\.\d+\.\d+-coco\.\d+$/.test(candidate.sourceTag ?? "")) return reject("SELECTIVE_FORK_PROVENANCE_INVALID");
   if (!requiredString(packageEvidence?.name) || !requiredString(packageEvidence?.version) || !/^https:\/\/github\.com\/.+\/releases\/download\/.+\/.+\.tgz$/.test(packageEvidence?.artifact ?? "") || !Number.isInteger(packageEvidence.bytes) || !/^[a-f0-9]{64}$/.test(packageEvidence.sha256) || !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(packageEvidence.integrity) || !/^https:\/\/github\.com\/.+\/releases\/tag\/.+$/.test(packageEvidence?.remoteRelease ?? "")) return reject("SELECTIVE_FORK_PACKAGE_RECEIPT_INVALID");
-  if (evidence.gates?.remoteProvenance !== "source-tag-published" || evidence.gates?.packageIntegrity !== "remote-release-asset-verified-and-locked" || evidence.gates?.productionRegistration !== "blocked") return reject("SELECTIVE_FORK_GATES_INVALID");
+  if (evidence.gates?.remoteProvenance !== "source-tag-published" || evidence.gates?.packageIntegrity !== "remote-release-asset-verified-not-production-locked" || evidence.gates?.productionRegistration !== "blocked") return reject("SELECTIVE_FORK_GATES_INVALID");
   if (artifactPath) {
     try {
       const bytes = await readFile(artifactPath);
