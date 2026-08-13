@@ -485,6 +485,14 @@ const uiLanguageImports = new Map([
   ["components/trust-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
   ["components/config-selector.js", `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`],
 ]);
+
+function migrateModelPanelKeys(source) {
+  return source
+    .replace('`  ${uiText("Models")}`', '`  ${translate("modelPanel.title")}`')
+    .replace('uiText("Only showing models from configured providers. Use /login to add providers.")', 'translate("modelPanel.authenticationHint", { marker: translate("modelPanel.status.loginRequired") })')
+    .replace('uiText("No matching models")', 'translate("modelPanel.noMatches")')
+    .replace('uiText(`Model Name: ${selected.model.name}`)', 'translate("modelPanel.modelName", { name: selected.model.name })');
+}
 const intermediateExtensionInput = `        this.input = new Input();
         if (opts?.secret) {
             const render = this.input.render.bind(this.input);
@@ -714,9 +722,9 @@ async function patchUiLanguage(projectRoot) {
     let source;
     try { source = await readFile(path, "utf8"); }
     catch (error) { if (error?.code === "ENOENT" && relative !== "interactive-mode.js") continue; throw error; }
-    if (source.includes(importLine)) continue;
+    if (source.includes(importLine)) { if (relative === "components/model-selector.js") { const migrated = migrateModelPanelKeys(source); if (migrated !== source) await writeFile(path, migrated, "utf8"); } continue; }
     const previousModelImport = `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`;
-    if (relative === "components/model-selector.js" && source.includes(previousModelImport)) { await writeFile(path, source.replace(previousModelImport, importLine), "utf8"); continue; }
+    if (relative === "components/model-selector.js" && source.includes(previousModelImport)) { await writeFile(path, migrateModelPanelKeys(source.replace(previousModelImport, importLine)), "utf8"); continue; }
     source = `${importLine}\n${source}`;
     source = source
       .replaceAll('"Sign in with an account"', 'uiText("Login with subscription")')
@@ -880,8 +888,8 @@ async function patchUiLanguage(projectRoot) {
         .replaceAll('uiText(uiText("cancel"))', 'uiText("cancel")');
     }
     if (relative === "components/model-selector.js") {
-      source = source
-        .replace('// Add hint about model filtering', 'this.addChild(new Text(theme.bold(theme.fg("accent", `  ${uiText("Models")}`)), 0, 0));\n        // Add hint about model filtering')
+      source = migrateModelPanelKeys(source)
+        .replace('// Add hint about model filtering', 'this.addChild(new Text(theme.bold(theme.fg("accent", `  ${translate("modelPanel.title")}`)), 0, 0));\n        // Add hint about model filtering')
         .replace('new Text(theme.fg("warning", hintText), 0, 0)', 'new Text(theme.fg("muted", hintText), 2, 0)')
         .replaceAll('theme.fg("accent", "all")', 'theme.fg("accent", uiText("all"))')
         .replaceAll('theme.fg("muted", "all")', 'theme.fg("muted", uiText("all"))')

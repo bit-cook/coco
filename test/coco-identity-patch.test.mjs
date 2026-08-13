@@ -478,6 +478,8 @@ test("Given supported model artifacts, when patched, then declared models are vi
     assert.match(selector, /modelPanelMessageKeyFromLoginRequired\(item\.loginRequired\)/);
     assert.match(selector, /translate\(loginMessageKey\)/);
     assert.doesNotMatch(selector, /uiText\("login-required"\)/);
+    for (const key of ["modelPanel.title", "modelPanel.authenticationHint", "modelPanel.noMatches", "modelPanel.modelName"]) assert.match(selector, new RegExp(`translate\\(\\"${key.replaceAll(".", "\\.")}\\"`));
+    for (const display of ["uiText(\"Models\")", "uiText(\"Only showing models", "uiText(\"No matching models\")", "uiText(`Model Name:"]) assert.equal(selector.includes(display), false);
     assert.match(selector, /onSelectCallback\(model, loginRequired\)/);
     assert.match(interactive, /if \(loginRequired\) \{\s*done\(\);\s*await this\.handleLoginCommand\(model\.provider\);/);
     assert.match(interactive, /const custom = this\.session\.modelRuntime\.isCustomProvider\(provider\.id\);/);

@@ -31,3 +31,5 @@
 `resources/coco-model-panel-renderer.mjs` 已在 semantic rows 上增加 renderer-neutral view data。它只使用 `modelPanel.*` 稳定 keys；中英文文案位于 `resources/languages/*.json`。Provider ID、model ID、identity、status 和 selection action 不经过翻译。
 
 Renderer 不依赖 `coco-ui-language.mjs`、Pi、TUI、theme 或 command registration。它仍是未来 supported runtime adapter 的前置，不改变当前 `/model` 行为。
+
+当前 patched selector 的 title、authentication hint、empty state、model detail 和 login-required marker 已改为稳定 `modelPanel.*` keys。其他未迁移 panel text 仍由 legacy `uiText` 处理，直到 source adapter 可以注册。
