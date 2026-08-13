@@ -5,6 +5,7 @@ import { join, relative } from "node:path";
 import { promisify } from "node:util";
 
 const PI = "@earendil-works/pi-coding-agent";
+const TUI = "@earendil-works/pi-tui";
 const MCP = "@modelcontextprotocol/sdk";
 const exec = promisify(execFile);
 function rejected(code) { return { code, status: "rejected" }; }
@@ -23,10 +24,10 @@ async function manifests(root, current = root) {
 }
 async function metadata(root) {
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
-  if (packageJson.packageManager !== "npm@11.18.0" || packageJson.dependencies?.[PI] !== "0.82.1" || packageJson.dependencies?.[MCP] !== "1.30.0" || packageJson.devDependencies?.npm !== "11.18.0" || JSON.stringify(packageJson.bundledDependencies) !== JSON.stringify([PI, MCP])) throw new Error("PACKAGE_METADATA_INVALID");
+  if (packageJson.packageManager !== "npm@11.18.0" || packageJson.dependencies?.[PI] !== "0.82.1" || packageJson.dependencies?.[TUI] !== "0.82.1" || packageJson.dependencies?.[MCP] !== "1.30.0" || packageJson.devDependencies?.npm !== "11.18.0" || JSON.stringify(packageJson.bundledDependencies) !== JSON.stringify([PI, TUI, MCP])) throw new Error("PACKAGE_METADATA_INVALID");
   try {
     const lock = JSON.parse(await readFile(join(root, "package-lock.json"), "utf8"));
-    if (lock.lockfileVersion !== 3 || lock.packages?.[""]?.dependencies?.[PI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[MCP] !== "1.30.0") throw new Error("PACKAGE_LOCK_INVALID");
+    if (lock.lockfileVersion !== 3 || lock.packages?.[""]?.dependencies?.[PI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[TUI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[MCP] !== "1.30.0") throw new Error("PACKAGE_LOCK_INVALID");
   } catch (error) { if (!(error instanceof Error && error.code === "ENOENT")) throw error; }
 }
 export async function verifyTarballClosure({ root, tarball }) {
@@ -37,7 +38,7 @@ export async function verifyTarballClosure({ root, tarball }) {
     const { stdout } = await exec("tar", ["-tzf", tarball], { maxBuffer: 64 * 1024 * 1024 });
     const paths = new Set(stdout.trim().split("\n"));
     const prefix = "package/node_modules/@earendil-works/pi-coding-agent";
-    if (!paths.has(`${prefix}/package.json`) || !paths.has(`${prefix}/dist/cli.js`) || !paths.has("package/node_modules/@modelcontextprotocol/sdk/package.json")) return rejected("PACKAGE_TARBALL_CLOSURE_INVALID");
+    if (!paths.has(`${prefix}/package.json`) || !paths.has(`${prefix}/dist/cli.js`) || !paths.has("package/node_modules/@earendil-works/pi-tui/package.json") || !paths.has("package/node_modules/@modelcontextprotocol/sdk/package.json")) return rejected("PACKAGE_TARBALL_CLOSURE_INVALID");
     const extracted = await mkdtemp(join(tmpdir(), "coco-tar-"));
     await exec("tar", ["-xzf", tarball, "-C", extracted]);
     const actual = await manifests(join(extracted, "package", "node_modules", PI));

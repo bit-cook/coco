@@ -1,0 +1,36 @@
+{
+  "base": {
+    "package": "@earendil-works/pi-coding-agent@0.82.1",
+    "sourceCommit": "b4f293684bba718d59cc1157679bcf6157b3a7f5",
+    "tag": "v0.82.1"
+  },
+  "candidate": {
+    "repository": "local-only:/root/coco-tmp/pi-selective-fork",
+    "sourceCommit": "40d2cd87",
+    "change": "builtin-model-panel-adapter",
+    "published": false
+  },
+  "evidence": {
+    "forkSpecificTests": { "status": "passed", "cases": 41 },
+    "fullCheck": { "status": "passed" },
+    "codingAgentBuild": { "status": "passed" },
+    "cliSmoke": { "status": "passed", "version": "0.82.1" },
+    "runtimeCapabilities": { "status": "passed", "present": 6, "required": 6 },
+    "crossRepoAdapterBridge": { "status": "passed", "activationOrder": ["persist", "activate", "cycle"] },
+    "cocoCi": {
+      "commit": "bf3f1a2023d4a64795ccf9b5799ac32371ca9378",
+      "run": "31694092922",
+      "status": "failed-before-closure-fix",
+      "failure": "PACKAGE_METADATA_INVALID"
+    }
+  },
+  "gates": {
+    "remoteProvenance": "blocked-local-only",
+    "packageIntegrity": "not-issued",
+    "productionRegistration": "blocked",
+    "fallbackIntegration": "source-verified-not-production"
+  },
+  "promotionAuthorized": false,
+  "schemaVersion": 1,
+  "status": "candidate-evidence-only"
+}

@@ -47,3 +47,12 @@ Cycle 必须委托 host，adapter 不得从 rows 自行推导 target，否则会
 5. 才能删除model selector artifact anchors。
 
 Capability detector 对runtime ownership检查`createExtensionAPI()`返回的`api` object direct property，不通过semver、comments、strings、其他object或类似名称推断支持。
+
+## Selective Fork Evidence
+
+`resources/selective-fork-promotion-evidence.v1.json`记录精确的 Pi `0.82.1` source base、未发布的 selective fork commit 和已完成的 source/build/cross-repository evidence。该文件不是发布授权：
+
+- fork 仍为 local-only，没有 remote provenance、package integrity 或可锁定 dependency；
+- `promotionAuthorized` 必须保持 `false`；
+- production dispatcher 仍不得注册 `resources/coco-model-panel.mjs`；
+- 只有 fork 发布边界、完整 CoCo CI、fallback integration 和 rollback contract 都通过后，才允许切换 production dependency。
