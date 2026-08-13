@@ -31,3 +31,15 @@ test("controller close during persistence prevents activation and cycle delegate
   const alpha = model("alpha", "one"); const snapshot = { currentModel: alpha, exactCandidates: [alpha], models: [alpha], scope: "all" }; const value = fixture({ initial: snapshot }); await value.controller.open(); value.releaseRefresh(); await new Promise((resolve) => setImmediate(resolve));
   assert.equal(await value.controller.cycle("backward"), "backward"); assert.deepEqual(value.calls.slice(-1), [["cycle", "backward"]]); value.waitPersist(); const selection = value.controller.select({ id: "one", provider: "alpha" }); await new Promise((resolve) => setImmediate(resolve)); value.controller.close(); value.releasePersist(); assert.deepEqual(await selection, { kind: "cancelled" }); assert.equal(value.calls.some(([name]) => name === "activate"), false);
 });
+
+test("controller rejects concurrent selections and owns scoped exact cancellation", async () => {
+  const alpha = model("alpha", "one"); const snapshot = { currentModel: alpha, exactCandidates: [alpha], models: [alpha], scope: "scoped" }; const value = fixture({ initial: snapshot }); value.waitPersist();
+  const exact = value.controller.open({ query: "alpha/one" }); await new Promise((resolve) => setImmediate(resolve));
+  await assert.rejects(() => value.controller.select({ id: "one", provider: "alpha" }), /MODEL_PANEL_ACTION_IN_PROGRESS/); value.controller.close(); value.releasePersist(); assert.deepEqual(await exact, { kind: "cancelled" }); assert.equal(value.calls.some(([name]) => name === "activate"), false);
+});
+
+test("background refresh timeout converges state before an uncooperative runtime resolves", async () => {
+  const alpha = model("alpha", "one"); const snapshot = { currentModel: alpha, exactCandidates: [alpha], models: [alpha], scope: "all" }; const value = fixture({ initial: snapshot });
+  const controller = createModelPanelController({ refreshTimeoutMs: 10, render: (input) => ({ rows: input.models }), runtime: value.runtime }); assert.deepEqual(await controller.open(), { kind: "panel" }); await new Promise((resolve) => setTimeout(resolve, 25));
+  assert.equal(controller.getState().status, "ready"); assert.equal(controller.getState().refresh.status, "aborted"); controller.close(); value.releaseRefresh(); await new Promise((resolve) => setImmediate(resolve)); assert.equal(controller.getState().status, "closed");
+});
