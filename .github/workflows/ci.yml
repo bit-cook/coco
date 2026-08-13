@@ -30,6 +30,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify:architecture
+      - run: npm run verify:fork-evidence
       - run: npm run typecheck
       - run: npm run typecheck:features
       - run: npm run typecheck:model-panel
@@ -64,6 +65,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify:architecture
+      - run: npm run verify:fork-evidence
       - run: npm run typecheck
       - run: npm run typecheck:features
       - run: npm run typecheck:model-panel
