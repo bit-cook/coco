@@ -491,7 +491,12 @@ function migrateModelPanelKeys(source) {
     .replace('`  ${uiText("Models")}`', '`  ${translate("modelPanel.title")}`')
     .replace('uiText("Only showing models from configured providers. Use /login to add providers.")', 'translate("modelPanel.authenticationHint", { marker: translate("modelPanel.status.loginRequired") })')
     .replace('uiText("No matching models")', 'translate("modelPanel.noMatches")')
-    .replace('uiText(`Model Name: ${selected.model.name}`)', 'translate("modelPanel.modelName", { name: selected.model.name })');
+    .replace('uiText(`Model Name: ${selected.model.name}`)', 'translate("modelPanel.modelName", { name: selected.model.name })')
+    .replace('uiText("Refreshing model catalogs…")', 'translate("modelPanel.refresh.running")')
+    .replace('uiText("Model catalogs refreshed.")', 'translate("modelPanel.refresh.success")')
+    .replace('uiText("Model refresh timed out; showing cached models.")', 'translate("modelPanel.refresh.timeout")')
+    .replace('uiText(`Could not refresh ${result.errors.keys().next().value}; showing cached models.`)', 'translate("modelPanel.refresh.providerError", { provider: result.errors.keys().next().value })')
+    .replace('uiText(`Could not refresh ${result.errors.size} model catalogs; showing cached models.`)', 'translate("modelPanel.refresh.multipleErrors", { count: result.errors.size })');
 }
 const intermediateExtensionInput = `        this.input = new Input();
         if (opts?.secret) {

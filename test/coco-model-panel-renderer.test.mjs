@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { createLanguageService } from "../resources/coco-language.mjs";
-import { COCO_MODEL_PANEL_MESSAGE_KEYS, modelPanelMessageKeyFromLoginRequired, renderModelPanel } from "../resources/coco-model-panel-renderer.mjs";
+import { COCO_MODEL_PANEL_MESSAGE_KEYS, modelPanelMessageKeyFromLoginRequired, renderModelPanel, renderModelPanelRefresh } from "../resources/coco-model-panel-renderer.mjs";
 
 const model = (provider, id, name) => ({ id, name, provider });
 const current = model("alpha", "alpha/model:one", "Alpha");
@@ -13,7 +13,7 @@ const input = { currentModel: current, hasConfiguredAuth: (provider) => provider
 
 test("renderer requests stable keys and preserves semantic identity and status", () => {
   const calls = []; const t = (key, values = {}) => { calls.push({ key, values }); return `translated:${key}`; }; const panel = renderModelPanel(input, { t });
-  assert.deepEqual(new Set(calls.map(({ key }) => key)), new Set(Object.values(COCO_MODEL_PANEL_MESSAGE_KEYS)));
+  assert.deepEqual(new Set(calls.map(({ key }) => key)), new Set([COCO_MODEL_PANEL_MESSAGE_KEYS.authenticationHint, COCO_MODEL_PANEL_MESSAGE_KEYS.loginRequired, COCO_MODEL_PANEL_MESSAGE_KEYS.modelName, COCO_MODEL_PANEL_MESSAGE_KEYS.noMatches, COCO_MODEL_PANEL_MESSAGE_KEYS.title]));
   assert.deepEqual(panel.rows.map(({ provider, id, status }) => ({ id, provider, status })), [{ id: "alpha/model:one", provider: "alpha", status: "ready" }, { id: "zeta-model", provider: "zeta", status: "login-required" }]);
   assert.equal(panel.rows[0].statusText, null); assert.equal(panel.rows[1].statusText, `translated:${COCO_MODEL_PANEL_MESSAGE_KEYS.loginRequired}`);
   const names = calls.filter(({ key }) => key === COCO_MODEL_PANEL_MESSAGE_KEYS.modelName).map(({ values }) => values.name); assert.deepEqual(names, ["Alpha", "zeta-model"]);
@@ -25,6 +25,12 @@ test("legacy login boolean maps only to the stable message key", () => {
   for (const invalid of [undefined, null, 0, 1, "true"]) assert.throws(() => modelPanelMessageKeyFromLoginRequired(invalid), /MODEL_PANEL_LOGIN_REQUIRED_INVALID/);
 });
 
+test("refresh renderer uses stable keys for every bounded outcome", () => {
+  const t = (key, values = {}) => `${key}:${JSON.stringify(values)}`;
+  assert.match(renderModelPanelRefresh({ status: "running" }, { t }), /modelPanel\.refresh\.running/); assert.match(renderModelPanelRefresh({ status: "success" }, { t }), /modelPanel\.refresh\.success/); assert.match(renderModelPanelRefresh({ status: "timeout" }, { t }), /modelPanel\.refresh\.timeout/);
+  assert.match(renderModelPanelRefresh({ provider: "agnes", status: "provider-error" }, { t }), /"provider":"agnes"/); assert.match(renderModelPanelRefresh({ count: 3, status: "multiple-errors" }, { t }), /"count":3/); assert.throws(() => renderModelPanelRefresh({ count: 1, status: "multiple-errors" }, { t }), /MODEL_PANEL_REFRESH_INVALID/);
+});
+
 test("built-in English and Chinese render exact model-panel labels without translating identifiers", async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-model-renderer-"));
   try {
@@ -32,6 +38,7 @@ test("built-in English and Chinese render exact model-panel labels without trans
     assert.equal(english.title, "Models"); assert.equal(english.rows[0].detail, "Model Name: Alpha"); assert.equal(english.rows[1].detail, "Model Name: zeta-model"); assert.equal(english.rows[1].statusText, "login-required");
     service.select("zh-CN"); const chinese = renderModelPanel(input, { t: service.t });
     assert.equal(chinese.title, "模型"); assert.equal(chinese.rows[0].detail, "模型名称：Alpha"); assert.equal(chinese.rows[1].detail, "模型名称：zeta-model"); assert.equal(chinese.rows[1].statusText, "需要登录"); assert.equal(chinese.rows[0].id, "alpha/model:one");
+    assert.equal(renderModelPanelRefresh({ provider: "agnes", status: "provider-error" }, { t: service.t }), "无法刷新 agnes；正在显示缓存模型。"); assert.equal(renderModelPanelRefresh({ count: 3, status: "multiple-errors" }, { t: service.t }), "无法刷新 3 个模型目录；正在显示缓存模型。");
   } finally { await rm(agentDir, { force: true, recursive: true }); }
 });
 
