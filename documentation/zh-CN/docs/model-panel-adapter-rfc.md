@@ -36,6 +36,8 @@ Cycle 必须委托 host，adapter 不得从 rows 自行推导 target，否则会
 
 `resources/coco-model-reference-resolver.mjs` 和 `resources/coco-model-panel-controller.mjs` 已实现 source-owned exact reference、cached-first projection、bounded refresh、ready persist-before-activate、locked login-only、cycle delegation 和 close cancellation。它们是 headless implementation，不包含 TUI 或 Pi internal imports。
 
+`resources/coco-model-panel-presenter.mjs` 将controller state组合为panel/scope/refresh renderer-neutral view。Host error message不进入view；refresh只暴露bounded status和stable-key文案。
+
 ## 上游或 Selective Fork Gate
 
 1. Pi host 实现该 atomic seam和runtime facade。

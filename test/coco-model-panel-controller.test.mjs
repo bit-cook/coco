@@ -42,4 +42,5 @@ test("background refresh timeout converges state before an uncooperative runtime
   const alpha = model("alpha", "one"); const snapshot = { currentModel: alpha, exactCandidates: [alpha], models: [alpha], scope: "all" }; const value = fixture({ initial: snapshot });
   const controller = createModelPanelController({ refreshTimeoutMs: 10, render: (input) => ({ rows: input.models }), runtime: value.runtime }); assert.deepEqual(await controller.open(), { kind: "panel" }); await new Promise((resolve) => setTimeout(resolve, 25));
   assert.equal(controller.getState().status, "ready"); assert.equal(controller.getState().refresh.status, "aborted"); controller.close(); value.releaseRefresh(); await new Promise((resolve) => setImmediate(resolve)); assert.equal(controller.getState().status, "closed");
+  assert.equal(controller.getState().refresh.reason, "timeout");
 });

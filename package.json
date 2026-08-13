@@ -81,7 +81,7 @@
     "verify:product-identity": "node scripts/generate-product-identity.mjs --check",
     "verify:architecture": "node scripts/verify-architecture-contracts.mjs && node scripts/pi-upstream-dashboard.mjs --as-of 2026-08-12",
     "probe:upstream": "node scripts/pi-upstream-compatibility.mjs",
-    "typecheck:model-panel": "node --check scripts/pi-model-panel-capabilities.mjs && node --check resources/coco-model-reference-resolver.mjs && node --check resources/coco-model-panel-contract.mjs && node --check resources/coco-model-panel-renderer.mjs && node --check resources/coco-model-panel-controller.mjs && node --check resources/coco-model-panel-adapter-contract.mjs",
+    "typecheck:model-panel": "node --check scripts/pi-model-panel-capabilities.mjs && node --check resources/coco-model-reference-resolver.mjs && node --check resources/coco-model-panel-contract.mjs && node --check resources/coco-model-panel-renderer.mjs && node --check resources/coco-model-panel-controller.mjs && node --check resources/coco-model-panel-presenter.mjs && node --check resources/coco-model-panel-adapter-contract.mjs",
     "test": "node scripts/run-tests-preserving-receipts.mjs",
     "test:core": "COCO_TEST_EXCLUDE=task-3-runtime-integrity.test.mjs node scripts/run-tests-preserving-receipts.mjs",
     "test:integrity": "COCO_TEST_FILES=test/task-3-runtime-integrity.test.mjs node scripts/run-tests-preserving-receipts.mjs",
