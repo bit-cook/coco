@@ -42,4 +42,6 @@ CoCo `v0.5.2` 的 `scripts/apply-coco-identity-patch.mjs` 有 1111 行，包含 
 4. Model visibility、login routing 和 startup composition。
 5. 删除剩余 identity-only patch。
 
+Model selector 的第一条 source seam 已落在 `resources/coco-model-panel-contract.mjs`，并通过 patched component differential tests。它目前不能移除 anchor；缺少 supported panel registration、login 和 default-model persistence API。
+
 目标：6 个月减少 60%，12 个月减少 85%。
