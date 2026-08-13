@@ -5,17 +5,19 @@
     "tag": "v0.82.1"
   },
   "candidate": {
-    "repository": "local-only:/root/coco-tmp/pi-selective-fork",
-    "sourceCommit": "40d2cd87",
+    "repository": "https://github.com/bit-cook/pi-selective-fork",
+    "sourceCommit": "40d2cd87fc604eae6aaff60144fc6a3650fb2728",
     "change": "builtin-model-panel-adapter",
     "published": false,
+    "sourceTag": "coco-v0.82.1-coco.1",
     "package": {
       "name": "@earendil-works/pi-coding-agent",
       "version": "0.82.1",
-      "artifact": "local-only:/root/coco-tmp/selective-fork-package/earendil-works-pi-coding-agent-0.82.1.tgz",
+      "artifact": "https://github.com/bit-cook/pi-selective-fork/releases/download/coco-v0.82.1-coco.1/earendil-works-pi-coding-agent-0.82.1.tgz",
       "bytes": 4982104,
       "sha256": "6cbb84e32600dcfef81a5974e1f2182d5141b74bc2980516eeb9351b1f72fafc",
-      "integrity": "sha512-HBCKAxI63GX77lFAOG/w57ogHJPPp6728NIZEfNc4SP0xEW/g94XzFAAXaLmiKWWlxh/qvQgO1i2o2z/Tpk+IQ=="
+      "integrity": "sha512-HBCKAxI63GX77lFAOG/w57ogHJPPp6728NIZEfNc4SP0xEW/g94XzFAAXaLmiKWWlxh/qvQgO1i2o2z/Tpk+IQ==",
+      "remoteRelease": "https://github.com/bit-cook/pi-selective-fork/releases/tag/coco-v0.82.1-coco.1"
     }
   },
   "evidence": {
@@ -37,8 +39,8 @@
     }
   },
   "gates": {
-    "remoteProvenance": "blocked-local-only",
-    "packageIntegrity": "not-issued",
+    "remoteProvenance": "source-tag-published",
+    "packageIntegrity": "remote-release-asset-verified-and-locked",
     "productionRegistration": "blocked",
     "fallbackIntegration": "source-verified-not-production"
   },

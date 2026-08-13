@@ -1,10 +1,15 @@
 import { copyFile, readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const expectedVersion = "0.82.1";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const agentPath = (projectRoot) => join(projectRoot, "node_modules", "@earendil-works", "pi-coding-agent");
+const tuiPath = (projectRoot) => {
+  const nested = join(agentPath(projectRoot), "node_modules", "@earendil-works", "pi-tui");
+  return existsSync(join(nested, "package.json")) ? nested : join(projectRoot, "node_modules", "@earendil-works", "pi-tui");
+};
 
 const identityReplacements = [
   ["https://pi.dev", "https://coco.local"],
@@ -977,7 +982,7 @@ async function patchAutocompleteSourceLabels(projectRoot) {
 }
 
 async function patchSettingsValueDisplay(projectRoot) {
-  const path = join(agentPath(projectRoot), "node_modules", "@earendil-works", "pi-tui", "dist", "components", "settings-list.js");
+  const path = join(tuiPath(projectRoot), "dist", "components", "settings-list.js");
   const importLine = `import { uiValue } from "../../../../../../../../resources/coco-ui-language.mjs";`;
   let source;
   try { source = await readFile(path, "utf8"); }
@@ -1045,7 +1050,7 @@ async function patchTuiVisualSystem(projectRoot) {
 }
 
 async function patchInputPrompt(projectRoot) {
-  const path = join(agentPath(projectRoot), "node_modules", "@earendil-works", "pi-tui", "dist", "components", "input.js");
+  const path = join(tuiPath(projectRoot), "dist", "components", "input.js");
   let source;
   try { source = await readFile(path, "utf8"); } catch (error) { if (error?.code === "ENOENT") return; throw error; }
   if (source.includes('const prompt = "› ";')) return;
@@ -1055,7 +1060,7 @@ async function patchInputPrompt(projectRoot) {
 
 export async function applyCocoIdentityPatch({ root: projectRoot = root, supportedVersion = expectedVersion } = {}) {
   const agent = agentPath(projectRoot);
-  const tui = join(agent, "node_modules", "@earendil-works", "pi-tui");
+  const tui = tuiPath(projectRoot);
   await Promise.all([ensureVersion(join(agent, "package.json"), supportedVersion), ensureVersion(join(tui, "package.json"), supportedVersion)]);
   const targets = [
     "dist/cli/args.js",
@@ -1070,8 +1075,8 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root, support
     "dist/modes/interactive/components/first-time-setup.js",
     "dist/utils/tools-manager.js",
   ].map((path) => join(agent, path));
-  const tuiPath = join(tui, "dist/tui.js");
-  const originals = await Promise.all([...targets, tuiPath].map((path) => readFile(path, "utf8")));
+  const tuiBundlePath = join(tui, "dist/tui.js");
+  const originals = await Promise.all([...targets, tuiBundlePath].map((path) => readFile(path, "utf8")));
   const patched = originals.slice(0, -1).map(applyIdentityReplacements);
   patched[7] = replaceExact(patched[7], tuiImportAnchor, patchedTuiImport);
   patched[7] = replaceExact(patched[7], customProviderImportAnchor, patchedCustomProviderImport);
@@ -1123,7 +1128,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root, support
   }
   patched[10] = replaceOfflineToolNotice(patched[10]);
   patched.push(replaceExact(originals.at(-1), scrollbackAnchor, patchedScrollback));
-  await Promise.all(patched.map((source, index) => source === originals[index] ? undefined : writeFile([...targets, tuiPath][index], source, "utf8")));
+  await Promise.all(patched.map((source, index) => source === originals[index] ? undefined : writeFile([...targets, tuiBundlePath][index], source, "utf8")));
   await patchRuntimeDefaultTheme(projectRoot);
   await patchBuiltinThemeRegistry(projectRoot);
   await patchSecretExtensionInput(projectRoot);

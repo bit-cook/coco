@@ -12,7 +12,7 @@ test("selective fork evidence remains fail-closed and validates the local artifa
   try {
     const evidence = JSON.parse(await readFile(evidencePath, "utf8"));
     const artifact = join(temporary, "candidate.tgz");
-    const sourceArtifact = evidence.candidate.package.artifact.replace("local-only:/root/coco-tmp/", "/root/coco-tmp/");
+    const sourceArtifact = "/root/coco-tmp/earendil-works-pi-coding-agent-0.82.1.tgz";
     try {
       await access(sourceArtifact);
       await copyFile(sourceArtifact, artifact);
