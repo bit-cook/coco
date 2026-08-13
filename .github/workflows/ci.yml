@@ -9,19 +9,17 @@ on:
 permissions:
   contents: read
 
-env:
-  TMPDIR: /root/coco-tmp
-  COCO_SCANNER_TMPDIR: /root/coco-tmp
-
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, Linux, X64, coco-ci]
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      TMPDIR: ${{ runner.temp }}
+      COCO_SCANNER_TMPDIR: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
@@ -50,10 +48,12 @@ jobs:
           path: release/
           if-no-files-found: error
   integrity:
-    needs: verify
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, Linux, X64, coco-ci]
     timeout-minutes: 20
+    env:
+      TMPDIR: /root/coco-tmp
+      COCO_SCANNER_TMPDIR: /root/coco-tmp
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38

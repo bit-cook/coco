@@ -119,12 +119,13 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   ]);
 
   assert.match(ciWorkflow, /concurrency:\n  group: ci-\$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n  cancel-in-progress: true/);
-  assert.match(ciWorkflow, /TMPDIR: \/root\/coco-tmp/);
-  assert.match(ciWorkflow, /COCO_SCANNER_TMPDIR: \/root\/coco-tmp/);
+  assert.match(ciWorkflow, /verify:[\s\S]*?runs-on: ubuntu-24\.04[\s\S]*?TMPDIR: \$\{\{ runner\.temp \}\}[\s\S]*?COCO_SCANNER_TMPDIR: \$\{\{ runner\.temp \}\}/);
+  assert.match(ciWorkflow, /integrity:[\s\S]*?runs-on: \[self-hosted, Linux, X64, coco-ci\][\s\S]*?TMPDIR: \/root\/coco-tmp[\s\S]*?COCO_SCANNER_TMPDIR: \/root\/coco-tmp/);
   assert.match(ciWorkflow, /npm run typecheck:model-panel/);
-  assert.equal((ciWorkflow.match(/runs-on: \[self-hosted, Linux, X64, coco-ci\]/g) ?? []).length, 2);
-  assert.equal((ciWorkflow.match(/if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository/g) ?? []).length, 2);
-  assert.match(ciWorkflow, /  integrity:\n    needs: verify/);
+  assert.equal((ciWorkflow.match(/runs-on: \[self-hosted, Linux, X64, coco-ci\]/g) ?? []).length, 1);
+  assert.equal((ciWorkflow.match(/runs-on: ubuntu-24\.04/g) ?? []).length, 1);
+  assert.equal((ciWorkflow.match(/if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository/g) ?? []).length, 1);
+  assert.doesNotMatch(ciWorkflow, /  integrity:\n    needs: verify/);
   for (const workflow of [ciWorkflow, pagesWorkflow]) assert.match(workflow, /timeout-minutes: 20/);
   assert.match(releaseWorkflow, /timeout-minutes: 40/);
   for (const workflow of [ciWorkflow, releaseWorkflow, pagesWorkflow]) assert.match(workflow, /actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09/);

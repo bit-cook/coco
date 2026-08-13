@@ -20,9 +20,9 @@ Runner registration tokens are short-lived operational secrets. They must never 
 ## CI runner
 
 - Required labels: `self-hosted`, `Linux`, `X64`, `coco-ci`.
-- Scope: CI verification and integrity jobs only.
-- High-load jobs run serially on one dedicated runner.
-- Fork pull requests must never execute on a self-hosted runner. They require maintainer review and a controlled branch run.
+- Scope: CI integrity jobs only; ordinary verification uses GitHub-hosted `ubuntu-24.04`.
+- Hosted verification and self-hosted integrity run in parallel and do not share workspace state.
+- Fork pull requests run hosted verification only and must never execute on the self-hosted integrity runner. Integrity requires maintainer review and a controlled branch run.
 - `TMPDIR` and `COCO_SCANNER_TMPDIR` must use `/root/coco-tmp`; the shared `/tmp` tmpfs is not suitable for package extraction or integrity tests.
 - Release publication remains on a separately reviewed runner boundary.
 
