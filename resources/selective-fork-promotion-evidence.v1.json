@@ -8,7 +8,15 @@
     "repository": "local-only:/root/coco-tmp/pi-selective-fork",
     "sourceCommit": "40d2cd87",
     "change": "builtin-model-panel-adapter",
-    "published": false
+    "published": false,
+    "package": {
+      "name": "@earendil-works/pi-coding-agent",
+      "version": "0.82.1",
+      "artifact": "local-only:/root/coco-tmp/selective-fork-package/earendil-works-pi-coding-agent-0.82.1.tgz",
+      "bytes": 4982104,
+      "sha256": "6cbb84e32600dcfef81a5974e1f2182d5141b74bc2980516eeb9351b1f72fafc",
+      "integrity": "sha512-HBCKAxI63GX77lFAOG/w57ogHJPPp6728NIZEfNc4SP0xEW/g94XzFAAXaLmiKWWlxh/qvQgO1i2o2z/Tpk+IQ=="
+    }
   },
   "evidence": {
     "forkSpecificTests": { "status": "passed", "cases": 41 },
@@ -16,12 +24,16 @@
     "codingAgentBuild": { "status": "passed" },
     "cliSmoke": { "status": "passed", "version": "0.82.1" },
     "runtimeCapabilities": { "status": "passed", "present": 6, "required": 6 },
-    "crossRepoAdapterBridge": { "status": "passed", "activationOrder": ["persist", "activate", "cycle"] },
+    "crossRepoAdapterBridge": { "status": "passed", "source": "clean-consumer-tarball-install", "owner": "coco.model-panel.v1", "activationOrder": ["persist", "activate", "cycle"] },
+    "cleanConsumerInstall": { "status": "passed", "installSeconds": 11, "piTuiVersion": "0.82.1" },
+    "consumerCliSmoke": { "status": "passed", "version": "0.82.1" },
     "cocoCi": {
-      "commit": "bf3f1a2023d4a64795ccf9b5799ac32371ca9378",
-      "run": "31694092922",
-      "status": "failed-before-closure-fix",
-      "failure": "PACKAGE_METADATA_INVALID"
+      "commit": "4d90d15b4c750a1cc0f3ddf3d89ef73da9f87c44",
+      "run": "31709936016",
+      "runner": "coco-ci-local",
+      "status": "passed",
+      "durationSeconds": 1143,
+      "gates": ["architecture", "typecheck", "build", "core", "closure", "secret-scan", "tarball-closure", "integrity"]
     }
   },
   "gates": {
