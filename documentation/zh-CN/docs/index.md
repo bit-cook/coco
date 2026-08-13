@@ -8,6 +8,7 @@
 - [Pi Upstream Dashboard](upstream-dashboard.md) - 当前 baseline、release lag 和离线/在线检查规则。
 - [Provider Readiness](provider-readiness.md) - 本地 readiness、credential rotation 和 network verification 边界。
 - [Model Panel Source Contract](model-panel-contract.md) - Source-owned 模型面板语义、differential parity 和 patch removal gate。
+- [Builtin Model Panel Adapter RFC](model-panel-adapter-rfc.md) - Upstream/selective-fork atomic registration seam 和 conformance gate。
 
 ## CoCo 操作文档
 

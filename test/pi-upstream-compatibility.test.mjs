@@ -34,6 +34,7 @@ test("compatibility workflow is scheduled, manual, secret-free, and isolated fro
   const workflow = await readFile(join(root, ".github", "workflows", "upstream-compatibility.yml"), "utf8");
   assert.match(workflow, /schedule:\n    - cron: "17 3 \* \* 1"/); assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /runs-on: \[self-hosted, Linux, X64, coco-upstream\]/); assert.doesNotMatch(workflow, /coco-pages|coco-ci|secrets\./);
+  assert.match(workflow, /- run: npm ci\n      - run: npm run build\n      - id: probe/);
   assert.match(workflow, /if test "\$status" != 0 && test "\$status" != 3/); assert.match(workflow, /retention-days: 30/); assert.match(workflow, /promotionAuthorized/);
 });
 

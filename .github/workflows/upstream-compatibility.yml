@@ -31,6 +31,7 @@ jobs:
           node-version: 22.19.0
           cache: npm
       - run: npm ci
+      - run: npm run build
       - id: probe
         env:
           CANDIDATE_VERSION: ${{ inputs.version || '0.84.1' }}
