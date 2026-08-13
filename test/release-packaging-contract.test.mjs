@@ -119,14 +119,16 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   ]);
 
   assert.match(ciWorkflow, /concurrency:\n  group: ci-\$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n  cancel-in-progress: true/);
-  assert.match(ciWorkflow, /verify:[\s\S]*?runs-on: ubuntu-24\.04[\s\S]*?printf 'TMPDIR=%s\\n' "\$RUNNER_TEMP" >> "\$GITHUB_ENV"[\s\S]*?printf 'COCO_SCANNER_TMPDIR=%s\\n' "\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
-  assert.match(ciWorkflow, /integrity:[\s\S]*?runs-on: \[self-hosted, Linux, X64, coco-ci\][\s\S]*?TMPDIR: \/root\/coco-tmp[\s\S]*?COCO_SCANNER_TMPDIR: \/root\/coco-tmp/);
+  assert.match(ciWorkflow, /verify-pr:[\s\S]*?if: github\.event_name == 'pull_request'[\s\S]*?runs-on: ubuntu-24\.04[\s\S]*?printf 'TMPDIR=%s\\n' "\$RUNNER_TEMP" >> "\$GITHUB_ENV"[\s\S]*?printf 'COCO_SCANNER_TMPDIR=%s\\n' "\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
+  assert.match(ciWorkflow, /verify-main:[\s\S]*?if: github\.event_name != 'pull_request'[\s\S]*?runs-on: \[self-hosted, Linux, X64, coco-ci\][\s\S]*?TMPDIR: \/root\/coco-tmp[\s\S]*?COCO_SCANNER_TMPDIR: \/root\/coco-tmp/);
   assert.match(ciWorkflow, /npm run typecheck:model-panel/);
   assert.equal((ciWorkflow.match(/runs-on: \[self-hosted, Linux, X64, coco-ci\]/g) ?? []).length, 1);
   assert.equal((ciWorkflow.match(/runs-on: ubuntu-24\.04/g) ?? []).length, 1);
-  assert.equal((ciWorkflow.match(/if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository/g) ?? []).length, 1);
-  assert.doesNotMatch(ciWorkflow, /  integrity:\n    needs: verify/);
-  for (const workflow of [ciWorkflow, pagesWorkflow]) assert.match(workflow, /timeout-minutes: 20/);
+  assert.doesNotMatch(ciWorkflow, /needs: verify/);
+  assert.match(ciWorkflow, /verify-main:[\s\S]*?timeout-minutes: 30/);
+  assert.match(ciWorkflow, /verify-main:[\s\S]*?npm run test:core[\s\S]*?npm run test:integrity/);
+  assert.match(ciWorkflow, /verify-pr:[\s\S]*?timeout-minutes: 20/);
+  assert.match(pagesWorkflow, /timeout-minutes: 20/);
   assert.match(releaseWorkflow, /timeout-minutes: 40/);
   for (const workflow of [ciWorkflow, releaseWorkflow, pagesWorkflow]) assert.match(workflow, /actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09/);
   for (const workflow of [ciWorkflow, releaseWorkflow]) assert.match(workflow, /actions\/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38/);

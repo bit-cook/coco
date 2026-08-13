@@ -14,7 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  verify-pr:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -48,10 +49,10 @@ jobs:
           name: coco-package
           path: release/
           if-no-files-found: error
-  integrity:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+  verify-main:
+    if: github.event_name != 'pull_request'
     runs-on: [self-hosted, Linux, X64, coco-ci]
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       TMPDIR: /root/coco-tmp
       COCO_SCANNER_TMPDIR: /root/coco-tmp
@@ -62,5 +63,24 @@ jobs:
           node-version: 22.19.0
           cache: npm
       - run: npm ci
+      - run: npm run verify:architecture
+      - run: npm run typecheck
+      - run: npm run typecheck:features
+      - run: npm run typecheck:model-panel
       - run: npm run build
+      - run: npm run test:core
+      - run: npm run verify:closure
+      - run: node scripts/publication-secret-scanner.mjs .
+      - run: mkdir release
+      - run: node node_modules/npm/bin/npm-cli.js pack --json --pack-destination release
+      - run: node scripts/publication-secret-scanner.mjs release
+      - run: node -e "import('./scripts/verify-package-closure.mjs').then(async ({verifyTarballClosure}) => { const {readdir}=await import('node:fs/promises'); const tarball=(await readdir('release')).find((entry)=>entry.endsWith('.tgz')); const result=await verifyTarballClosure({root:process.cwd(),tarball:'release/'+tarball}); console.log(JSON.stringify(result)); process.exit(result.status==='approved'?0:1); })"
+      - run: tar -tzf release/coco-*.tgz | (! grep -E '(^package/(\.coco-tools|documentation/[^/]+/logs|test/)|/\.omo/)')
+      - working-directory: release
+        run: sha256sum coco-*.tgz > coco-$(node -p "require('../package.json').version").tgz.sha256
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: coco-package
+          path: release/
+          if-no-files-found: error
       - run: npm run test:integrity
