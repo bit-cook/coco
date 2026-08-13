@@ -43,3 +43,5 @@ Cycle 必须委托 host，adapter 不得从 rows 自行推导 target，否则会
 3. Source-owned model panel使用semantic contract和stable-key renderer。
 4. Differential parity覆盖cached-first refresh、login、persistence、activation、cycle和errors。
 5. 才能删除model selector artifact anchors。
+
+Capability detector 对runtime ownership检查`createExtensionAPI()`返回的`api` object direct property，不通过semver、comments、strings、其他object或类似名称推断支持。

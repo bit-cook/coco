@@ -31,10 +31,20 @@ function directMethod(source, container, symbol) {
   return { present: found, reason: found ? null : "symbol-not-declared" };
 }
 
+function factoryProperty(source, container, symbol) {
+  const clean = lexical(source); const declaration = new RegExp(`\\bfunction\\s+${container}\\s*\\([^)]*\\)\\s*\\{`, "g"); const matches = [...clean.matchAll(declaration)];
+  if (matches.length !== 1) return { present: false, reason: matches.length > 1 ? "declaration-ambiguous" : "container-missing" };
+  const start = matches[0].index + matches[0][0].length; let depth = 0, body = "";
+  for (let index = start; index < clean.length; index++) { const char = clean[index]; if (char === "{") depth++; else if (char === "}") { if (depth === 0) break; depth--; } body += char; }
+  const object = /\bconst\s+api\s*=\s*\{/.exec(body); if (!object) return { present: false, reason: "container-missing" };
+  let objectDepth = 0, direct = ""; for (let index = object.index + object[0].length; index < body.length; index++) { const char = body[index]; if (char === "{") objectDepth++; else if (char === "}") { if (objectDepth === 0) break; objectDepth--; } direct += objectDepth === 0 ? char : " "; }
+  const found = new RegExp(`(?:^|,)\\s*${symbol}\\s*(?:\\(|:)`, "m").test(direct); return { present: found, reason: found ? null : "symbol-not-declared" };
+}
+
 async function inspect(packageRoot, requirement, container) {
   if (requirement.path.startsWith("/") || requirement.path.split("/").includes("..")) return { missing: { kind: requirement.kind, path: requirement.path, reason: "artifact-invalid", symbol: `${container}.${requirement.symbol}` } };
   const path = resolve(packageRoot, requirement.path); const rel = relative(packageRoot, path); if (rel.startsWith(`..${sep}`) || rel === "..") return { missing: { kind: requirement.kind, path: requirement.path, reason: "artifact-invalid", symbol: `${container}.${requirement.symbol}` } };
-  try { const info = await lstat(path); if (!info.isFile() || info.isSymbolicLink() || info.size > 2 * 1024 * 1024) throw new Error("invalid"); const bytes = await readFile(path); const result = directMethod(bytes.toString("utf8"), container, requirement.symbol); return result.present ? { evidence: { kind: requirement.kind, path: requirement.path, sha256: sha256(bytes), symbol: `${container}.${requirement.symbol}` } } : { missing: { kind: requirement.kind, path: requirement.path, reason: result.reason, symbol: `${container}.${requirement.symbol}` } }; }
+  try { const info = await lstat(path); if (!info.isFile() || info.isSymbolicLink() || info.size > 2 * 1024 * 1024) throw new Error("invalid"); const bytes = await readFile(path); const source = bytes.toString("utf8"); const result = requirement.kind === "factoryProperty" ? factoryProperty(source, requirement.container, requirement.symbol) : directMethod(source, container, requirement.symbol); const evidenceContainer = requirement.container ?? container; return result.present ? { evidence: { kind: requirement.kind, path: requirement.path, sha256: sha256(bytes), symbol: `${evidenceContainer}.${requirement.symbol}` } } : { missing: { kind: requirement.kind, path: requirement.path, reason: result.reason, symbol: `${evidenceContainer}.${requirement.symbol}` } }; }
   catch { return { missing: { kind: requirement.kind, path: requirement.path, reason: "artifact-invalid", symbol: `${container}.${requirement.symbol}` } }; }
 }
 
