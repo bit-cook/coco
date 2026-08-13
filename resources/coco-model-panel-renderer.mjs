@@ -1,7 +1,7 @@
 import { translate } from "./coco-language.mjs";
 import { projectModelPanel } from "./coco-model-panel-contract.mjs";
 
-export const COCO_MODEL_PANEL_MESSAGE_KEYS = Object.freeze({ authenticationHint: "modelPanel.authenticationHint", loginRequired: "modelPanel.status.loginRequired", modelName: "modelPanel.modelName", noMatches: "modelPanel.noMatches", refreshMultipleErrors: "modelPanel.refresh.multipleErrors", refreshProviderError: "modelPanel.refresh.providerError", refreshRunning: "modelPanel.refresh.running", refreshSuccess: "modelPanel.refresh.success", refreshTimeout: "modelPanel.refresh.timeout", title: "modelPanel.title" });
+export const COCO_MODEL_PANEL_MESSAGE_KEYS = Object.freeze({ authenticationHint: "modelPanel.authenticationHint", loginRequired: "modelPanel.status.loginRequired", modelName: "modelPanel.modelName", noMatches: "modelPanel.noMatches", refreshMultipleErrors: "modelPanel.refresh.multipleErrors", refreshProviderError: "modelPanel.refresh.providerError", refreshRunning: "modelPanel.refresh.running", refreshSuccess: "modelPanel.refresh.success", refreshTimeout: "modelPanel.refresh.timeout", scopeAction: "modelPanel.scope.action", scopeAll: "modelPanel.scope.all", scopeLabel: "modelPanel.scope.label", scopeScoped: "modelPanel.scope.scoped", title: "modelPanel.title" });
 
 export function modelPanelMessageKeyFromLoginRequired(loginRequired) {
   if (typeof loginRequired !== "boolean") throw new Error("MODEL_PANEL_LOGIN_REQUIRED_INVALID");
@@ -16,6 +16,11 @@ export function renderModelPanelRefresh({ count, provider, status } = {}, { t = 
   if (status === "provider-error" && typeof provider === "string" && provider.length > 0) return t(COCO_MODEL_PANEL_MESSAGE_KEYS.refreshProviderError, { provider });
   if (status === "multiple-errors" && Number.isSafeInteger(count) && count > 1) return t(COCO_MODEL_PANEL_MESSAGE_KEYS.refreshMultipleErrors, { count });
   throw new Error("MODEL_PANEL_REFRESH_INVALID");
+}
+
+export function renderModelPanelScope(scope, { t = translate } = {}) {
+  if (!new Set(["all", "scoped"]).has(scope) || typeof t !== "function") throw new Error("MODEL_PANEL_SCOPE_INVALID");
+  return Object.freeze({ action: t(COCO_MODEL_PANEL_MESSAGE_KEYS.scopeAction), all: t(COCO_MODEL_PANEL_MESSAGE_KEYS.scopeAll), current: scope, label: t(COCO_MODEL_PANEL_MESSAGE_KEYS.scopeLabel), scoped: t(COCO_MODEL_PANEL_MESSAGE_KEYS.scopeScoped) });
 }
 
 export function renderModelPanel(input, { t = translate } = {}) {

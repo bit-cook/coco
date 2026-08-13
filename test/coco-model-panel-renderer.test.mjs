@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { createLanguageService } from "../resources/coco-language.mjs";
-import { COCO_MODEL_PANEL_MESSAGE_KEYS, modelPanelMessageKeyFromLoginRequired, renderModelPanel, renderModelPanelRefresh } from "../resources/coco-model-panel-renderer.mjs";
+import { COCO_MODEL_PANEL_MESSAGE_KEYS, modelPanelMessageKeyFromLoginRequired, renderModelPanel, renderModelPanelRefresh, renderModelPanelScope } from "../resources/coco-model-panel-renderer.mjs";
 
 const model = (provider, id, name) => ({ id, name, provider });
 const current = model("alpha", "alpha/model:one", "Alpha");
@@ -31,6 +31,10 @@ test("refresh renderer uses stable keys for every bounded outcome", () => {
   assert.match(renderModelPanelRefresh({ provider: "agnes", status: "provider-error" }, { t }), /"provider":"agnes"/); assert.match(renderModelPanelRefresh({ count: 3, status: "multiple-errors" }, { t }), /"count":3/); assert.throws(() => renderModelPanelRefresh({ count: 1, status: "multiple-errors" }, { t }), /MODEL_PANEL_REFRESH_INVALID/);
 });
 
+test("scope renderer localizes labels without changing the semantic scope", () => {
+  const t = (key) => `translated:${key}`; const view = renderModelPanelScope("scoped", { t }); assert.equal(view.current, "scoped"); assert.equal(view.all, "translated:modelPanel.scope.all"); assert.equal(view.scoped, "translated:modelPanel.scope.scoped"); assert.equal(Object.isFrozen(view), true); assert.throws(() => renderModelPanelScope("unknown", { t }), /MODEL_PANEL_SCOPE_INVALID/);
+});
+
 test("built-in English and Chinese render exact model-panel labels without translating identifiers", async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-model-renderer-"));
   try {
@@ -39,6 +43,7 @@ test("built-in English and Chinese render exact model-panel labels without trans
     service.select("zh-CN"); const chinese = renderModelPanel(input, { t: service.t });
     assert.equal(chinese.title, "模型"); assert.equal(chinese.rows[0].detail, "模型名称：Alpha"); assert.equal(chinese.rows[1].detail, "模型名称：zeta-model"); assert.equal(chinese.rows[1].statusText, "需要登录"); assert.equal(chinese.rows[0].id, "alpha/model:one");
     assert.equal(renderModelPanelRefresh({ provider: "agnes", status: "provider-error" }, { t: service.t }), "无法刷新 agnes；正在显示缓存模型。"); assert.equal(renderModelPanelRefresh({ count: 3, status: "multiple-errors" }, { t: service.t }), "无法刷新 3 个模型目录；正在显示缓存模型。");
+    assert.deepEqual(renderModelPanelScope("all", { t: service.t }), { action: "范围", all: "全部", current: "all", label: "范围：", scoped: "已选" });
   } finally { await rm(agentDir, { force: true, recursive: true }); }
 });
 

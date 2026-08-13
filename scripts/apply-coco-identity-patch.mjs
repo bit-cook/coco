@@ -496,7 +496,12 @@ function migrateModelPanelKeys(source) {
     .replace('uiText("Model catalogs refreshed.")', 'translate("modelPanel.refresh.success")')
     .replace('uiText("Model refresh timed out; showing cached models.")', 'translate("modelPanel.refresh.timeout")')
     .replace('uiText(`Could not refresh ${result.errors.keys().next().value}; showing cached models.`)', 'translate("modelPanel.refresh.providerError", { provider: result.errors.keys().next().value })')
-    .replace('uiText(`Could not refresh ${result.errors.size} model catalogs; showing cached models.`)', 'translate("modelPanel.refresh.multipleErrors", { count: result.errors.size })');
+    .replace('uiText(`Could not refresh ${result.errors.size} model catalogs; showing cached models.`)', 'translate("modelPanel.refresh.multipleErrors", { count: result.errors.size })')
+    .replaceAll('uiText("all")', 'translate("modelPanel.scope.all")')
+    .replaceAll('uiText("scoped")', 'translate("modelPanel.scope.scoped")')
+    .replace('uiText("Scope:")', 'translate("modelPanel.scope.label")')
+    .replace('uiText("scope")', 'translate("modelPanel.scope.action")')
+    .replace('theme.fg("muted", " (all/scoped)")', 'theme.fg("muted", ` (${translate("modelPanel.scope.all")}/${translate("modelPanel.scope.scoped")})`)');
 }
 const intermediateExtensionInput = `        this.input = new Input();
         if (opts?.secret) {

@@ -35,3 +35,5 @@ Renderer 不依赖 `coco-ui-language.mjs`、Pi、TUI、theme 或 command registr
 当前 patched selector 的 title、authentication hint、empty state、model detail 和 login-required marker 已改为稳定 `modelPanel.*` keys。其他未迁移 panel text 仍由 legacy `uiText` 处理，直到 source adapter 可以注册。
 
 Model refresh running/success/timeout/single-provider failure/multiple-provider failure 也已使用稳定 keys，并由 source renderer提供相同placeholder contract。
+
+Scope label、all/scoped值和scope action已迁移到稳定keys。Scope enum仍保持`all`/`scoped`，翻译仅存在于renderer view。
