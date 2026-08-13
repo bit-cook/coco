@@ -7,6 +7,7 @@ import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { applyCocoIdentityPatch } from "./apply-coco-identity-patch.mjs";
+import { detectPiModelPanelCapabilities } from "./pi-model-panel-capabilities.mjs";
 
 const execute = promisify(execFile);
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -15,10 +16,10 @@ const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const fail = (code) => { const error = new Error(code); error.code = code; throw error; };
 const npmCli = join(root, "node_modules", "npm", "bin", "npm-cli.js");
 
-export function compatibilityReceipt({ baselineVersion, candidateIntegrity, candidateVersion, checks, patcherSha256 }) {
+export function compatibilityReceipt({ advisories = { modelPanelRuntimeAdapter: { baseline: null, candidateAfterPatch: null, candidateBeforePatch: null } }, baselineVersion, candidateIntegrity, candidateVersion, checks, patcherSha256 }) {
   const failure = ["integrity", "versionPolicy", "anchors", "syntax", "offlineSmoke"].find((name) => !["passed", "unsupported", "skipped"].includes(checks[name]));
   const compatible = checks.integrity === "passed" && checks.versionPolicy === "unsupported" && checks.anchors === "passed" && checks.syntax === "passed" && checks.offlineSmoke === "passed";
-  return { baselineVersion, candidateIntegrity, candidateVersion, checks, compatibility: compatible ? "candidate" : "incompatible", firstFailure: failure === undefined ? null : { check: failure, code: checks[failure] }, patcherSha256, promotionAuthorized: false, schemaVersion: 1 };
+  return { advisories, baselineVersion, candidateIntegrity, candidateVersion, checks, compatibility: compatible ? "candidate" : "incompatible", firstFailure: failure === undefined ? null : { check: failure, code: checks[failure] }, patcherSha256, promotionAuthorized: false, schemaVersion: 2 };
 }
 
 export function parseRegistryMetadata(value) {
@@ -36,6 +37,8 @@ export async function probeUpstreamCompatibility({ candidateVersion, projectRoot
   const fixture = await mkdtemp(join(tmpdir(), "coco-upstream-probe-"));
   const checks = { anchors: "skipped", integrity: "pending", offlineSmoke: "skipped", syntax: "skipped", versionPolicy: candidateVersion === baseline.package.version ? "passed" : "unsupported" };
   let integrity = null;
+  const modelPanelRuntimeAdapter = { baseline: await detectPiModelPanelCapabilities({ artifactState: "baseline-patched", packageRoot: join(projectRoot, "node_modules", "@earendil-works", "pi-coding-agent") }).catch(() => null), candidateAfterPatch: null, candidateBeforePatch: null };
+  const advisories = { modelPanelRuntimeAdapter };
   try {
     const metadata = parseRegistryMetadata(JSON.parse((await command(process.execPath, [npmCli, "view", `@earendil-works/pi-coding-agent@${candidateVersion}`, "dist.integrity", "dist.tarball", "--json"], { cwd: projectRoot })).stdout));
     integrity = metadata.integrity;
@@ -43,15 +46,18 @@ export async function probeUpstreamCompatibility({ candidateVersion, projectRoot
     await command(process.execPath, [npmCli, "install", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=true"], { cwd: fixture });
     const lock = JSON.parse(await readFile(join(fixture, "package-lock.json"), "utf8"));
     checks.integrity = lock.packages?.["node_modules/@earendil-works/pi-coding-agent"]?.integrity === integrity ? "passed" : "UPSTREAM_INTEGRITY_MISMATCH";
-    if (checks.integrity !== "passed") return compatibilityReceipt({ baselineVersion: baseline.package.version, candidateIntegrity: integrity, candidateVersion, checks, patcherSha256: sha256(patcher) });
+    if (checks.integrity !== "passed") return compatibilityReceipt({ advisories, baselineVersion: baseline.package.version, candidateIntegrity: integrity, candidateVersion, checks, patcherSha256: sha256(patcher) });
     await Promise.all([cp(join(projectRoot, "resources"), join(fixture, "resources"), { recursive: true }), cp(join(projectRoot, "dist"), join(fixture, "dist"), { recursive: true })]);
+    const candidateRoot = join(fixture, "node_modules", "@earendil-works", "pi-coding-agent");
+    modelPanelRuntimeAdapter.candidateBeforePatch = await detectPiModelPanelCapabilities({ artifactState: "candidate-before-patch", packageRoot: candidateRoot }).catch(() => null);
     try { await applyCocoIdentityPatch({ root: fixture, supportedVersion: candidateVersion }); checks.anchors = "passed"; } catch (error) { checks.anchors = typeof error?.message === "string" && /^COCO_PATCH_[A-Z_]+$/.test(error.message) ? error.message : "UPSTREAM_PATCH_FAILED"; }
+    modelPanelRuntimeAdapter.candidateAfterPatch = await detectPiModelPanelCapabilities({ artifactState: "candidate-after-patch", packageRoot: candidateRoot }).catch(() => null);
     if (checks.anchors === "passed") {
       const targets = ["dist/cli/args.js", "dist/cli/list-models.js", "dist/core/model-runtime.js", "dist/modes/interactive/interactive-mode.js"];
       try { for (const target of targets) await command(process.execPath, ["--check", join(fixture, "node_modules", "@earendil-works", "pi-coding-agent", target)]); checks.syntax = "passed"; } catch { checks.syntax = "UPSTREAM_SYNTAX_FAILED"; }
       if (checks.syntax === "passed") { try { await command(process.execPath, [join(fixture, "node_modules", "@earendil-works", "pi-coding-agent", "dist", "cli.js"), "--help"], { env: { ...process.env, HOME: fixture } }); checks.offlineSmoke = "passed"; } catch { checks.offlineSmoke = "UPSTREAM_SMOKE_FAILED"; } }
     }
-    return compatibilityReceipt({ baselineVersion: baseline.package.version, candidateIntegrity: integrity, candidateVersion, checks, patcherSha256: sha256(patcher) });
+    return compatibilityReceipt({ advisories, baselineVersion: baseline.package.version, candidateIntegrity: integrity, candidateVersion, checks, patcherSha256: sha256(patcher) });
   } finally { await rm(fixture, { force: true, recursive: true }); }
 }
 

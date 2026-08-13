@@ -10,7 +10,7 @@ const base = { baselineVersion: "0.82.1", candidateIntegrity: "sha512-candidate"
 
 test("compatibility receipt requires every advisory promotion gate", () => {
   const candidate = compatibilityReceipt({ ...base, checks: { anchors: "passed", integrity: "passed", offlineSmoke: "passed", syntax: "passed", versionPolicy: "unsupported" } });
-  assert.equal(candidate.compatibility, "candidate"); assert.equal(candidate.firstFailure, null); assert.equal(candidate.promotionAuthorized, false);
+  assert.equal(candidate.compatibility, "candidate"); assert.equal(candidate.firstFailure, null); assert.equal(candidate.promotionAuthorized, false); assert.equal(candidate.schemaVersion, 2); assert.deepEqual(Object.keys(candidate.advisories.modelPanelRuntimeAdapter), ["baseline", "candidateAfterPatch", "candidateBeforePatch"]);
   const incompatible = compatibilityReceipt({ ...base, checks: { anchors: "COCO_PATCH_UNKNOWN_ANCHOR", integrity: "passed", offlineSmoke: "skipped", syntax: "skipped", versionPolicy: "unsupported" } });
   assert.equal(incompatible.compatibility, "incompatible"); assert.deepEqual(incompatible.firstFailure, { check: "anchors", code: "COCO_PATCH_UNKNOWN_ANCHOR" }); assert.equal(incompatible.promotionAuthorized, false);
 });

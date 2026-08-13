@@ -52,4 +52,6 @@ npm run probe:upstream -- --version 0.84.1
 
 Probe 在临时目录安装公开 npm candidate，校验 registry integrity，使用当前未放宽的 patch transforms 检查 anchors，再执行 syntax 和 credential-free offline smoke。Receipt 永远是 advisory，`promotionAuthorized` 固定为 `false`；candidate 通过也不能自动更新 baseline。
 
+Receipt schema v2 还包含 `modelPanelRuntimeAdapter` advisory，对 baseline patched、candidate before patch 和 candidate after patch 分别检查 exact artifact/symbol capabilities。该 advisory 不参与 compatibility gate，也不能授权 promotion。
+
 Scheduled/manual workflow 使用独立 `coco-upstream` runner，不执行 pull request、不修改仓库、不发布 Release。普通 CI 只测试离线 receipt/参数/workflow 契约。

@@ -121,6 +121,7 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   assert.match(ciWorkflow, /concurrency:\n  group: ci-\$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n  cancel-in-progress: true/);
   assert.match(ciWorkflow, /TMPDIR: \/root\/coco-tmp/);
   assert.match(ciWorkflow, /COCO_SCANNER_TMPDIR: \/root\/coco-tmp/);
+  assert.match(ciWorkflow, /npm run typecheck:model-panel/);
   assert.equal((ciWorkflow.match(/runs-on: \[self-hosted, Linux, X64, coco-ci\]/g) ?? []).length, 2);
   assert.equal((ciWorkflow.match(/if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository/g) ?? []).length, 2);
   assert.match(ciWorkflow, /  integrity:\n    needs: verify/);
