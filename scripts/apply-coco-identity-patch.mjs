@@ -652,9 +652,9 @@ async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
-async function ensureVersion(path) {
+async function ensureVersion(path, supportedVersion = expectedVersion) {
   const { version } = await readJson(path);
-  if (version !== expectedVersion) {
+  if (version !== supportedVersion) {
     throw patchError("COCO_PATCH_VERSION_MISMATCH");
   }
 }
@@ -1025,10 +1025,10 @@ async function patchInputPrompt(projectRoot) {
   await writeFile(path, source.replace('const prompt = "> ";', 'const prompt = "› ";'), "utf8");
 }
 
-export async function applyCocoIdentityPatch({ root: projectRoot = root } = {}) {
+export async function applyCocoIdentityPatch({ root: projectRoot = root, supportedVersion = expectedVersion } = {}) {
   const agent = agentPath(projectRoot);
   const tui = join(agent, "node_modules", "@earendil-works", "pi-tui");
-  await Promise.all([ensureVersion(join(agent, "package.json")), ensureVersion(join(tui, "package.json"))]);
+  await Promise.all([ensureVersion(join(agent, "package.json"), supportedVersion), ensureVersion(join(tui, "package.json"), supportedVersion)]);
   const targets = [
     "dist/cli/args.js",
     "dist/cli/list-models.js",

@@ -19,6 +19,7 @@
 
 - `isolated-required` / `host-explicit` execution policy 和 evidence chain。
 - Plan → edit → verify 状态机。
+- Unified Provider readiness contract：configuration、model、credential、rotation、catalog、local status 和 network verification projection。
 
 这些 contract 会拒绝不安全状态，但当前不等于生产 sandbox 或完整自动编辑执行器。
 
@@ -37,7 +38,7 @@ Subagent 的独立 context 不等于 OS isolation。
 
 ## Planned
 
-- Unified Provider lifecycle/readiness。
+- 完整 Provider lifecycle state machine、transition API、selection/activation gate 和 persisted health history。
 - Stable-key source-owned TUI i18n。
 - Project memory、checkpoint 和 per-model context budget。
 - Controlled workflow engine。

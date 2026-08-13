@@ -25,3 +25,10 @@ Runner registration tokens are short-lived operational secrets. They must never 
 - Fork pull requests must never execute on a self-hosted runner. They require maintainer review and a controlled branch run.
 - `TMPDIR` and `COCO_SCANNER_TMPDIR` must use `/root/coco-tmp`; the shared `/tmp` tmpfs is not suitable for package extraction or integrity tests.
 - Release publication remains on a separately reviewed runner boundary.
+
+## Upstream compatibility runner
+
+- Required labels: `self-hosted`, `Linux`, `X64`, `coco-upstream`.
+- Scope: scheduled/manual public npm candidate compatibility probes only.
+- It must not execute pull requests, publish releases, deploy Pages, or modify the repository.
+- Candidate receipts are advisory and must always set `promotionAuthorized: false`.

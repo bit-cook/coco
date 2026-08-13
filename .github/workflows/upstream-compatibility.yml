@@ -1,0 +1,52 @@
+name: Upstream Compatibility
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact Pi version to probe
+        required: false
+        default: "0.84.1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-compatibility
+  cancel-in-progress: true
+
+env:
+  TMPDIR: /root/coco-tmp
+
+jobs:
+  probe:
+    runs-on: [self-hosted, Linux, X64, coco-upstream]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.19.0
+          cache: npm
+      - run: npm ci
+      - id: probe
+        env:
+          CANDIDATE_VERSION: ${{ inputs.version || '0.84.1' }}
+        run: |
+          set +e
+          node scripts/pi-upstream-compatibility.mjs --version "$CANDIDATE_VERSION" > upstream-compatibility.json
+          status=$?
+          set -e
+          if test "$status" != 0 && test "$status" != 3; then
+            exit "$status"
+          fi
+          node -e 'const fs=require("node:fs");const value=JSON.parse(fs.readFileSync("upstream-compatibility.json","utf8"));if(value.promotionAuthorized!==false)process.exit(1)'
+          printf 'exit_code=%s\n' "$status" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: upstream-compatibility-${{ inputs.version || '0.84.1' }}
+          path: upstream-compatibility.json
+          if-no-files-found: error
+          retention-days: 30
