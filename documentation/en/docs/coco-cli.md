@@ -121,6 +121,8 @@ This command does not use the network, recover transactions, mutate state, or pr
 
 Configured custom OpenAI-compatible providers are listed after managed providers in provider-ID order. Custom status is observational only; managed `coco manage auth` commands remain restricted to CoCo's managed providers.
 
+Doctor reports local readiness for a custom default provider, but `--connectivity` never probes custom endpoints automatically. If managed providers have credentials, their frozen endpoints are still checked normally while custom verification remains `not-checked`.
+
 Current-process credentials may instead use `AGNES_API_KEY`, `IDEPUB_API_KEY`, `ACHAI_API_KEY`, `STEPFUN_API_KEY`, or `DEEPSEEK_API_KEY`. Stored credentials are in `~/.coco/agent/auth.json` with mode `0600`.
 
 ## Configuration scope

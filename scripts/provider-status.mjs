@@ -6,14 +6,13 @@ import { canonicalJson } from "./canonical-json.mjs";
 import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
 import { projectProviderReadiness } from "./provider-readiness.mjs";
 import { catalogPayload, catalogSha256 } from "./state-catalog.mjs";
-import { StateError, parseStrictJson } from "./state-schema.mjs";
+import { observeCustomCredentials, StateError, parseStrictJson, validateCustomProviders } from "./state-schema.mjs";
 import { inspectRegular, statePaths } from "./state-paths.mjs";
 
 function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
 function fail(code) { throw new StateError(code); }
 async function optional(path, code, fallback) { if (await inspectRegular(path) === null) return fallback; return parseStrictJson(await readFile(path), code); }
 const modelId = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
-const customProviderId = /^[a-z0-9][a-z0-9._-]*$/;
 
 async function catalogStatus(paths, provider, configuredModels) {
   try {
@@ -36,13 +35,12 @@ export async function providerStatus({ agentDir, provider } = {}) {
   const settings = await optional(paths.settings, "SETTINGS_SCHEMA_INVALID", {}); if (!object(settings)) fail("SETTINGS_SCHEMA_INVALID");
   const models = await optional(paths.models, "MODELS_SCHEMA_INVALID", { providers: {} }); if (!object(models) || !object(models.providers)) fail("MODELS_SCHEMA_INVALID");
   for (const id of MANAGED_PROVIDER_IDS) if (id in models.providers && (!object(models.providers[id]) || !Array.isArray(models.providers[id].models))) fail("MODELS_SCHEMA_INVALID");
-  const customIds = Object.keys(models.providers).filter((id) => !MANAGED_PROVIDER_IDS.includes(id)).sort();
-  for (const id of customIds) { const definition = models.providers[id]; if (!customProviderId.test(id) || !object(definition) || definition.api !== "openai-completions" || definition.authHeader !== true || typeof definition.baseUrl !== "string" || !Array.isArray(definition.models) || definition.models.length === 0 || definition.models.some((model) => !object(model) || typeof model.id !== "string" || !modelId.test(model.id))) fail("CUSTOM_PROVIDER_SCHEMA_INVALID"); }
+  const customIds = validateCustomProviders(models);
   if (provider !== undefined && !MANAGED_PROVIDER_IDS.includes(provider) && !customIds.includes(provider)) fail("PROVIDER_INVALID");
   const credentials = new Map((await readCredentialObservations({ agentDir })).providers.map((entry) => [entry.provider, entry.credential]));
   if (customIds.length > 0) {
     const auth = await optional(paths.auth, "AUTH_SCHEMA_INVALID", {}); if (!object(auth)) fail("AUTH_SCHEMA_INVALID");
-    for (const id of customIds) { const entry = auth[id]; if (entry !== undefined && (!object(entry) || entry.type !== "api_key" || typeof entry.key !== "string" || entry.key.length === 0)) fail("CUSTOM_AUTH_SCHEMA_INVALID"); credentials.set(id, Object.freeze({ rotationRequired: false, source: entry === undefined ? "none" : "auth", status: entry === undefined ? "missing" : "available" })); }
+    for (const [id, credential] of observeCustomCredentials(auth, customIds)) credentials.set(id, credential);
   }
   const defaultProvider = typeof settings.defaultProvider === "string" ? settings.defaultProvider : null;
   const defaultModel = typeof settings.defaultModel === "string" ? settings.defaultModel : null;

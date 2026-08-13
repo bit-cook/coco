@@ -44,3 +44,5 @@ Doctor local readiness 与 connectivity 复用同一 sanitized observation，不
 `coco manage providers status [provider] [--json]` 提供 all-managed 或单 Provider 的统一本地只读视图。它不联网、不恢复 transaction、不修改状态；catalog 保守显示 `unknown`，verification 固定为 `not-checked`。
 
 Provider status 也包含已配置的 custom OpenAI-compatible Providers，排序在 managed Providers 之后。Custom credential 只观察 stored auth，不扩展 managed auth mutation 或 environment mapping。
+
+Doctor 支持 custom default 的 local readiness，但不自动 probe custom endpoint。Custom-only connectivity 显式 skipped `CUSTOM_PROVIDER_NOT_PROBED`；mixed 状态只 probe frozen managed endpoints。

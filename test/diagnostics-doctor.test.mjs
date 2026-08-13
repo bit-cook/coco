@@ -7,6 +7,7 @@ import test from "node:test";
 import { setAuthKey } from "../scripts/auth-management.mjs";
 import { bootstrapState } from "../scripts/bootstrap-state.mjs";
 import { coreCheck, doctor } from "../scripts/diagnostics.mjs";
+import { saveCustomProvider } from "../scripts/custom-provider-setup.mjs";
 
 const cocoRoot = new URL("..", import.meta.url).pathname;
 
@@ -129,6 +130,29 @@ test("doctor credential observation does not recover or mutate a pending transac
     const result = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async () => ({ kind: "ok" }) });
     assert.equal(result.checks.find(({ id }) => id === "AUTH_STATUS").status, "pass"); assert.equal(result.checks.find(({ id }) => id === "PROVIDER_CONNECTIVITY").status, "pass");
     assert.deepEqual(await readFile(pending), before); await assert.rejects(lstat(join(agentDir, ".state.lock")), (error) => error.code === "ENOENT");
+  } finally { if (previous === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previous; await rm(root, { force: true, recursive: true }); }
+});
+
+test("doctor reports a custom default locally ready without automatically probing its endpoint", async () => {
+  const { agentDir, root } = await fixture(); const previous = process.env.COCO_CODING_AGENT_DIR; let probes = 0;
+  try {
+    process.env.COCO_CODING_AGENT_DIR = agentDir; const custom = await saveCustomProvider({ agentDir, baseUrl: "https://custom-doctor.example/v1", key: "custom-doctor-secret", modelId: "custom-model" });
+    const local = await doctor({ root: cocoRoot }); const auth = local.checks.find(({ id }) => id === "AUTH_STATUS");
+    assert.deepEqual(auth.details, { present: true, provider: custom.providerId, rotationRequired: false, source: "auth" }); assert.equal(auth.status, "pass");
+    assert.equal(local.providers[0].provider, custom.providerId); assert.equal(local.providers[0].localStatus, "ready"); assert.deepEqual(local.providers[0].verification, { scope: null, status: "not-checked" });
+    const connected = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async () => { probes++; throw new Error("CUSTOM_PROBE_FORBIDDEN"); } });
+    assert.equal(probes, 0); assert.deepEqual(connected.checks.find(({ id }) => id === "PROVIDER_CONNECTIVITY"), { details: { failureCode: "CUSTOM_PROVIDER_NOT_PROBED" }, id: "PROVIDER_CONNECTIVITY", message: "Custom provider connectivity is not probed automatically.", severity: "info", status: "skipped" });
+    const serialized = JSON.stringify(connected); assert.equal(serialized.includes("custom-doctor-secret"), false); assert.equal(serialized.includes("custom-doctor.example"), false);
+  } finally { if (previous === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previous; await rm(root, { force: true, recursive: true }); }
+});
+
+test("doctor probes managed providers while leaving a custom default unverified", async () => {
+  const { agentDir, root } = await fixture(); const previous = process.env.COCO_CODING_AGENT_DIR; const calls = [];
+  try {
+    process.env.COCO_CODING_AGENT_DIR = agentDir; const custom = await saveCustomProvider({ agentDir, baseUrl: "https://custom-mixed.example/v1", key: "custom-mixed-secret", modelId: "custom-model" }); await setAuthKey({ agentDir, key: "deepseek-managed", provider: "deepseek" });
+    const result = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async (url, key) => { calls.push({ key, url: url.href }); return { kind: "ok" }; } });
+    assert.deepEqual(calls, [{ key: "deepseek-managed", url: "https://api.deepseek.com/models" }]); assert.deepEqual(result.providers.map(({ provider }) => provider), [custom.providerId, "deepseek"]);
+    assert.deepEqual(result.providers[0].verification, { scope: null, status: "not-checked" }); assert.deepEqual(result.providers[1].verification, { scope: "models-endpoint", status: "verified" });
   } finally { if (previous === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previous; await rm(root, { force: true, recursive: true }); }
 });
 

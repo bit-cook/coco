@@ -137,3 +137,11 @@ test("Given all legacy managed credentials, when state migrates, then persisted 
     assert.deepEqual(providerOrder, legacyOrder);
   } finally { await rm(root, { force: true, recursive: true }); }
 });
+
+test("managed auth mutation remains closed to configured custom provider IDs", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coco-custom-auth-boundary-")); const agentDir = join(root, "agent");
+  try {
+    await mkdir(agentDir, { recursive: true });
+    for (const action of [() => getAuthStatus({ agentDir, provider: "custom-test" }), () => setAuthKey({ agentDir, key: "safe", provider: "custom-test" }), () => removeAuthKey({ agentDir, provider: "custom-test" })]) await assert.rejects(action, (error) => error.code === "AUTH_PROVIDER_INVALID");
+  } finally { await rm(root, { force: true, recursive: true }); }
+});

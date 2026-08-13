@@ -121,6 +121,8 @@ coco manage providers status agnes --json
 
 已配置的自定义 OpenAI-compatible Provider 会在 managed Providers 后按 ID 排序显示。Custom status 仅用于观察；`coco manage auth` 仍严格只管理 CoCo managed Providers。
 
+Doctor 会报告 custom default Provider 的本地 readiness，但 `--connectivity` 永远不会自动访问 custom endpoint。若 managed Providers 有 credential，仍正常检查其 frozen endpoint；custom verification 保持 `not-checked`。
+
 当前进程也可使用 `AGNES_API_KEY`、`IDEPUB_API_KEY`、`ACHAI_API_KEY`、`STEPFUN_API_KEY` 或 `DEEPSEEK_API_KEY` 提供凭据。已存储的凭据位于 `~/.coco/agent/auth.json`，权限为 `0600`。
 
 ## 配置范围

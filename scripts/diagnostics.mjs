@@ -9,7 +9,7 @@ import { readFrozenProviderContracts } from "./provider-sync.mjs";
 import { projectProviderReadiness } from "./provider-readiness.mjs";
 import { verifyRuntimeIntegrity } from "./runtime-integrity.mjs";
 import { catalogSha256 } from "./state-catalog.mjs";
-import { parseStrictJson, resolveCredential, validateAuth, validateOwnership } from "./state-schema.mjs";
+import { observeCustomCredentials, parseStrictJson, resolveCredential, validateAuth, validateCustomProviders, validateOwnership } from "./state-schema.mjs";
 import { agentDirectory, statePaths } from "./state-paths.mjs";
 
 const REGISTRY_URL = "https://registry.npmjs.org/%40earendil-works%2Fpi-coding-agent/latest";
@@ -43,6 +43,7 @@ function report(command, checks) {
   return { schemaVersion: 1, command, status, exitCode: fatal || inconclusive ? 1 : 0, checks: sorted };
 }
 async function validJson(path, invalidCode, validate) { return validate(parseStrictJson(await readFile(path), invalidCode)); }
+async function optionalValidJson(path, invalidCode, validate, fallback) { try { return await validJson(path, invalidCode, validate); } catch (error) { if (code(error, "") === "ENOENT") return structuredClone(fallback); throw error; } }
 async function localCore(root) {
   const [runtime, integrity] = await Promise.all([resolveCocoRuntime({ root }), verifyRuntimeIntegrity({ root })]);
   return [item("CORE_VERSION", runtime.status === "approved" ? "info" : "fatal", runtime.status === "approved" ? "pass" : "fail", runtime.status === "approved" ? `Core ${CORE_VERSION} is installed.` : runtime.code), item("CORE_INTEGRITY", integrity.status === "approved" ? "info" : "fatal", integrity.status === "approved" ? "pass" : "fail", integrity.status === "approved" ? "Runtime integrity is verified." : integrity.code)];
@@ -96,14 +97,14 @@ export async function doctor({ connectivity = false, providerProbe: probe = prov
   const runtime = await resolveCocoRuntime({ root }); const integrity = await verifyRuntimeIntegrity({ root });
   checks.push(item("NODE_VERSION", runtime.status === "approved" ? "info" : "fatal", runtime.status === "approved" ? "pass" : "fail", runtime.status === "approved" ? "Supported Node runtime is active." : runtime.code));
   checks.push(item("RUNTIME_INTEGRITY", integrity.status === "approved" ? "info" : "fatal", integrity.status === "approved" ? "pass" : "fail", integrity.status === "approved" ? "Runtime integrity is verified." : integrity.code));
-  let settings; let models; let ownership; let credentialError; let credentialObservations = new Map(); const providerReadiness = new Map();
-  try { settings = await validJson(paths.settings, "SETTINGS_SCHEMA_INVALID", (value) => object(value) ? value : (() => { throw new Error("SETTINGS_SCHEMA_INVALID"); })()); models = await validJson(paths.models, "MODELS_SCHEMA_INVALID", (value) => object(value) && object(value.providers) ? value : (() => { throw new Error("MODELS_SCHEMA_INVALID"); })()); await validJson(paths.auth, "AUTH_SCHEMA_INVALID", validateAuth); checks.push(item("CONFIG_SCHEMA", "info", "pass", "Managed state files are valid.")); } catch (error) { checks.push(item("CONFIG_SCHEMA", "fatal", "fail", code(error, "CONFIG_SCHEMA_INVALID"))); }
+  let settings; let models; let auth = {}; let ownership; let credentialError; let credentialObservations = new Map(); let customIds = []; const providerReadiness = new Map();
+  try { settings = await validJson(paths.settings, "SETTINGS_SCHEMA_INVALID", (value) => object(value) ? value : (() => { throw new Error("SETTINGS_SCHEMA_INVALID"); })()); models = await validJson(paths.models, "MODELS_SCHEMA_INVALID", (value) => object(value) && object(value.providers) ? value : (() => { throw new Error("MODELS_SCHEMA_INVALID"); })()); auth = await optionalValidJson(paths.auth, "AUTH_SCHEMA_INVALID", validateAuth, {}); customIds = validateCustomProviders(models); observeCustomCredentials(auth, customIds); checks.push(item("CONFIG_SCHEMA", "info", "pass", "State files are valid.")); } catch (error) { credentialError = error; checks.push(item("CONFIG_SCHEMA", "fatal", "fail", code(error, "CONFIG_SCHEMA_INVALID"))); }
   const defaultProvider = typeof settings?.defaultProvider === "string" ? settings.defaultProvider : null;
   const defaultModel = typeof settings?.defaultModel === "string" ? settings.defaultModel : null;
   const providerConfigured = defaultProvider !== null && object(models?.providers?.[defaultProvider]);
   const modelAvailable = providerConfigured && defaultModel !== null && Array.isArray(models.providers[defaultProvider].models) && models.providers[defaultProvider].models.some((model) => model?.id === defaultModel);
   checks.push(item("DEFAULT_MODEL", modelAvailable ? "info" : "warning", modelAvailable ? "pass" : "fail", "Default model resolution was checked."));
-  try { credentialObservations = new Map((await readCredentialObservations({ agentDir })).providers.map(({ credential, provider }) => [provider, credential])); } catch (error) { credentialError = error; }
+  try { credentialObservations = new Map((await readCredentialObservations({ agentDir })).providers.map(({ credential, provider }) => [provider, credential])); for (const [id, credential] of observeCustomCredentials(auth, customIds)) credentialObservations.set(id, credential); } catch (error) { credentialError = error; }
   try { ownership = await validJson(paths.ownership, "OWNERSHIP_SCHEMA_INVALID", validateOwnership); checks.push(item("CONFIG_OWNERSHIP", "info", "pass", "Ownership metadata is valid.")); } catch (error) { const missing = code(error, "") === "ENOENT"; checks.push(item("CONFIG_OWNERSHIP", missing ? "warning" : "fatal", "fail", missing ? "Ownership metadata is missing; run coco manage bootstrap --yes." : code(error, "OWNERSHIP_SCHEMA_INVALID"))); }
   try {
     const provider = settings?.defaultProvider;
@@ -130,7 +131,7 @@ export async function doctor({ connectivity = false, providerProbe: probe = prov
       try { auth = await validJson(paths.auth, "AUTH_SCHEMA_INVALID", validateAuth); } catch (error) { if (code(error, "") !== "ENOENT") throw error; }
        const { registry: providers } = await readFrozenProviderContracts(root);
        const configured = Object.entries(providers.providers).map(([provider, definition]) => ({ credential: resolveCredential({ auth, legacyModels: models, provider }), definition, observation: credentialObservations.get(provider), provider })).filter(({ observation }) => observation?.status === "available");
-       if (configured.length === 0) { checks.push(item("PROVIDER_CONNECTIVITY", "info", "skipped", "No configured providers were available to probe.")); }
+       if (configured.length === 0) { checks.push(item("PROVIDER_CONNECTIVITY", "info", "skipped", customIds.includes(defaultProvider) ? "Custom provider connectivity is not probed automatically." : "No configured providers were available to probe.", customIds.includes(defaultProvider) ? { failureCode: "CUSTOM_PROVIDER_NOT_PROBED" } : undefined)); }
        else {
        const probes = await Promise.all(configured.map(({ credential, definition }) => probe(new URL(definition.modelsPath, definition.origin), credential.key)));
        for (let index = 0; index < configured.length; index += 1) {

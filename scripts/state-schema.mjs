@@ -8,9 +8,23 @@ export class StateError extends Error {
 const managedProviders = new Set(MANAGED_PROVIDER_IDS);
 const envKey = /^[A-Z][A-Z0-9_]*$/;
 const pointerToken = /^(?:[^~/]|~0|~1)*$/;
+const customProviderId = /^[a-z0-9][a-z0-9._-]*$/;
+const customModelId = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 
 function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
 function fail(code) { throw new StateError(code); }
+
+export function validateCustomProviders(models) {
+  if (!object(models) || !object(models.providers)) fail("MODELS_SCHEMA_INVALID");
+  const ids = Object.keys(models.providers).filter((id) => !managedProviders.has(id)).sort();
+  for (const id of ids) { const definition = models.providers[id]; if (!customProviderId.test(id) || !object(definition) || definition.api !== "openai-completions" || definition.authHeader !== true || typeof definition.baseUrl !== "string" || !Array.isArray(definition.models) || definition.models.length === 0 || definition.models.some((model) => !object(model) || typeof model.id !== "string" || !customModelId.test(model.id))) fail("CUSTOM_PROVIDER_SCHEMA_INVALID"); }
+  return ids;
+}
+
+export function observeCustomCredentials(auth, providers) {
+  if (!object(auth) || !Array.isArray(providers)) fail("CUSTOM_AUTH_SCHEMA_INVALID");
+  return new Map(providers.map((provider) => { const entry = auth[provider]; if (entry !== undefined && (!object(entry) || entry.type !== "api_key" || typeof entry.key !== "string" || entry.key.length === 0)) fail("CUSTOM_AUTH_SCHEMA_INVALID"); return [provider, Object.freeze({ rotationRequired: false, source: entry === undefined ? "none" : "auth", status: entry === undefined ? "missing" : "available" })]; }));
+}
 
 export function parseStrictJson(bytes, code = "STATE_JSON_INVALID") {
   let value;
