@@ -119,7 +119,7 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   ]);
 
   assert.match(ciWorkflow, /concurrency:\n  group: ci-\$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n  cancel-in-progress: true/);
-  assert.match(ciWorkflow, /verify:[\s\S]*?runs-on: ubuntu-24\.04[\s\S]*?TMPDIR: \$\{\{ runner\.temp \}\}[\s\S]*?COCO_SCANNER_TMPDIR: \$\{\{ runner\.temp \}\}/);
+  assert.match(ciWorkflow, /verify:[\s\S]*?runs-on: ubuntu-24\.04[\s\S]*?printf 'TMPDIR=%s\\n' "\$RUNNER_TEMP" >> "\$GITHUB_ENV"[\s\S]*?printf 'COCO_SCANNER_TMPDIR=%s\\n' "\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
   assert.match(ciWorkflow, /integrity:[\s\S]*?runs-on: \[self-hosted, Linux, X64, coco-ci\][\s\S]*?TMPDIR: \/root\/coco-tmp[\s\S]*?COCO_SCANNER_TMPDIR: \/root\/coco-tmp/);
   assert.match(ciWorkflow, /npm run typecheck:model-panel/);
   assert.equal((ciWorkflow.match(/runs-on: \[self-hosted, Linux, X64, coco-ci\]/g) ?? []).length, 1);
