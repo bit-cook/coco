@@ -35,6 +35,7 @@ test("selective fork evidence validates self-contained artifact bytes and remain
       ["SELECTIVE_FORK_GATES_INVALID", (value) => { value.gates.productionRegistration = "enabled"; }],
       ["SELECTIVE_FORK_CI_EVIDENCE_INVALID", (value) => { value.evidence.cocoCi.status = "failed"; }],
       ["SELECTIVE_FORK_ISOLATED_EVIDENCE_INVALID", (value) => { value.evidence.isolatedPromotion.loader.owner = "fallback"; }],
+      ["SELECTIVE_FORK_ISOLATED_EVIDENCE_INVALID", (value) => { value.evidence.isolatedPromotion.pty.reload = "failed"; }],
       ["SELECTIVE_FORK_ARTIFACT_INTEGRITY_MISMATCH", (value) => { value.candidate.package.sha256 = "0".repeat(64); }],
       ["SELECTIVE_FORK_PACKAGE_RECEIPT_INVALID", (value) => { value.candidate.package.integrity = "invalid"; }],
     ]) {

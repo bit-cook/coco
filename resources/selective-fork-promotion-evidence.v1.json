@@ -36,23 +36,23 @@
     "cleanConsumerInstall": { "status": "passed", "installSeconds": 11, "piTuiVersion": "0.82.1" },
     "consumerCliSmoke": { "status": "passed", "version": "0.82.1" },
     "cocoCi": {
-      "commit": "fe6d1fe0cadf75962ca519f76226842efbe2044c",
-      "run": "31823127785",
-      "runner": "coco-ci-local",
+      "commit": "c00ac3e3f460e0b672cedabf2a3b2b801d25e651",
+      "run": "31828131894",
+      "runner": "coco-ci-local+coco-upstream-local",
       "status": "passed",
-      "durationSeconds": 915,
+      "durationSeconds": 738,
       "gates": ["architecture", "typecheck", "build", "core", "closure", "secret-scan", "tarball-closure", "integrity"]
     },
     "isolatedPromotion": {
-      "commit": "0aae266d69cec8fc60bcdcd561967dfe4cd75f8a",
-      "run": "31822746254",
-      "runner": "coco-upstream-local",
+      "commit": "c00ac3e3f460e0b672cedabf2a3b2b801d25e651",
+      "run": "31828132093",
+      "runner": "coco-promotion-local",
       "status": "passed",
-      "durationSeconds": 44,
+      "durationSeconds": 64,
       "capabilities": { "present": 6, "required": 6, "status": "present" },
       "dependencyClosure": { "source": "coco-official-lock", "version": "0.82.1" },
       "loader": { "errors": 0, "extensions": 1, "fallbackOwner": "fallback", "owner": "coco.model-panel.v1", "registered": true },
-      "pty": { "exitCode": 0, "offline": true, "states": ["Models", "No matching models", "Refreshing model catalogs", "Model catalogs refreshed"], "status": "passed" },
+      "pty": { "exitCode": 0, "offline": true, "panelOpens": 4, "reload": "passed", "states": ["Models", "No matching models", "Refreshing model catalogs", "Model catalogs refreshed", "Reloaded keybindings, extensions, skills, prompts, themes, and context files"], "status": "passed" },
       "rollout": { "owner": "coco.model-panel.v1", "scope": "isolated" }
     }
   },
