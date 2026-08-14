@@ -29,7 +29,7 @@ jobs:
       - run: npm run build
       - run: npm run verify:closure
       - run: node scripts/verify-isolated-model-panel-candidate.mjs | tee selective-fork-remote-verification.json
-      - run: node -e 'const value=require("./selective-fork-remote-verification.json");if(value.status!=="approved"||value.scope!=="isolated"||value.dependencyClosure?.source!=="coco-official-lock"||value.loader?.owner!=="coco.model-panel.v1"||value.loader?.fallbackOwner!=="fallback"||value.pty?.status!=="passed"||value.pty?.offline!==true||value.pty?.reload!=="passed"||value.pty?.panelOpens<2||value.rollout?.owner!=="coco.model-panel.v1"||value.promotionAuthorized!==false)process.exit(1)'
+      - run: node -e 'const value=require("./selective-fork-remote-verification.json");if(value.status!=="approved"||value.scope!=="isolated"||value.dependencyClosure?.source!=="candidate-bundled"||value.identity?.sourceTag!=="coco-v0.82.1-coco.2"||value.loader?.owner!=="coco.model-panel.v1"||value.loader?.fallbackOwner!=="fallback"||value.pty?.status!=="passed"||value.pty?.offline!==true||value.pty?.reload!=="passed"||value.pty?.panelOpens<2||value.rollout?.owner!=="coco.model-panel.v1"||value.promotionAuthorized!==false)process.exit(1)'
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: selective-fork-remote-verification

@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -54,10 +54,15 @@ export async function verifyIsolatedModelPanelCandidate({ evidencePath = join(ro
     const packageRoot = join(directory, "node_modules", "@earendil-works", "pi-coding-agent");
     await mkdir(join(directory, "node_modules", "@earendil-works"), { recursive: true });
     await rename(join(directory, "package"), packageRoot);
-    const closureRoot = join(root, "node_modules", "@earendil-works", "pi-coding-agent", "node_modules");
     stage = "CLOSURE";
-    await cp(closureRoot, join(packageRoot, "node_modules"), { recursive: true, verbatimSymlinks: false });
-    await cp(join(root, "resources"), join(directory, "resources"), { recursive: true, verbatimSymlinks: false });
+    const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+    const identity = manifest.cocoCandidate;
+    const evidence = JSON.parse(await readFile(evidencePath, "utf8"));
+    if (identity?.schemaVersion !== 1 || identity?.repository !== evidence.candidate.repository || identity?.sourceCommit !== evidence.candidate.sourceCommit || identity?.sourceTag !== evidence.candidate.sourceTag || identity?.baseCommit !== evidence.base.sourceCommit || identity?.baseTag !== evidence.base.tag || !Array.isArray(manifest.bundledDependencies) || manifest.bundledDependencies.length === 0) { const error = new Error("identity"); error.code = "MODEL_PANEL_CANDIDATE_IDENTITY_INVALID"; throw error; }
+    for (const dependency of ["pi-agent-core", "pi-ai", "pi-tui"]) {
+      const dependencyManifest = JSON.parse(await readFile(join(packageRoot, "node_modules", "@earendil-works", dependency, "package.json"), "utf8"));
+      if (dependencyManifest.version !== evidence.candidate.package.version) { const error = new Error("closure"); error.code = "MODEL_PANEL_CANDIDATE_CLOSURE_INVALID"; throw error; }
+    }
     stage = "CAPABILITIES";
     const capabilities = await detectPiModelPanelCapabilities({ artifactState: "candidate-before-patch", packageRoot });
     stage = "LOADER";
@@ -68,10 +73,9 @@ export async function verifyIsolatedModelPanelCandidate({ evidencePath = join(ro
     stage = "PTY";
     const pty = await verifyPty(packageRoot, directory);
     stage = "ROLLOUT";
-    const evidence = JSON.parse(await readFile(evidencePath, "utf8"));
     const rollout = planModelPanelRollout({ capabilities, enabled: true, evidence, extension: "resources/coco-model-panel.mjs", remoteReceipt, scope: "isolated" });
     const approved = rollout.owner === "coco.model-panel.v1" && loader.errors === 0 && loader.extensions === 1 && loader.owner === rollout.owner && loader.registered && loader.fallbackOwner === "fallback";
-    return { capabilities: { present: capabilities.capabilities.filter(({ status }) => status === "present").length, required: capabilities.capabilities.length, status: capabilities.status }, dependencyClosure: { source: "coco-official-lock", version: evidence.base.package.split("@").at(-1) }, loader, promotionAuthorized: false, pty, remote: remoteReceipt, rollout, schemaVersion: 1, scope: "isolated", status: approved ? "approved" : "rejected" };
+    return { capabilities: { present: capabilities.capabilities.filter(({ status }) => status === "present").length, required: capabilities.capabilities.length, status: capabilities.status }, dependencyClosure: { source: "candidate-bundled", version: manifest.version }, identity: { repository: identity.repository, schemaVersion: identity.schemaVersion, sourceCommit: identity.sourceCommit, sourceTag: identity.sourceTag }, loader, promotionAuthorized: false, pty, remote: remoteReceipt, rollout, schemaVersion: 1, scope: "isolated", status: approved ? "approved" : "rejected" };
   } catch (error) {
     return { code: typeof error?.code === "string" && /^MODEL_PANEL_[A-Z0-9_]+$/.test(error.code) ? error.code : `MODEL_PANEL_ISOLATED_${stage}_FAILED`, promotionAuthorized: false, scope: "isolated", status: "rejected" };
   } finally { await rm(directory, { force: true, recursive: true }); }

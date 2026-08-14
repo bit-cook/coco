@@ -12,18 +12,18 @@
   },
   "candidate": {
     "repository": "https://github.com/bit-cook/pi-selective-fork",
-    "sourceCommit": "40d2cd87fc604eae6aaff60144fc6a3650fb2728",
+    "sourceCommit": "f8d1a22a026a5ead68f262543ff43292f8a53df4",
     "change": "builtin-model-panel-adapter",
     "published": false,
-    "sourceTag": "coco-v0.82.1-coco.1",
+    "sourceTag": "coco-v0.82.1-coco.2",
     "package": {
       "name": "@earendil-works/pi-coding-agent",
       "version": "0.82.1",
-      "artifact": "https://github.com/bit-cook/pi-selective-fork/releases/download/coco-v0.82.1-coco.1/earendil-works-pi-coding-agent-0.82.1.tgz",
-      "bytes": 4982104,
-      "sha256": "6cbb84e32600dcfef81a5974e1f2182d5141b74bc2980516eeb9351b1f72fafc",
-      "integrity": "sha512-HBCKAxI63GX77lFAOG/w57ogHJPPp6728NIZEfNc4SP0xEW/g94XzFAAXaLmiKWWlxh/qvQgO1i2o2z/Tpk+IQ==",
-      "remoteRelease": "https://github.com/bit-cook/pi-selective-fork/releases/tag/coco-v0.82.1-coco.1"
+      "artifact": "https://github.com/bit-cook/pi-selective-fork/releases/download/coco-v0.82.1-coco.2/earendil-works-pi-coding-agent-0.82.1-coco.2.tgz",
+      "bytes": 23406996,
+      "sha256": "f3b7f46ebbaec3fb7c8ccf946ab560b1339b74b462d43cabe0492621b0f8ede3",
+      "integrity": "sha512-Z7Kr5jMNRM6p3yr8ST+h3Fkxy0VVDDGtP5OnRytuFHTHxRR4Ll83fKQTxQtuF9gIoo+bVcJUHr/Y156N4pB8ug==",
+      "remoteRelease": "https://github.com/bit-cook/pi-selective-fork/releases/tag/coco-v0.82.1-coco.2"
     }
   },
   "evidence": {
@@ -50,7 +50,8 @@
       "status": "passed",
       "durationSeconds": 64,
       "capabilities": { "present": 6, "required": 6, "status": "present" },
-      "dependencyClosure": { "source": "coco-official-lock", "version": "0.82.1" },
+      "dependencyClosure": { "source": "candidate-bundled", "version": "0.82.1" },
+      "identity": { "repository": "https://github.com/bit-cook/pi-selective-fork", "schemaVersion": 1, "sourceCommit": "f8d1a22a026a5ead68f262543ff43292f8a53df4", "sourceTag": "coco-v0.82.1-coco.2" },
       "loader": { "errors": 0, "extensions": 1, "fallbackOwner": "fallback", "owner": "coco.model-panel.v1", "registered": true },
       "pty": { "exitCode": 0, "offline": true, "panelOpens": 4, "reload": "passed", "states": ["Models", "No matching models", "Refreshing model catalogs", "Model catalogs refreshed", "Reloaded keybindings, extensions, skills, prompts, themes, and context files"], "status": "passed" },
       "rollout": { "owner": "coco.model-panel.v1", "scope": "isolated" }
@@ -58,7 +59,7 @@
   },
   "gates": {
     "remoteProvenance": "source-tag-published",
-    "packageIntegrity": "remote-release-asset-verified-not-production-locked",
+    "packageIntegrity": "remote-self-contained-asset-verified-not-production-locked",
     "productionRegistration": "blocked",
     "fallbackIntegration": "isolated-loader-pty-verified-not-production"
   },
