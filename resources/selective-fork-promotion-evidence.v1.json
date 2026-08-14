@@ -65,6 +65,20 @@
       "loader": { "errors": 0, "extensions": 1, "fallbackOwner": "fallback", "owner": "coco.model-panel.v1", "registered": true },
       "pty": { "exitCode": 0, "offline": true, "panelOpens": 4, "reload": "passed", "states": ["Models", "No matching models", "Refreshing model catalogs", "Model catalogs refreshed", "Reloaded keybindings, extensions, skills, prompts, themes, and context files"], "status": "passed" },
       "rollout": { "owner": "coco.model-panel.v1", "scope": "isolated" }
+    },
+    "rollback": {
+      "commit": "f007ce879f51cfee00c79e0a63210fb74e556afe",
+      "run": "31840960981",
+      "runner": "coco-promotion-local",
+      "status": "passed",
+      "owner": "fallback",
+      "productionRegistration": "blocked",
+      "officialRuntime": { "status": "passed", "version": "0.5.2" },
+      "failures": {
+        "officialCapabilities": "MODEL_PANEL_CAPABILITIES_INVALID",
+        "productionScope": "MODEL_PANEL_PRODUCTION_PROMOTION_BLOCKED",
+        "tamperedReceipt": "MODEL_PANEL_REMOTE_RECEIPT_INVALID"
+      }
     }
   },
   "gates": {
