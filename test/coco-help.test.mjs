@@ -28,7 +28,7 @@ test("CoCo help forms are native and document the active native grammar", async 
     assert.match(stdout, /coco manage providers status \[provider\] \[--json\]/);
     assert.match(stdout, /coco manage migrate \[--dry-run\] \[--json\] \[--yes\]/);
     assert.match(stdout, /coco doctor \[--json\] \[--connectivity\]/);
-    assert.match(stdout, /coco core <status\|check> \[--json\]/);
+    assert.match(stdout, /coco core <status\|check\|model-panel-canary> \[--json\]/);
     assert.match(stdout, /\/goal \[status\]\s+Show goal and step progress/);
     assert.match(stdout, /\/goal <description>\s+Set a persistent goal for this session branch/);
     assert.match(stdout, /\/goal set <description>\s+Explicitly set a new goal/);

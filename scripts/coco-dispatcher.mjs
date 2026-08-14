@@ -24,7 +24,7 @@ Usage:
   coco manage migrate [--dry-run] [--json] [--yes]
   coco manage bootstrap [--dry-run] [--json] [--yes]
   coco doctor [--json] [--connectivity]
-  coco core <status|check> [--json]
+  coco core <status|check|model-panel-canary> [--json]
   coco task create <prompt> [--no-worktree] [--schedule <Nm|Nh|Nd>] [--webhook] [--github-event <event>]
   coco task list|active|show|cancel|stop-all|run [id] [--json]
   coco runner start|status|stop|run [--once]
@@ -191,9 +191,15 @@ async function native(argv, root) {
     return hasOnlyFlags(flags, new Set(["--json", "--connectivity"])) ? diagnosticOutput(await doctor({ connectivity: flags.includes("--connectivity"), root }), flags.includes("--json")) : usage("NATIVE_USAGE");
   }
   if (argv[0] === "core") {
-    const { coreCheck, coreStatus } = await import("./diagnostics.mjs");
     const [action, ...flags] = argv.slice(1);
-    if ((action !== "status" && action !== "check") || !hasOnlyFlags(flags, new Set(["--json"]))) return usage("NATIVE_USAGE");
+    if (!hasOnlyFlags(flags, new Set(["--json"]))) return usage("NATIVE_USAGE");
+    if (action === "model-panel-canary") {
+      const { formatModelPanelCanary, modelPanelCanary } = await import("./model-panel-canary.mjs"); const receipt = await modelPanelCanary();
+      (flags.includes("--json") ? process.stdout : receipt.exitCode === 0 ? process.stdout : process.stderr).write(flags.includes("--json") ? `${JSON.stringify(receipt)}\n` : formatModelPanelCanary(receipt));
+      return { exitCode: receipt.exitCode, kind: "native" };
+    }
+    if (action !== "status" && action !== "check") return usage("NATIVE_USAGE");
+    const { coreCheck, coreStatus } = await import("./diagnostics.mjs");
     return diagnosticOutput(await (action === "status" ? coreStatus({ root }) : coreCheck({ root })), flags.includes("--json"));
   }
   const validation = parseManage(argv.slice(1));
