@@ -140,6 +140,7 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   assert.match(pagesWorkflow, /actions\/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128/);
   assert.doesNotMatch(promotionWorkflow, /actions\/setup-node/);
   assert.match(promotionWorkflow, /actions\/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4/);
+  assert.match(promotionWorkflow, /verify-isolated-model-panel-candidate\.mjs/);
 });
 
 test("Given a published release, when post-release validation runs, then checksums and an isolated package lifecycle are verified", async () => {

@@ -29,8 +29,11 @@ test("remote selective fork verification binds GitHub release identity and exact
   const directory = await mkdtemp(join(tmpdir(), "coco-remote-fork-"));
   try {
     const value = await fixture(directory); let requested;
-    const result = await verifyRemoteSelectiveForkArtifact({ evidencePath: value.evidencePath, fetchImpl: async (url, options) => { requested = { options, url }; return response(value.bytes); } });
+    const artifactPath = join(directory, "verified.tgz");
+    const result = await verifyRemoteSelectiveForkArtifact({ artifactPath, evidencePath: value.evidencePath, fetchImpl: async (url, options) => { requested = { options, url }; return response(value.bytes); } });
     assert.equal(result.status, "approved"); assert.equal(result.promotionAuthorized, false); assert.equal(requested.url, value.evidence.candidate.package.artifact); assert.equal(requested.options.redirect, "follow");
+    assert.deepEqual(await readFile(artifactPath), value.bytes);
+    assert.deepEqual(await verifyRemoteSelectiveForkArtifact({ artifactPath, evidencePath: value.evidencePath, fetchImpl: async () => response(value.bytes) }), rejected("SELECTIVE_FORK_ARTIFACT_OUTPUT_FAILED"));
 
     assert.deepEqual(await verifyRemoteSelectiveForkArtifact({ evidencePath: value.evidencePath, fetchImpl: async () => response(Buffer.from("tampered")) }), rejected("SELECTIVE_FORK_REMOTE_ARTIFACT_INTEGRITY_MISMATCH"));
     assert.deepEqual(await verifyRemoteSelectiveForkArtifact({ evidencePath: value.evidencePath, fetchImpl: async () => response(Buffer.concat([value.bytes, Buffer.from("overflow")]), { headers: { get: () => null } }) }), rejected("SELECTIVE_FORK_REMOTE_ARTIFACT_INTEGRITY_MISMATCH"));
@@ -41,10 +44,12 @@ test("remote selective fork verification binds GitHub release identity and exact
 
 test("promotion verification workflow is manual, read-only, bounded, and isolated on the upstream runner", async () => {
   const workflow = await readFile(new URL("../.github/workflows/selective-fork-promotion.yml", import.meta.url), "utf8");
+  const verifier = await readFile(new URL("../scripts/verify-isolated-model-panel-candidate.mjs", import.meta.url), "utf8");
   assert.match(workflow, /workflow_dispatch:/); assert.match(workflow, /permissions:\n  contents: read/); assert.match(workflow, /runs-on: \[self-hosted, Linux, X64, coco-upstream\]/); assert.match(workflow, /timeout-minutes: 5/);
-  assert.match(workflow, /verify-remote-selective-fork-artifact\.mjs/); assert.match(workflow, /promotionAuthorized!==false/); assert.match(workflow, /retention-days: 30/);
+  assert.match(workflow, /verify-isolated-model-panel-candidate\.mjs/); assert.match(workflow, /scope!=="isolated"/); assert.match(workflow, /promotionAuthorized!==false/); assert.match(workflow, /retention-days: 30/);
   assert.match(workflow, /\$RUNNER_TOOL_CACHE\/node\/22\.19\.0\/x64\/bin/); assert.match(workflow, /test "\$\(node --version\)" = "v22\.19\.0"/);
   assert.doesNotMatch(workflow, /schedule:|push:|pull_request:|secrets\.|contents: write|npm ci|npm publish|actions\/setup-node/);
+  assert.match(verifier, /"--ignore-scripts"/); assert.match(verifier, /"--offline"/); assert.match(verifier, /extension: "resources\/coco-model-panel\.mjs"/); assert.doesNotMatch(verifier, /npm publish|process\.env/);
 });
 
 test("remote selective fork verification rejects cross-repository and unbounded requests before fetch", async () => {
@@ -54,6 +59,9 @@ test("remote selective fork verification rejects cross-repository and unbounded 
     value.evidence.candidate.package.artifact = value.evidence.candidate.package.artifact.replace("bit-cook/pi-selective-fork", "other/repository");
     await writeFile(value.evidencePath, JSON.stringify(value.evidence));
     assert.deepEqual(await verifyRemoteSelectiveForkArtifact({ evidencePath: value.evidencePath, fetchImpl: async () => { calls++; } }), rejected("SELECTIVE_FORK_REMOTE_REQUEST_INVALID"));
+    assert.equal(calls, 0);
+    await writeFile(value.evidencePath, JSON.stringify((await fixture(directory)).evidence));
+    assert.deepEqual(await verifyRemoteSelectiveForkArtifact({ artifactPath: "relative.tgz", evidencePath: value.evidencePath, fetchImpl: async () => { calls++; } }), rejected("SELECTIVE_FORK_ARTIFACT_OUTPUT_INVALID"));
     assert.equal(calls, 0);
   } finally { await rm(directory, { force: true, recursive: true }); }
 });

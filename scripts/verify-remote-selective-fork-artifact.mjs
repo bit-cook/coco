@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { basename, resolve } from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
+import { basename, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { verifySelectiveForkEvidence } from "./verify-selective-fork-evidence.mjs";
@@ -55,7 +55,7 @@ async function readBounded(response, expectedBytes) {
   return Buffer.concat(chunks, length);
 }
 
-export async function verifyRemoteSelectiveForkArtifact({ evidencePath = evidenceFile, fetchImpl = globalThis.fetch, timeoutMs = 30_000 } = {}) {
+export async function verifyRemoteSelectiveForkArtifact({ artifactPath, evidencePath = evidenceFile, fetchImpl = globalThis.fetch, timeoutMs = 30_000 } = {}) {
   const local = await verifySelectiveForkEvidence({ evidencePath });
   if (local.status !== "approved") return local;
   let evidence;
@@ -63,6 +63,7 @@ export async function verifyRemoteSelectiveForkArtifact({ evidencePath = evidenc
   const urls = expectedUrls(evidence);
   const expected = evidence.candidate.package;
   if (!urls || !Number.isInteger(expected.bytes) || expected.bytes <= 0 || expected.bytes > MAX_ARTIFACT_BYTES || typeof fetchImpl !== "function" || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120_000) return rejected("SELECTIVE_FORK_REMOTE_REQUEST_INVALID");
+  if (artifactPath !== undefined && (typeof artifactPath !== "string" || !isAbsolute(artifactPath))) return rejected("SELECTIVE_FORK_ARTIFACT_OUTPUT_INVALID");
   try {
     const response = await fetchImpl(urls.artifact, { headers: { accept: "application/octet-stream", "user-agent": "coco-selective-fork-verifier" }, redirect: "follow", signal: AbortSignal.timeout(timeoutMs) });
     if (!response.ok) return rejected("SELECTIVE_FORK_REMOTE_DOWNLOAD_FAILED");
@@ -74,6 +75,9 @@ export async function verifyRemoteSelectiveForkArtifact({ evidencePath = evidenc
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     const integrity = `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
     if (sha256 !== expected.sha256 || integrity !== expected.integrity) return rejected("SELECTIVE_FORK_REMOTE_ARTIFACT_INTEGRITY_MISMATCH");
+    if (artifactPath !== undefined) {
+      try { await writeFile(artifactPath, bytes, { flag: "wx", mode: 0o600 }); } catch { return rejected("SELECTIVE_FORK_ARTIFACT_OUTPUT_FAILED"); }
+    }
     return { artifact: urls.artifact, bytes: bytes.length, integrity, sha256, sourceCommit: evidence.candidate.sourceCommit, sourceTag: evidence.candidate.sourceTag, status: "approved", promotionAuthorized: false };
   } catch (error) {
     return rejected(error?.code === "SELECTIVE_FORK_REMOTE_ARTIFACT_INTEGRITY_MISMATCH" ? error.code : "SELECTIVE_FORK_REMOTE_DOWNLOAD_FAILED");
@@ -81,7 +85,8 @@ export async function verifyRemoteSelectiveForkArtifact({ evidencePath = evidenc
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const result = await verifyRemoteSelectiveForkArtifact();
+  const args = process.argv.slice(2); const artifactPath = args.length === 0 ? undefined : args.length === 2 && args[0] === "--output" ? resolve(args[1]) : null;
+  const result = artifactPath === null ? rejected("SELECTIVE_FORK_REMOTE_USAGE") : await verifyRemoteSelectiveForkArtifact({ artifactPath });
   console.log(JSON.stringify(result));
   process.exit(result.status === "approved" ? 0 : 1);
 }
