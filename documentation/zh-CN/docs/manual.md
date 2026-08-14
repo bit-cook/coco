@@ -39,8 +39,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 如果需要审阅一个特定发布版，下载该标签对应的安装程序，并显式指定同一版本：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.5.2/install.sh
-COCO_VERSION=0.5.2 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.5.3/install.sh
+COCO_VERSION=0.5.3 bash install.sh
 ```
 
 安装程序会校验发行包；更新或重装时会保留既有的 `~/.coco/agent` 配置。
@@ -68,7 +68,7 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 传输或解压前，从同一个精确 Release 下载 ZIP 及其外部 sidecar，并在归档外验证：
 
 ```bash
-sha256sum --check coco-0.5.2-offline-linux-x64.zip.sha256
+sha256sum --check coco-0.5.3-offline-linux-x64.zip.sha256
 ```
 
 ZIP 内部的 `SHA256SUMS` 只能检测解压后的损坏，不能单独认证 ZIP。完成外部验证和传输后，解压并运行：

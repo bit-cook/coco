@@ -28,8 +28,8 @@ export async function verifyModelPanelRollback({ run = execute } = {}) {
   try {
     const result = await run(process.execPath, [join(root, "bin", "coco"), "--version"], { env: { ...process.env, COCO_CODING_AGENT_DIR: agentDir }, timeout: 30_000 });
     const version = result.stdout.trim();
-    const approved = JSON.stringify(failures) === JSON.stringify(expected) && version === "0.5.2";
-    return { failures, officialRuntime: { status: version === "0.5.2" ? "passed" : "failed", version }, owner: "fallback", productionRegistration: "blocked", schemaVersion: 1, status: approved ? "approved" : "rejected" };
+    const approved = JSON.stringify(failures) === JSON.stringify(expected) && version === "0.5.3";
+    return { failures, officialRuntime: { status: version === "0.5.3" ? "passed" : "failed", version }, owner: "fallback", productionRegistration: "blocked", schemaVersion: 1, status: approved ? "approved" : "rejected" };
   } catch {
     return { code: "MODEL_PANEL_ROLLBACK_RUNTIME_FAILED", owner: "fallback", productionRegistration: "blocked", schemaVersion: 1, status: "rejected" };
   } finally { await rm(agentDir, { force: true, recursive: true }); }

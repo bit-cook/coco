@@ -17,7 +17,7 @@ async function fixture() {
   const mcpScope = join(modules, "@modelcontextprotocol");
   const mcp = join(mcpScope, "sdk");
   await cp(root, join(directory, "coco"), { filter: (path) => {
-    if (path.includes("/.coco-tools/") || path.includes("/test/") || path.endsWith(".tgz")) return false;
+    if (path.includes("/.coco-tools/") || path.includes("/test/") || (path.endsWith(".tgz") && !path.includes("/resources/candidates/"))) return false;
     if (!path.startsWith(`${modules}/`)) return true;
     return path === join(modules, "@earendil-works") || path === core || path.startsWith(`${core}/`) || path === mcpScope || path === mcp || path.startsWith(`${mcp}/`);
   }, recursive: true });
@@ -42,7 +42,7 @@ test("Given the coco package root, when runtime identity is resolved, then it pi
   assert.equal(runtime.identity.configDir, ".coco");
   assert.equal(runtime.identity.agentEnv, "COCO_CODING_AGENT_DIR");
   assert.equal(runtime.identity.sessionEnv, "COCO_CODING_AGENT_SESSION_DIR");
-  assert.equal(runtime.identity.version, "0.5.2");
+  assert.equal(runtime.identity.version, "0.5.3");
   assert.equal(runtime.piVersion, "0.82.1");
   assert.equal(runtime.root, resolve(root));
 });
@@ -334,7 +334,7 @@ test("Given a replacement after bytes are hashed, when bootstrap creates a cache
     await generateRuntimeIntegrityManifest({ root: packageRoot });
     const target = join(packageRoot, "package.json");
     const original = await readFile(target, "utf8");
-    const replacement = original.replace('"version": "0.5.2"', '"version": "9.9.9"');
+    const replacement = original.replace('"version": "0.5.3"', '"version": "9.9.9"');
     assert.notEqual(replacement, original);
     const sibling = `${target}.replacement`;
     await writeFile(sibling, replacement);

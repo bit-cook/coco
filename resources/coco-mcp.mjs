@@ -19,7 +19,7 @@ export default function cocoMcp(pi) {
       let client;
       try {
         const transport = new StdioClientTransport({ args: server.args, command: server.command, cwd: ctx.cwd, stderr: "pipe" });
-        client = new Client({ name: "coco", version: "0.5.2" });
+        client = new Client({ name: "coco", version: "0.5.3" });
         await client.connect(transport);
         const listed = await client.listTools();
         clients.push({ client, transport });

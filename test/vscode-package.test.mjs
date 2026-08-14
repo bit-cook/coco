@@ -20,9 +20,9 @@ test("VS Code release asset contains the native extension manifest and implement
   const output = await mkdtemp(join(tmpdir(), "coco-vsix-test-"));
   try {
     const result = await buildVscodeExtension({ outputDirectory: output });
-    assert.equal(result.version, "0.5.2");
+    assert.equal(result.version, "0.5.3");
     const members = zipMembers(await readFile(result.path));
     for (const path of ["[Content_Types].xml", "extension.vsixmanifest", "extension/package.json", "extension/extension.js", "extension/README.md"]) assert.equal(members.includes(path), true);
-    assert.equal(JSON.parse(await readFile(join(new URL("..", import.meta.url).pathname, "vscode", "package.json"))).version, "0.5.2");
+    assert.equal(JSON.parse(await readFile(join(new URL("..", import.meta.url).pathname, "vscode", "package.json"))).version, "0.5.3");
   } finally { await rm(output, { recursive: true, force: true }); }
 });

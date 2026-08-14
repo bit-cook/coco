@@ -11,7 +11,7 @@ import { projectProviderReadiness } from "./provider-readiness.mjs";
 import { readCredentialObservations } from "./auth-management.mjs";
 
 const PROVIDERS = MANAGED_PROVIDER_IDS.includes("idepub") ? ["idepub", ...MANAGED_PROVIDER_IDS.filter((provider) => provider !== "idepub")] : [...MANAGED_PROVIDER_IDS];
-const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, lastChangelogVersion: "0.5.2", theme: "coco-orange-light/coco-orange" };
+const DEFAULT_SETTINGS = { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", enableInstallTelemetry: false, lastChangelogVersion: "0.5.3", theme: "coco-orange-light/coco-orange" };
 
 function hash(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }

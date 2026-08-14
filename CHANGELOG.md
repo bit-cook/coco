@@ -5333,3 +5333,10 @@ Initial public release.
 
 - Seed managed provider models from one shared catalog so `manage bootstrap`, installer setup, model listing, and explicit idepub selection stay consistent.
 - Stop forcing an Agnes-only model cycle that produced a false warning when using an explicitly selected idepub model.
+
+## 0.5.3
+
+- Add a source-owned model panel adapter candidate with exact GitHub provenance, embedded candidate identity, self-contained dependencies, reproducible builds, and SHA-256/SRI verification.
+- Add isolated and scheduled model-panel canaries covering capability detection, real extension loading, provider refresh, reload re-registration, PTY behavior, and official-runtime rollback.
+- Add `coco core model-panel-canary [--json]` for an explicit, non-production canary while keeping the official Pi runtime and patched selector as the default fallback.
+- Split self-hosted CI into parallel core/package and integrity jobs, and add dedicated candidate and promotion runners.

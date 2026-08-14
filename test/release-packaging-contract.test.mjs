@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -53,6 +54,8 @@ test("Given the public package contract, when CoCo is packed, then only release-
     assert.equal(paths.includes("package/vscode/extension.js"), true);
     assert.equal(paths.includes("package/scripts/protected-baseline.json"), true);
     assert.equal(paths.includes("package/scripts/protected-baseline.json.sha256"), true);
+    const candidatePath = "resources/candidates/earendil-works-pi-coding-agent-0.82.1-coco.2.tgz";
+    assert.equal(paths.includes(`package/${candidatePath}`), true);
     assert.equal(paths.some((path) => path.includes("/logs/")), false);
     assert.equal(paths.some((path) => path.includes("qa-task-")), false);
     assert.equal(paths.some((path) => path.includes(".omo")), false);
@@ -61,6 +64,12 @@ test("Given the public package contract, when CoCo is packed, then only release-
     await mkdir(extracted);
     await exec("tar", ["-xzf", join(output, filename), "-C", extracted]);
     const packagedRoot = join(extracted, "package");
+    const evidence = JSON.parse(await readFile(join(packagedRoot, "resources", "selective-fork-promotion-evidence.v1.json"), "utf8"));
+    const candidateBytes = await readFile(join(packagedRoot, candidatePath));
+    assert.equal(candidateBytes.length, evidence.candidate.package.bytes);
+    assert.equal(createHash("sha256").update(candidateBytes).digest("hex"), evidence.candidate.package.sha256);
+    const runtimeManifest = JSON.parse(await readFile(join(packagedRoot, "resources", "runtime-integrity-manifest.v1.json"), "utf8"));
+    assert.equal(runtimeManifest.entries.some((entry) => entry.path === candidatePath && entry.sha256 === evidence.candidate.package.sha256), true);
     await exec(process.execPath, ["--input-type=module", "--eval", 'import * as providerSync from "./scripts/provider-sync.mjs"; if ("syncProviderModelsFromSourceFixture" in providerSync) process.exit(1);'], {
       cwd: packagedRoot,
       maxBuffer: 64 * 1024 * 1024,
@@ -169,8 +178,8 @@ test("Given release workflows, when tarball closure runs through the shell, then
   }
 });
 
-test("Given the v0.5.2 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
-  const version = "0.5.2";
+test("Given the v0.5.3 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
+  const version = "0.5.3";
   const [packageJson, packageLock, installer, readme, englishReadme, chineseReadme, ciWorkflow, releaseWorkflow] = await Promise.all([
     readFile(join(root, "package.json"), "utf8"),
     readFile(join(root, "package-lock.json"), "utf8"),

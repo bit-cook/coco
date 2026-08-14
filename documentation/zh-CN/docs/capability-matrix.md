@@ -1,4 +1,4 @@
-# CoCo v0.5.2 能力矩阵
+# CoCo v0.5.3 能力矩阵
 
 机器可读矩阵位于 `resources/capability-matrix.v1.json`。状态只允许：`production`、`production-with-debt`、`contract`、`experimental`、`platform-limited`、`planned`。
 
