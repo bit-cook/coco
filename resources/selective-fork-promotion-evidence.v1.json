@@ -30,19 +30,31 @@
     "cleanConsumerInstall": { "status": "passed", "installSeconds": 11, "piTuiVersion": "0.82.1" },
     "consumerCliSmoke": { "status": "passed", "version": "0.82.1" },
     "cocoCi": {
-      "commit": "4d90d15b4c750a1cc0f3ddf3d89ef73da9f87c44",
-      "run": "31709936016",
+      "commit": "fe6d1fe0cadf75962ca519f76226842efbe2044c",
+      "run": "31823127785",
       "runner": "coco-ci-local",
       "status": "passed",
-      "durationSeconds": 1143,
+      "durationSeconds": 915,
       "gates": ["architecture", "typecheck", "build", "core", "closure", "secret-scan", "tarball-closure", "integrity"]
+    },
+    "isolatedPromotion": {
+      "commit": "0aae266d69cec8fc60bcdcd561967dfe4cd75f8a",
+      "run": "31822746254",
+      "runner": "coco-upstream-local",
+      "status": "passed",
+      "durationSeconds": 44,
+      "capabilities": { "present": 6, "required": 6, "status": "present" },
+      "dependencyClosure": { "source": "coco-official-lock", "version": "0.82.1" },
+      "loader": { "errors": 0, "extensions": 1, "fallbackOwner": "fallback", "owner": "coco.model-panel.v1", "registered": true },
+      "pty": { "exitCode": 0, "offline": true, "states": ["Models", "No matching models", "Refreshing model catalogs", "Model catalogs refreshed"], "status": "passed" },
+      "rollout": { "owner": "coco.model-panel.v1", "scope": "isolated" }
     }
   },
   "gates": {
     "remoteProvenance": "source-tag-published",
     "packageIntegrity": "remote-release-asset-verified-not-production-locked",
     "productionRegistration": "blocked",
-    "fallbackIntegration": "source-verified-not-production"
+    "fallbackIntegration": "isolated-loader-pty-verified-not-production"
   },
   "promotionAuthorized": false,
   "schemaVersion": 1,
