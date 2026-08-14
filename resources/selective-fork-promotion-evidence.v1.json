@@ -3,7 +3,7 @@
     "isolated": true,
     "production": false,
     "scope": "isolated",
-    "source": "automated-evidence-gates"
+    "source": "scheduled-and-manual-evidence-gates"
   },
   "base": {
     "package": "@earendil-works/pi-coding-agent@0.82.1",

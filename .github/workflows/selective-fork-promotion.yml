@@ -1,6 +1,8 @@
 name: Selective Fork Promotion Verification
 
 on:
+  schedule:
+    - cron: "23 4 * * *"
   workflow_dispatch:
 
 permissions:
@@ -12,7 +14,7 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: [self-hosted, Linux, X64, coco-upstream]
+    runs-on: [self-hosted, Linux, X64, coco-promotion]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09

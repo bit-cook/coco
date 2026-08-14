@@ -42,14 +42,14 @@ test("remote selective fork verification binds GitHub release identity and exact
   } finally { await rm(directory, { force: true, recursive: true }); }
 });
 
-test("promotion verification workflow is manual, read-only, bounded, and isolated on the upstream runner", async () => {
+test("promotion verification workflow is scheduled and manual, read-only, bounded, and isolated on its dedicated runner", async () => {
   const workflow = await readFile(new URL("../.github/workflows/selective-fork-promotion.yml", import.meta.url), "utf8");
   const verifier = await readFile(new URL("../scripts/verify-isolated-model-panel-candidate.mjs", import.meta.url), "utf8");
-  assert.match(workflow, /workflow_dispatch:/); assert.match(workflow, /permissions:\n  contents: read/); assert.match(workflow, /runs-on: \[self-hosted, Linux, X64, coco-upstream\]/); assert.match(workflow, /timeout-minutes: 5/);
+  assert.match(workflow, /schedule:\n    - cron: "23 4 \* \* \*"/); assert.match(workflow, /workflow_dispatch:/); assert.match(workflow, /permissions:\n  contents: read/); assert.match(workflow, /runs-on: \[self-hosted, Linux, X64, coco-promotion\]/); assert.match(workflow, /timeout-minutes: 5/);
   assert.match(workflow, /verify-isolated-model-panel-candidate\.mjs/); assert.match(workflow, /scope!=="isolated"/); assert.match(workflow, /loader\?\.fallbackOwner!=="fallback"/); assert.match(workflow, /pty\?\.reload!=="passed"/); assert.match(workflow, /pty\?\.panelOpens<2/); assert.match(workflow, /promotionAuthorized!==false/); assert.match(workflow, /retention-days: 30/);
   assert.match(workflow, /\$RUNNER_TOOL_CACHE\/node\/22\.19\.0\/x64\/bin/); assert.match(workflow, /test "\$\(node --version\)" = "v22\.19\.0"/);
   assert.match(workflow, /npm ci --ignore-scripts --no-audit --no-fund/); assert.match(workflow, /npm run verify:architecture/); assert.match(workflow, /npm run verify:closure/);
-  assert.doesNotMatch(workflow, /schedule:|push:|pull_request:|secrets\.|contents: write|npm publish|actions\/setup-node/);
+  assert.doesNotMatch(workflow, /push:|pull_request:|secrets\.|contents: write|npm publish|actions\/setup-node/);
   assert.match(verifier, /MAX_MEMBERS = 25_000/); assert.match(verifier, /MAX_EXTRACTED_BYTES = 256 \* 1024 \* 1024/); assert.match(verifier, /--no-same-owner/); assert.match(verifier, /type !== "-" && type !== "d"/); assert.match(verifier, /coco-official-lock/); assert.match(verifier, /spawn\("timeout", \["30s", "script"/); assert.match(verifier, /"\/reload\\r"/); assert.match(verifier, /panelOpens < 2/); assert.match(verifier, /PI_OFFLINE: "1"/); assert.match(verifier, /extension: "resources\/coco-model-panel\.mjs"/); assert.doesNotMatch(verifier, /npm install|npm publish|process\.env/);
 });
 
