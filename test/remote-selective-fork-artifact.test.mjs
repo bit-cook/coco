@@ -43,7 +43,8 @@ test("promotion verification workflow is manual, read-only, bounded, and isolate
   const workflow = await readFile(new URL("../.github/workflows/selective-fork-promotion.yml", import.meta.url), "utf8");
   assert.match(workflow, /workflow_dispatch:/); assert.match(workflow, /permissions:\n  contents: read/); assert.match(workflow, /runs-on: \[self-hosted, Linux, X64, coco-upstream\]/); assert.match(workflow, /timeout-minutes: 5/);
   assert.match(workflow, /verify-remote-selective-fork-artifact\.mjs/); assert.match(workflow, /promotionAuthorized!==false/); assert.match(workflow, /retention-days: 30/);
-  assert.doesNotMatch(workflow, /schedule:|push:|pull_request:|secrets\.|contents: write|npm ci|npm publish/);
+  assert.match(workflow, /major!==22\|\|minor<19/);
+  assert.doesNotMatch(workflow, /schedule:|push:|pull_request:|secrets\.|contents: write|npm ci|npm publish|actions\/setup-node/);
 });
 
 test("remote selective fork verification rejects cross-repository and unbounded requests before fetch", async () => {

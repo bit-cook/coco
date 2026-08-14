@@ -16,9 +16,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: 22.19.0
+      - run: node -e 'const [major,minor]=process.versions.node.split(".").map(Number);if(major!==22||minor<19)process.exit(1)'
       - run: node scripts/verify-remote-selective-fork-artifact.mjs | tee selective-fork-remote-verification.json
       - run: node -e 'const value=require("./selective-fork-remote-verification.json");if(value.status!=="approved"||value.promotionAuthorized!==false)process.exit(1)'
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4

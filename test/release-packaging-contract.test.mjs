@@ -138,7 +138,7 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   assert.match(pagesWorkflow, /runs-on: \[self-hosted, Linux, X64, coco-pages\]/);
   assert.match(pagesWorkflow, /actions\/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b/);
   assert.match(pagesWorkflow, /actions\/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128/);
-  assert.match(promotionWorkflow, /actions\/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38/);
+  assert.doesNotMatch(promotionWorkflow, /actions\/setup-node/);
   assert.match(promotionWorkflow, /actions\/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4/);
 });
 
