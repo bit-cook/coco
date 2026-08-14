@@ -59,10 +59,12 @@ jobs:
       COCO_SCANNER_TMPDIR: /root/coco-tmp
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: 22.19.0
-          cache: npm
+      - name: Select pinned self-hosted Node
+        run: |
+          node_dir="$RUNNER_TOOL_CACHE/node/22.19.0/x64/bin"
+          test -x "$node_dir/node"
+          printf '%s\n' "$node_dir" >> "$GITHUB_PATH"
+      - run: test "$(node --version)" = "v22.19.0"
       - run: npm ci
       - run: npm run verify:architecture
       - run: npm run verify:fork-evidence

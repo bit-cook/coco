@@ -127,6 +127,7 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   assert.equal((ciWorkflow.match(/runs-on: ubuntu-24\.04/g) ?? []).length, 1);
   assert.doesNotMatch(ciWorkflow, /needs: verify/);
   assert.match(ciWorkflow, /verify-main:[\s\S]*?timeout-minutes: 30/);
+  assert.match(ciWorkflow, /verify-main:[\s\S]*?\$RUNNER_TOOL_CACHE\/node\/22\.19\.0\/x64\/bin[\s\S]*?test "\$\(node --version\)" = "v22\.19\.0"/);
   assert.match(ciWorkflow, /verify-main:[\s\S]*?npm run test:core[\s\S]*?npm run test:integrity/);
   assert.match(ciWorkflow, /verify-pr:[\s\S]*?timeout-minutes: 20/);
   assert.match(pagesWorkflow, /timeout-minutes: 20/);
