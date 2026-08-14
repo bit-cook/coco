@@ -67,13 +67,13 @@
       "rollout": { "owner": "coco.model-panel.v1", "scope": "isolated" }
     },
     "rollback": {
-      "commit": "f007ce879f51cfee00c79e0a63210fb74e556afe",
-      "run": "31840960981",
+      "commit": "783a54d19734f64db3d5a0f45170fb9db9d97230",
+      "run": "31845825883",
       "runner": "coco-promotion-local",
       "status": "passed",
       "owner": "fallback",
       "productionRegistration": "blocked",
-      "officialRuntime": { "status": "passed", "version": "0.5.2" },
+      "officialRuntime": { "status": "passed", "version": "0.5.3" },
       "failures": {
         "officialCapabilities": "MODEL_PANEL_CAPABILITIES_INVALID",
         "productionScope": "MODEL_PANEL_PRODUCTION_PROMOTION_BLOCKED",
