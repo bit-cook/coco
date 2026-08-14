@@ -213,16 +213,16 @@ const patchTargets = [
   "node_modules/@earendil-works/pi-tui/dist/tui.js",
 ];
 
-async function createFixture() {
+async function createFixture({ tuiLayout = "nested" } = {}) {
   const root = await mkdtemp(join(tmpdir(), "coco-identity-patch-"));
   const agent = join(root, "node_modules", "@earendil-works", "pi-coding-agent");
-  const tui = join(agent, "node_modules", "@earendil-works", "pi-tui");
+  const tui = tuiLayout === "hoisted" ? join(root, "node_modules", "@earendil-works", "pi-tui") : join(agent, "node_modules", "@earendil-works", "pi-tui");
   await mkdir(join(agent, "dist", "cli"), { recursive: true });
   await mkdir(join(agent, "dist", "core"), { recursive: true });
   await mkdir(join(agent, "dist", "modes", "interactive", "components"), { recursive: true });
   await mkdir(join(agent, "dist", "modes", "interactive"), { recursive: true });
   await mkdir(join(agent, "dist", "utils"), { recursive: true });
-  await mkdir(join(tui, "dist"), { recursive: true });
+  await mkdir(join(tui, "dist", "components"), { recursive: true });
   await writeFile(join(agent, "package.json"), JSON.stringify({ version: "0.82.1" }));
   await writeFile(join(tui, "package.json"), JSON.stringify({ version: "0.82.1" }));
   await writeFile(join(agent, "dist/cli/args.js"), `${identitySource}\n${helpSource}`);
@@ -239,6 +239,8 @@ async function createFixture() {
   await writeFile(join(agent, "dist/modes/interactive/components/extension-input.js"), `import { Input } from "@earendil-works/pi-tui";\nclass ExtensionInput {\n    constructor(opts) {\n        this.input = new Input();\n        this.addChild(this.input);\n    }\n}`);
   await writeFile(join(agent, "dist/modes/interactive/interactive-mode.js"), `${await readFile(join(agent, "dist/modes/interactive/interactive-mode.js"), "utf8")}\n${interactiveModelSelectionSource}\n${interactiveLoginSource}`);
   await writeFile(join(tui, "dist/tui.js"), tuiSource);
+  await writeFile(join(tui, "dist/components/input.js"), 'const prompt = "> ";\n');
+  await writeFile(join(tui, "dist/components/settings-list.js"), 'const valueText = this.theme.value(truncateToWidth(item.currentValue, valueMaxWidth, ""), isSelected);\nconst help = "  Enter/Space to change · Esc to cancel";\n');
   return root;
 }
 
@@ -428,6 +430,25 @@ test("Given supported upstream artifacts, when patched twice, then the second ap
     assert.equal((await readPatched(root, "dist/core/model-runtime.d.ts")).match(/getVisibleSnapshot\(\): readonly Model<Api>\[\];/g)?.length, 1);
   } finally {
     await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("Given nested or hoisted pi-tui, when patched, then the selected layout receives valid project-relative imports", async () => {
+  for (const tuiLayout of ["nested", "hoisted"]) {
+    const root = await createFixture({ tuiLayout });
+    try {
+      const agent = join(root, "node_modules", "@earendil-works", "pi-coding-agent");
+      const tui = tuiLayout === "hoisted" ? join(root, "node_modules", "@earendil-works", "pi-tui") : join(agent, "node_modules", "@earendil-works", "pi-tui");
+      await applyCocoIdentityPatch({ root });
+      assert.match(await readFile(join(tui, "dist/tui.js"), "utf8"), /\\x1b\[2J\\x1b\[H/);
+      assert.match(await readFile(join(tui, "dist/components/input.js"), "utf8"), /const prompt = "› ";/);
+      const settings = await readFile(join(tui, "dist/components/settings-list.js"), "utf8");
+      const expected = tuiLayout === "hoisted" ? "../../../../../resources/coco-ui-language.mjs" : "../../../../../../../../resources/coco-ui-language.mjs";
+      assert.match(settings, new RegExp(expected.replaceAll(".", "\\.")));
+      assert.match(settings, /uiValue\(item\.currentValue\)/);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
   }
 });
 

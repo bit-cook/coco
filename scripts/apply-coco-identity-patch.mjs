@@ -1,6 +1,6 @@
 import { copyFile, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const expectedVersion = "0.82.1";
@@ -983,7 +983,8 @@ async function patchAutocompleteSourceLabels(projectRoot) {
 
 async function patchSettingsValueDisplay(projectRoot) {
   const path = join(tuiPath(projectRoot), "dist", "components", "settings-list.js");
-  const importLine = `import { uiValue } from "../../../../../../../../resources/coco-ui-language.mjs";`;
+  const languagePath = relative(dirname(path), join(projectRoot, "resources", "coco-ui-language.mjs")).replaceAll("\\", "/");
+  const importLine = `import { uiValue } from "${languagePath.startsWith(".") ? languagePath : `./${languagePath}`}";`;
   let source;
   try { source = await readFile(path, "utf8"); }
   catch (error) { if (error?.code === "ENOENT") return; throw error; }
