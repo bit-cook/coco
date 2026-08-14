@@ -16,7 +16,12 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-      - run: node -e 'const [major,minor]=process.versions.node.split(".").map(Number);if(major!==22||minor<19)process.exit(1)'
+      - name: Select pinned self-hosted Node
+        run: |
+          node_dir="$RUNNER_TOOL_CACHE/node/22.19.0/x64/bin"
+          test -x "$node_dir/node"
+          printf '%s\n' "$node_dir" >> "$GITHUB_PATH"
+      - run: test "$(node --version)" = "v22.19.0"
       - run: node scripts/verify-remote-selective-fork-artifact.mjs | tee selective-fork-remote-verification.json
       - run: node -e 'const value=require("./selective-fork-remote-verification.json");if(value.status!=="approved"||value.promotionAuthorized!==false)process.exit(1)'
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
