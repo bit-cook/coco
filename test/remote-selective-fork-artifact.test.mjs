@@ -46,10 +46,11 @@ test("promotion verification workflow is manual, read-only, bounded, and isolate
   const workflow = await readFile(new URL("../.github/workflows/selective-fork-promotion.yml", import.meta.url), "utf8");
   const verifier = await readFile(new URL("../scripts/verify-isolated-model-panel-candidate.mjs", import.meta.url), "utf8");
   assert.match(workflow, /workflow_dispatch:/); assert.match(workflow, /permissions:\n  contents: read/); assert.match(workflow, /runs-on: \[self-hosted, Linux, X64, coco-upstream\]/); assert.match(workflow, /timeout-minutes: 5/);
-  assert.match(workflow, /verify-isolated-model-panel-candidate\.mjs/); assert.match(workflow, /scope!=="isolated"/); assert.match(workflow, /promotionAuthorized!==false/); assert.match(workflow, /retention-days: 30/);
+  assert.match(workflow, /verify-isolated-model-panel-candidate\.mjs/); assert.match(workflow, /scope!=="isolated"/); assert.match(workflow, /loader\?\.fallbackOwner!=="fallback"/); assert.match(workflow, /promotionAuthorized!==false/); assert.match(workflow, /retention-days: 30/);
   assert.match(workflow, /\$RUNNER_TOOL_CACHE\/node\/22\.19\.0\/x64\/bin/); assert.match(workflow, /test "\$\(node --version\)" = "v22\.19\.0"/);
-  assert.doesNotMatch(workflow, /schedule:|push:|pull_request:|secrets\.|contents: write|npm ci|npm publish|actions\/setup-node/);
-  assert.match(verifier, /"--ignore-scripts"/); assert.match(verifier, /"--offline"/); assert.match(verifier, /extension: "resources\/coco-model-panel\.mjs"/); assert.doesNotMatch(verifier, /npm publish|process\.env/);
+  assert.match(workflow, /npm ci --ignore-scripts --no-audit --no-fund/); assert.match(workflow, /npm run verify:architecture/); assert.match(workflow, /npm run verify:closure/);
+  assert.doesNotMatch(workflow, /schedule:|push:|pull_request:|secrets\.|contents: write|npm publish|actions\/setup-node/);
+  assert.match(verifier, /MAX_MEMBERS = 25_000/); assert.match(verifier, /MAX_EXTRACTED_BYTES = 256 \* 1024 \* 1024/); assert.match(verifier, /--no-same-owner/); assert.match(verifier, /type !== "-" && type !== "d"/); assert.match(verifier, /coco-official-lock/); assert.match(verifier, /extension: "resources\/coco-model-panel\.mjs"/); assert.doesNotMatch(verifier, /npm install|npm publish|process\.env/);
 });
 
 test("remote selective fork verification rejects cross-repository and unbounded requests before fetch", async () => {

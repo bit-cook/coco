@@ -22,8 +22,12 @@ jobs:
           test -x "$node_dir/node"
           printf '%s\n' "$node_dir" >> "$GITHUB_PATH"
       - run: test "$(node --version)" = "v22.19.0"
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run verify:architecture
+      - run: npm run build
+      - run: npm run verify:closure
       - run: node scripts/verify-isolated-model-panel-candidate.mjs | tee selective-fork-remote-verification.json
-      - run: node -e 'const value=require("./selective-fork-remote-verification.json");if(value.status!=="approved"||value.scope!=="isolated"||value.rollout?.owner!=="coco.model-panel.v1"||value.promotionAuthorized!==false)process.exit(1)'
+      - run: node -e 'const value=require("./selective-fork-remote-verification.json");if(value.status!=="approved"||value.scope!=="isolated"||value.dependencyClosure?.source!=="coco-official-lock"||value.loader?.owner!=="coco.model-panel.v1"||value.loader?.fallbackOwner!=="fallback"||value.rollout?.owner!=="coco.model-panel.v1"||value.promotionAuthorized!==false)process.exit(1)'
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: selective-fork-remote-verification
