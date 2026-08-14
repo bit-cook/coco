@@ -19,6 +19,7 @@ test("selective fork evidence validates self-contained artifact bytes and remain
     const fixtureEvidence = join(temporary, "evidence.json");
     evidence.candidate.package.bytes = bytes.length;
     evidence.candidate.package.sha256 = createHash("sha256").update(bytes).digest("hex");
+    evidence.evidence.candidateBuild.reproducibleSha256 = evidence.candidate.package.sha256;
     evidence.candidate.package.integrity = `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
     await writeFile(artifact, bytes);
     await writeFile(fixtureEvidence, JSON.stringify(evidence));
@@ -32,11 +33,12 @@ test("selective fork evidence validates self-contained artifact bytes and remain
     for (const [code, mutate] of [
       ["SELECTIVE_FORK_PROMOTION_NOT_FAIL_CLOSED", (value) => { value.promotionAuthorized = true; }],
       ["SELECTIVE_FORK_AUTHORIZATION_INVALID", (value) => { value.authorization.production = true; }],
+      ["SELECTIVE_FORK_BUILD_EVIDENCE_INVALID", (value) => { value.evidence.candidateBuild.reproducibleSha256 = "0".repeat(64); }],
       ["SELECTIVE_FORK_GATES_INVALID", (value) => { value.gates.productionRegistration = "enabled"; }],
       ["SELECTIVE_FORK_CI_EVIDENCE_INVALID", (value) => { value.evidence.cocoCi.status = "failed"; }],
       ["SELECTIVE_FORK_ISOLATED_EVIDENCE_INVALID", (value) => { value.evidence.isolatedPromotion.loader.owner = "fallback"; }],
       ["SELECTIVE_FORK_ISOLATED_EVIDENCE_INVALID", (value) => { value.evidence.isolatedPromotion.pty.reload = "failed"; }],
-      ["SELECTIVE_FORK_ARTIFACT_INTEGRITY_MISMATCH", (value) => { value.candidate.package.sha256 = "0".repeat(64); }],
+      ["SELECTIVE_FORK_ARTIFACT_INTEGRITY_MISMATCH", (value) => { value.candidate.package.sha256 = "0".repeat(64); value.evidence.candidateBuild.reproducibleSha256 = value.candidate.package.sha256; }],
       ["SELECTIVE_FORK_PACKAGE_RECEIPT_INVALID", (value) => { value.candidate.package.integrity = "invalid"; }],
     ]) {
       const invalid = structuredClone(evidence); mutate(invalid); await writeFile(fixtureEvidence, JSON.stringify(invalid));

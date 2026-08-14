@@ -15,6 +15,7 @@ async function fixture(directory) {
   const bytes = Buffer.from("remote selective fork artifact fixture\n");
   evidence.candidate.package.bytes = bytes.length;
   evidence.candidate.package.sha256 = createHash("sha256").update(bytes).digest("hex");
+  evidence.evidence.candidateBuild.reproducibleSha256 = evidence.candidate.package.sha256;
   evidence.candidate.package.integrity = `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
   const evidencePath = join(directory, "evidence.json");
   await writeFile(evidencePath, JSON.stringify(evidence));

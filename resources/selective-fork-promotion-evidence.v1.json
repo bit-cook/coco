@@ -27,6 +27,16 @@
     }
   },
   "evidence": {
+    "candidateBuild": {
+      "workflowCommit": "e6c74f00ed083efb2187f1205c857d099d429feb",
+      "sourceCommit": "f8d1a22a026a5ead68f262543ff43292f8a53df4",
+      "run": "31839171596",
+      "runner": "pi-candidate-local",
+      "status": "passed",
+      "durationSeconds": 160,
+      "tests": 41,
+      "reproducibleSha256": "f3b7f46ebbaec3fb7c8ccf946ab560b1339b74b462d43cabe0492621b0f8ede3"
+    },
     "forkSpecificTests": { "status": "passed", "cases": 41 },
     "fullCheck": { "status": "passed" },
     "codingAgentBuild": { "status": "passed" },
@@ -36,19 +46,19 @@
     "cleanConsumerInstall": { "status": "passed", "installSeconds": 11, "piTuiVersion": "0.82.1" },
     "consumerCliSmoke": { "status": "passed", "version": "0.82.1" },
     "cocoCi": {
-      "commit": "c00ac3e3f460e0b672cedabf2a3b2b801d25e651",
-      "run": "31828131894",
+      "commit": "b0914b0ca5974070a53f23c44adb76d45d2e611e",
+      "run": "31835439579",
       "runner": "coco-ci-local+coco-upstream-local",
       "status": "passed",
-      "durationSeconds": 738,
+      "durationSeconds": 705,
       "gates": ["architecture", "typecheck", "build", "core", "closure", "secret-scan", "tarball-closure", "integrity"]
     },
     "isolatedPromotion": {
-      "commit": "c00ac3e3f460e0b672cedabf2a3b2b801d25e651",
-      "run": "31828132093",
+      "commit": "b0914b0ca5974070a53f23c44adb76d45d2e611e",
+      "run": "31835439687",
       "runner": "coco-promotion-local",
       "status": "passed",
-      "durationSeconds": 64,
+      "durationSeconds": 61,
       "capabilities": { "present": 6, "required": 6, "status": "present" },
       "dependencyClosure": { "source": "candidate-bundled", "version": "0.82.1" },
       "identity": { "repository": "https://github.com/bit-cook/pi-selective-fork", "schemaVersion": 1, "sourceCommit": "f8d1a22a026a5ead68f262543ff43292f8a53df4", "sourceTag": "coco-v0.82.1-coco.2" },
