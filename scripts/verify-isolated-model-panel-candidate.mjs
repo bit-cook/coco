@@ -32,13 +32,14 @@ async function verifyPty(packageRoot, directory) {
   await mkdir(home, { recursive: true });
   const quote = (value) => `'${value.replaceAll("'", `'"'"'`)}'`;
   const command = `${quote(process.execPath)} ${quote(join(packageRoot, "dist", "cli.js"))} -e ${quote(join(root, "resources", "coco-model-panel.mjs"))}`;
-  const child = spawn("timeout", ["20s", "script", "-qefc", command, log], { cwd: directory, env: { HOME: home, NO_COLOR: "1", PATH: "/usr/bin:/bin", PI_CODING_AGENT_DIR: join(home, "agent"), PI_OFFLINE: "1", TERM: "xterm-256color" }, stdio: ["pipe", "ignore", "ignore"] });
+  const child = spawn("timeout", ["30s", "script", "-qefc", command, log], { cwd: directory, env: { HOME: home, NO_COLOR: "1", PATH: "/usr/bin:/bin", PI_CODING_AGENT_DIR: join(home, "agent"), PI_OFFLINE: "1", TERM: "xterm-256color" }, stdio: ["pipe", "ignore", "ignore"] });
   const closed = new Promise((resolve) => child.once("close", (code) => resolve(code)));
-  await delay(2_500); child.stdin.write("/model\r"); await delay(4_000); child.stdin.write("\x1b"); await delay(500); child.stdin.end("\x03");
+  await delay(2_500); child.stdin.write("/model\r"); await delay(4_000); child.stdin.write("\x1b"); await delay(500); child.stdin.write("/reload\r"); await delay(4_000); child.stdin.write("/model\r"); await delay(4_000); child.stdin.write("\x1b"); await delay(500); child.stdin.end("\x03");
   const exitCode = await closed; const output = await readFile(log, "utf8");
-  const states = ["Models", "No matching models", "Refreshing model catalogs", "Model catalogs refreshed"];
-  if (![0, 130].includes(exitCode) || states.some((text) => !output.includes(text)) || output.includes("Failed to load extension")) { const error = new Error("pty"); error.code = "MODEL_PANEL_CANDIDATE_PTY_FAILED"; throw error; }
-  return { exitCode, offline: true, states, status: "passed" };
+  const states = ["Models", "No matching models", "Refreshing model catalogs", "Model catalogs refreshed", "Reloaded keybindings, extensions, skills, prompts, themes, and context files"];
+  const panelOpens = output.split("Models").length - 1;
+  if (![0, 130].includes(exitCode) || panelOpens < 2 || states.some((text) => !output.includes(text)) || output.includes("Failed to load extension")) { const error = new Error("pty"); error.code = "MODEL_PANEL_CANDIDATE_PTY_FAILED"; throw error; }
+  return { exitCode, offline: true, panelOpens, reload: "passed", states, status: "passed" };
 }
 
 export async function verifyIsolatedModelPanelCandidate({ evidencePath = join(root, "resources", "selective-fork-promotion-evidence.v1.json") } = {}) {

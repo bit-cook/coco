@@ -1,4 +1,10 @@
 {
+  "authorization": {
+    "isolated": true,
+    "production": false,
+    "scope": "isolated",
+    "source": "automated-evidence-gates"
+  },
   "base": {
     "package": "@earendil-works/pi-coding-agent@0.82.1",
     "sourceCommit": "b4f293684bba718d59cc1157679bcf6157b3a7f5",

@@ -19,6 +19,7 @@ test("isolated rollout requires exact remote and capability receipts", () => {
   assert.deepEqual(planModelPanelRollout(input), { extension: input.extension, owner: "coco.model-panel.v1", reason: null, scope: "isolated" });
   for (const [reason, mutate] of [
     ["MODEL_PANEL_EVIDENCE_INVALID", (value) => { value.evidence.promotionAuthorized = true; }],
+    ["MODEL_PANEL_EVIDENCE_INVALID", (value) => { value.evidence.authorization.production = true; }],
     ["MODEL_PANEL_REMOTE_RECEIPT_INVALID", (value) => { value.remoteReceipt.sha256 = "0".repeat(64); }],
     ["MODEL_PANEL_CAPABILITIES_INVALID", (value) => { value.capabilities.capabilities.pop(); }],
     ["MODEL_PANEL_CAPABILITIES_INVALID", (value) => { value.capabilities.artifact.version = "0.82.2"; }],

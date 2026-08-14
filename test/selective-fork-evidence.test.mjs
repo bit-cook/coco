@@ -31,6 +31,7 @@ test("selective fork evidence validates self-contained artifact bytes and remain
 
     for (const [code, mutate] of [
       ["SELECTIVE_FORK_PROMOTION_NOT_FAIL_CLOSED", (value) => { value.promotionAuthorized = true; }],
+      ["SELECTIVE_FORK_AUTHORIZATION_INVALID", (value) => { value.authorization.production = true; }],
       ["SELECTIVE_FORK_GATES_INVALID", (value) => { value.gates.productionRegistration = "enabled"; }],
       ["SELECTIVE_FORK_CI_EVIDENCE_INVALID", (value) => { value.evidence.cocoCi.status = "failed"; }],
       ["SELECTIVE_FORK_ISOLATED_EVIDENCE_INVALID", (value) => { value.evidence.isolatedPromotion.loader.owner = "fallback"; }],

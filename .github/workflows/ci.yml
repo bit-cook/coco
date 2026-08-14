@@ -53,7 +53,7 @@ jobs:
   verify-main:
     if: github.event_name != 'pull_request'
     runs-on: [self-hosted, Linux, X64, coco-ci]
-    timeout-minutes: 30
+    timeout-minutes: 20
     env:
       TMPDIR: /root/coco-tmp
       COCO_SCANNER_TMPDIR: /root/coco-tmp
@@ -87,4 +87,21 @@ jobs:
           name: coco-package
           path: release/
           if-no-files-found: error
+  verify-main-integrity:
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, Linux, X64, coco-upstream]
+    timeout-minutes: 20
+    env:
+      TMPDIR: /root/coco-tmp
+      COCO_SCANNER_TMPDIR: /root/coco-tmp
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - name: Select pinned self-hosted Node
+        run: |
+          node_dir="$RUNNER_TOOL_CACHE/node/22.19.0/x64/bin"
+          test -x "$node_dir/node"
+          printf '%s\n' "$node_dir" >> "$GITHUB_PATH"
+      - run: test "$(node --version)" = "v22.19.0"
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
       - run: npm run test:integrity
