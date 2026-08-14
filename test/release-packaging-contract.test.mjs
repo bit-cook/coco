@@ -144,6 +144,7 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   assert.doesNotMatch(promotionWorkflow, /actions\/setup-node/);
   assert.match(promotionWorkflow, /actions\/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4/);
   assert.match(promotionWorkflow, /verify-isolated-model-panel-candidate\.mjs/);
+  assert.match(promotionWorkflow, /verify-model-panel-rollback\.mjs/);
   assert.match(promotionWorkflow, /runs-on: \[self-hosted, Linux, X64, coco-promotion\]/);
 });
 

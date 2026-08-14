@@ -81,7 +81,7 @@
     "verify:product-identity": "node scripts/generate-product-identity.mjs --check",
     "verify:architecture": "node scripts/verify-architecture-contracts.mjs && node scripts/pi-upstream-dashboard.mjs --as-of 2026-08-12",
     "probe:upstream": "node scripts/pi-upstream-compatibility.mjs",
-    "typecheck:model-panel": "node --check scripts/pi-model-panel-capabilities.mjs && node --check scripts/model-panel-rollout.mjs && node --check scripts/model-panel-canary.mjs && node --check scripts/verify-selective-fork-evidence.mjs && node --check scripts/verify-remote-selective-fork-artifact.mjs && node --check scripts/verify-isolated-model-panel-candidate.mjs && node --check resources/coco-model-reference-resolver.mjs && node --check resources/coco-model-panel-contract.mjs && node --check resources/coco-model-panel-renderer.mjs && node --check resources/coco-model-panel-controller.mjs && node --check resources/coco-model-panel-presenter.mjs && node --check resources/coco-model-panel.mjs && node --check resources/coco-model-panel-adapter-contract.mjs",
+    "typecheck:model-panel": "node --check scripts/pi-model-panel-capabilities.mjs && node --check scripts/model-panel-rollout.mjs && node --check scripts/model-panel-canary.mjs && node --check scripts/verify-model-panel-rollback.mjs && node --check scripts/verify-selective-fork-evidence.mjs && node --check scripts/verify-remote-selective-fork-artifact.mjs && node --check scripts/verify-isolated-model-panel-candidate.mjs && node --check resources/coco-model-reference-resolver.mjs && node --check resources/coco-model-panel-contract.mjs && node --check resources/coco-model-panel-renderer.mjs && node --check resources/coco-model-panel-controller.mjs && node --check resources/coco-model-panel-presenter.mjs && node --check resources/coco-model-panel.mjs && node --check resources/coco-model-panel-adapter-contract.mjs",
     "test": "node scripts/run-tests-preserving-receipts.mjs",
     "test:core": "COCO_TEST_EXCLUDE=task-3-runtime-integrity.test.mjs node scripts/run-tests-preserving-receipts.mjs",
     "test:integrity": "COCO_TEST_FILES=test/task-3-runtime-integrity.test.mjs node scripts/run-tests-preserving-receipts.mjs",
@@ -91,6 +91,7 @@
     "verify:fork-evidence": "node scripts/verify-selective-fork-evidence.mjs",
     "verify:fork-remote": "node scripts/verify-remote-selective-fork-artifact.mjs",
     "verify:fork-isolated": "node scripts/verify-isolated-model-panel-candidate.mjs",
+    "verify:fork-rollback": "node scripts/verify-model-panel-rollback.mjs",
     "verify:tarball": "node -e \"import('./scripts/verify-package-closure.mjs').then(async ({verifyTarballClosure})=>{const result=await verifyTarballClosure({root:process.cwd(),tarball:'coco-'+require('./package.json').version+'.tgz'}); console.log(JSON.stringify(result)); process.exit(result.status==='approved'?0:1)})\"",
     "verify:secrets": "node scripts/publication-secret-scanner.mjs ."
   },
