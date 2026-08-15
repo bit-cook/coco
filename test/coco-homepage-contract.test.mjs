@@ -30,6 +30,7 @@ test("bilingual homepage keeps the install-first static site contract", async ()
     assert.match(page, /id="copy-status" class="sr-only" aria-live="polite"/);
     assert.match(page, /href="landscape\.html">[^<]+</);
     assert.match(page, /href="roadmap\.html">[^<]+</);
+    assert.match(page, /href="plan\.html">[^<]+</);
     assert.match(page, /href="https:\/\/github\.com\/bit-cook\/coco"/);
     assert.match(page, /href="styles\.css"/);
     assert.match(page, /src="app\.js" defer/);
@@ -41,7 +42,7 @@ test("bilingual homepage keeps the install-first static site contract", async ()
   assert.match(english, /<a href="zh-CN\.html" lang="zh-CN">中文</);
   assert.match(chinese, /<a href="index\.html" lang="en">EN</);
   assert.match(chinese, /<a href="zh-CN\.html" aria-current="page">中文</);
-  for (const label of ["CoCo Agent | 通用 AI 助手", "具备出色编程和终端能力的通用 AI 助手", "CoCo Agent 首页", "CoCo 安装终端", "CoCo 默认设置", "跳至安装命令", "最新战略", "旧版路线图", "旧竞品研究", "查看源码", "复制安装命令", "复制卸载命令", "显示卸载命令", "默认模型", "思考级别", "支持平台", "需要移除 CoCo？", "为终端而构建。"]) {
+  for (const label of ["CoCo Agent | 通用 AI 助手", "具备出色编程和终端能力的通用 AI 助手", "CoCo Agent 首页", "CoCo 安装终端", "CoCo 默认设置", "跳至安装命令", "当前计划", "长期战略", "旧版路线图", "旧竞品研究", "查看源码", "复制安装命令", "复制卸载命令", "显示卸载命令", "默认模型", "思考级别", "支持平台", "需要移除 CoCo？", "为终端而构建。"]) {
     assert.match(chinese, new RegExp(label));
   }
   for (const message of ["已复制", "复制失败", "请选择命令文本并手动复制。"]) assert.match(chinese, new RegExp(message));

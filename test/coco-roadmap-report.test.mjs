@@ -4,21 +4,34 @@ import test from "node:test";
 
 const root = new URL("..", import.meta.url);
 
-test("current strategy and historical research remain public, distinct, responsive, and evidence-scoped", async () => {
-  const [english, chinese, roadmap, legacy, landscape] = await Promise.all([
+test("current plan, strategy, and historical research remain public, distinct, responsive, and evidence-scoped", async () => {
+  const [english, chinese, plan, roadmap, legacy, landscape] = await Promise.all([
     readFile(new URL("site/index.html", root), "utf8"),
     readFile(new URL("site/zh-CN.html", root), "utf8"),
+    readFile(new URL("site/plan.html", root), "utf8"),
     readFile(new URL("site/roadmap.html", root), "utf8"),
     readFile(new URL("site/roadmap-legacy.html", root), "utf8"),
     readFile(new URL("site/landscape.html", root), "utf8"),
   ]);
 
-  for (const [page, links] of [[english, ["Strategy 2026", "Legacy roadmap", "Legacy research"]], [chinese, ["最新战略", "旧版路线图", "旧竞品研究"]]]) {
+  for (const [page, links] of [[english, ["Current plan", "Strategy 2026", "Legacy roadmap", "Legacy research"]], [chinese, ["当前计划", "长期战略", "旧版路线图", "旧竞品研究"]]]) {
+    assert.match(page, /href="plan\.html"/);
     assert.match(page, /href="roadmap\.html"/);
     assert.match(page, /href="roadmap-legacy\.html"/);
     assert.match(page, /href="landscape\.html"/);
     for (const label of links) assert.match(page, new RegExp(label));
   }
+
+  assert.match(plan, /rel="canonical" href="https:\/\/bit-cook\.github\.io\/coco\/plan\.html"/);
+  assert.match(plan, /CoCo v0\.5\.3/);
+  assert.match(plan, /Pi v0\.84\.2/);
+  assert.match(plan, /v0\.5\.4/);
+  for (const concept of ["Trust &amp; Truth", "Upstream Rebase", "Provider Lifecycle", "Model Panel Opt-in", "Source Ownership", "Safe Autonomy"]) assert.match(plan, new RegExp(concept));
+  assert.match(plan, /#f7fbff/i);
+  assert.match(plan, /@media\(max-width:/);
+  assert.match(plan, /prefers-reduced-motion/);
+  assert.equal(/<script\b/i.test(plan), false);
+  assert.equal(/https?:\/\/[^"']+\.(?:js|css|woff2?|png|jpe?g|gif)/i.test(plan), false);
 
   assert.match(roadmap, /rel="canonical" href="https:\/\/bit-cook\.github\.io\/coco\/roadmap\.html"/);
   assert.match(roadmap, /CoCo v0\.5\.2/);
