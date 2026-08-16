@@ -23,10 +23,11 @@ test("current plan, strategy, and historical research remain public, distinct, r
   }
 
   assert.match(plan, /rel="canonical" href="https:\/\/bit-cook\.github\.io\/coco\/plan\.html"/);
-  assert.match(plan, /CoCo v0\.5\.3/);
-  assert.match(plan, /Pi v0\.84\.2/);
-  assert.match(plan, /v0\.5\.4/);
-  for (const concept of ["Trust &amp; Truth", "Upstream Rebase", "Provider Lifecycle", "Model Panel Opt-in", "Source Ownership", "Safe Autonomy"]) assert.match(plan, new RegExp(concept));
+  assert.match(plan, /CoCo v0\.6\.1/);
+  assert.match(plan, /commit b88190b/);
+  for (const release of ["v0.6.2", "v0.7.0", "v0.8.0"]) assert.match(plan, new RegExp(release));
+  for (const concept of ["发布安全与任务恢复", "长期运行能力", "平台交付闭包", "Release Safety", "Launch Recovery", "Queue Integrity", "Termination Truth"]) assert.match(plan, new RegExp(concept));
+  for (const evidence of ["2.18s", "9.37", "37/37", "472/472", "175"]) assert.match(plan, new RegExp(evidence.replace("/", "\\/")));
   assert.match(plan, /#f7fbff/i);
   assert.match(plan, /@media\(max-width:/);
   assert.match(plan, /prefers-reduced-motion/);

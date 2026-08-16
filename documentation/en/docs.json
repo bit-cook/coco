@@ -61,6 +61,7 @@
       "title": "Development",
       "items": [
         { "title": "Development", "path": "development.md" },
+        { "title": "Engineering Review and Plan", "path": "development-review-plan.md" },
         { "title": "Migration and Recovery Journal", "path": "development-migration-journal.md" }
       ]
     }

@@ -31,6 +31,8 @@ test("bilingual homepage keeps the install-first static site contract", async ()
     assert.match(page, /href="landscape\.html">[^<]+</);
     assert.match(page, /href="roadmap\.html">[^<]+</);
     assert.match(page, /href="plan\.html">[^<]+</);
+    assert.match(page, /class="plan-link" href="plan\.html"/);
+    for (const evidence of ["0.6.1", "2.18s", "9.37s", "37\/37"]) assert.match(page, new RegExp(evidence));
     assert.match(page, /href="https:\/\/github\.com\/bit-cook\/coco"/);
     assert.match(page, /href="styles\.css"/);
     assert.match(page, /src="app\.js" defer/);
@@ -52,6 +54,7 @@ test("bilingual homepage keeps the install-first static site contract", async ()
   }
   for (const token of ["--terminal-bg", "--terminal-slate", "--terminal-text", "--terminal-border", "--terminal-success"]) assert.match(styles, new RegExp(`${token}:`));
   assert.match(styles, /\.copy-button[^}]*background: var\(--orange\); color: var\(--ink\)/);
+  for (const selector of ["release-note", "performance-grid", "engineering", "priority-list", "plan-link"]) assert.match(styles, new RegExp(`\\.${selector}`));
   assert.match(styles, /--focus-ring:[^;]*var\(--blue\)/);
   assert.match(styles, /@media \(max-width: 29rem\)/);
   assert.match(styles, /\.command-block \{ align-items: stretch; flex-direction: column; \}/);

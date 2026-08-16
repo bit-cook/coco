@@ -1611,3 +1611,74 @@ bootstrap --version warm: about 1.0 s (48% faster)
 ```
 
 Focused security evidence: CAS tamper/rebuild, noncritical metadata change/full fallback, launcher replacement, lock identity, source metadata-preserved mutation, source inode replacement, direct launcher, and runtime-store tests passed. Next action: complete integrity/core/package gates, bump to 0.6.1, regenerate assets, commit, push/tag, and publish GitHub Release. npm publication remains prohibited.
+
+## 2026-08-16: CoCo 0.6.1 Published
+
+Complete integrity/core/package gates after the startup performance batch:
+
+```text
+complete integrity: 37/37 passed
+complete core: 472/472 passed
+architecture/documentation/VSIX/performance contracts: 9/9 passed
+real npm pack contract: 2/2 passed
+package closure: approved, 175 manifests
+secret scan: clean
+full typecheck: passed
+feature typecheck: passed
+git diff --check: passed
+```
+
+Release workflow run `31962760485`: passed in 26m21s.
+
+Published assets:
+
+```text
+coco-0.6.1.tgz
+coco-0.6.1.tgz.sha256
+coco-0.6.1-offline-linux-x64.zip
+coco-0.6.1-offline-linux-x64.zip.sha256
+coco-agent-0.6.1.vsix
+coco-agent-0.6.1.vsix.sha256
+install.sh
+uninstall.sh
+SHA256SUMS
+```
+
+Release: https://github.com/bit-cook/coco/releases/tag/v0.6.1
+Workflow: https://github.com/bit-cook/coco/actions/runs/31962760485
+npm: not published (authorized without npm)
+Tag: v0.6.1 -> b88190b
+Branch: candidate/v0.6.1
+Commit: b88190b4433c292f6adeb01273d60cb284deb45a
+
+## 2026-08-16: Post-Release Review Documentation and Website
+
+The v0.6.1 committed bytes, remote branch, peeled tag, successful release workflow, and nine published assets were rechecked. npm remains unpublished. A four-track read-only review covered startup/runtime integrity, task and Control recovery, publication closure, and platform/operations.
+
+The resulting formal plan is recorded in locale-paired pages:
+
+```text
+documentation/en/docs/development-review-plan.md
+documentation/zh-CN/docs/development-review-plan.md
+```
+
+The plan orders work as:
+
+```text
+0.6.2: release safety and deterministic task recovery
+0.7.0: long-running retention and Control scalability
+0.8.0: explicit platform delivery closure
+```
+
+Both documentation navigation files link the new review. The public homepage now reports the measured v0.6.1 startup improvement and current engineering priorities. `site/plan.html` was replaced because it still described the obsolete v0.5.3/v0.5.4 route and an invalid 187 ms startup claim; it now presents the v0.6.1 baseline, v0.6.2 immediate batches, later milestones, and explicit exit gates. Homepage review links are local `plan.html` links rather than branch URLs that could 404 before a repository push.
+
+Focused evidence:
+
+```text
+documentation/homepage/current-plan contracts: 3/3 passed
+publication scanner: clean
+git diff --check: passed
+stale v0.5.3/v0.5.4/187ms/current-branch review links in site: none
+```
+
+Documentation is governed package content, so generated package/integrity assets are stale after this edit. Next action: build once, rerun focused documentation/package checks, commit and push the documentation/site update, then dispatch and verify GitHub Pages. No new release or npm publication is authorized or required.
