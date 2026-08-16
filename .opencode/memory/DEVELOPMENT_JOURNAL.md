@@ -1705,3 +1705,25 @@ Cache-busted public reads verified all three deployed pages:
 - `plan.html` contains the b88190b baseline, v0.6.2/v0.7.0/v0.8.0 route, four immediate batches, and ten explicit v0.6.2 exit criteria.
 
 No tag, release, npm publication, or release asset was changed by this documentation deployment.
+
+## 2026-08-16: Homepage Ready-to-Use Model Message
+
+The user requested that the homepage stop naming `agnes/agnes-2.5-flash` and clearly state that CoCo opens ready to use without model configuration.
+
+Changes:
+
+- English homepage now says a ready-to-use model is selected automatically and no model setup is required before the first conversation.
+- Chinese homepage now says “打开 CoCo 就能直接使用” and “第一次对话前不需要配置模型”.
+- The specification rows now show model setup as unnecessary and first run as immediately ready.
+- Homepage contracts reject the concrete Agnes model ID and require the localized no-configuration message.
+
+Evidence:
+
+```text
+homepage/current-plan contracts: 2/2 passed
+publication scanner: clean
+git diff --check: passed
+stale default-model/provider wording in homepage: none
+```
+
+Only site HTML, its contract test, and this live journal changed. These paths do not require runtime manifest regeneration. Next action: commit, push, deploy Pages from the verified branch, restore the environment branch policy, and verify live localized content.
