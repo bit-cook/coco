@@ -11,7 +11,7 @@ jobs:
   release:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 75
     permissions:
       contents: write
     steps:

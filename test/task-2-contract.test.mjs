@@ -95,6 +95,41 @@ test("Given a selector replaced during a snapshot, when materialization reaches 
   }
 });
 
+test("Given staging is tampered with while the source is changed and restored, when snapshotting reaches its copy barrier, then it rejects without replacing destinations", async () => {
+  const fixture = await mkdtemp(join(tmpdir(), "coco-package-staging-race-"));
+  try {
+    const globalRoot = join(fixture, "global");
+    const root = join(fixture, "coco");
+    await mkdir(globalRoot);
+    await mkdir(root);
+    for (const name of ["dist", "docs", "examples"]) {
+      await mkdir(join(globalRoot, name));
+      await writeFile(join(globalRoot, name, "asset.txt"), `${name}\n`);
+      await symlink(join(globalRoot, name), join(root, name));
+    }
+    await writeFile(join(globalRoot, "CHANGELOG.md"), "changes\n");
+    await symlink(join(globalRoot, "CHANGELOG.md"), join(root, "CHANGELOG.md"));
+    const result = await snapshotPackageInputs({
+      globalRoot,
+      root,
+      onCheckpoint: async (checkpoint) => {
+        if (checkpoint !== "after-copy:examples") return;
+        const stageName = (await (await import("node:fs/promises")).readdir(root)).find((name) => name.startsWith(".package-inputs-"));
+        assert.ok(stageName);
+        await writeFile(join(root, stageName, "examples", "asset.txt"), "tampered\n");
+        await writeFile(join(globalRoot, "examples", "asset.txt"), "changed\n");
+        await writeFile(join(globalRoot, "examples", "asset.txt"), "examples\n");
+      },
+    });
+    assert.equal(result.code, "PACKAGE_INPUT_RACE");
+    for (const name of ["dist", "docs", "examples", "CHANGELOG.md"]) {
+      assert.equal((await lstat(join(root, name))).isSymbolicLink(), true);
+    }
+  } finally {
+    await rm(fixture, { force: true, recursive: true });
+  }
+});
+
 test("Given a source tree containing an internal symlink, when snapshotted, then it rejects without mutation", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-package-tree-invalid-"));
   try {

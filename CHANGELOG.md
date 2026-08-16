@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.0] - 2026-08-16
+
+### Added
+
+- Added persistent content-addressed verified runtime roots for detached runner and Control lifecycles.
+- Added durable supervisor authorization, outcomes, bounded capture, worktree provisioning recovery, and transactional webhook idempotency.
+- Added authenticated task summary/detail APIs for the Dashboard and VS Code client.
+
+### Security
+
+- Hardened runtime snapshot reuse, process identity locks, terminal evidence, log seals, package closure, bundled dependency scanning, and bounded nested archive verification.
+- Added fail-closed storage budgets, CAS recovery, cancellation arbitration, and capture-write failure evidence.
+
+### Fixed
+
+- Prevented stale runtime roots, provisioning conflicts, duplicate webhook deliveries, terminal cancellation rewrites, and background process termination errors.
+
 ## [0.3.0] - 2026-08-11
 
 ### Added

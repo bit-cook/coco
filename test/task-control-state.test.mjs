@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -8,7 +8,8 @@ import test from "node:test";
 import { createTaskRunner, getRunnerStatus } from "../scripts/task-runner.mjs";
 import { createTaskEventStore } from "../scripts/task-events.mjs";
 import { createTaskReceiptStore } from "../scripts/task-receipts.mjs";
-import { processAlive } from "../scripts/task-process.mjs";
+import { createTaskRunSupervisorStore } from "../scripts/task-run-supervisor.mjs";
+import { processAlive, processIdentity, terminateProcessTree } from "../scripts/task-process.mjs";
 import { statePaths } from "../scripts/state-paths.mjs";
 import { createTaskStore, emptyTaskState, selectRunnableTask, validTaskState } from "../scripts/task-state.mjs";
 
@@ -115,6 +116,98 @@ test("runner records failed terminal outcomes without persisting task content", 
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });
 
+test("started-run exceptions still produce sealed failed evidence", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-started-failure-"));
+  const store = createTaskStore({ agentDir }); const runId = "018f47a0-7b20-7cc5-8a33-050505050505";
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "started failure", worktree: false });
+    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { throw new Error("STARTED_EXECUTION_FAILED"); }, uuid: () => runId }).run({ once: true });
+    const failed = (await store.load()).tasks[0]; assert.equal(failed.status, "failed"); assert.equal(failed.lastError, "STARTED_EXECUTION_FAILED");
+    const receipt = await createTaskReceiptStore({ agentDir }).read({ taskId: task.id, runId }); assert.equal(receipt.verdict, "failed");
+    assert.deepEqual((await createTaskEventStore({ agentDir }).read({ taskId: task.id, runId })).map(({ type }) => type), ["run.started", "run.heartbeat", "run.finished"]);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("terminal evidence truncates multi-byte result and error at schema byte limits", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-terminal-bounds-"));
+  const store = createTaskStore({ agentDir }); const runId = "018f47a0-7b20-7cc5-8a33-060606060606";
+  try {
+    await store.create({ cwd: process.cwd(), prompt: "bounded terminal evidence", worktree: false });
+    const output = `${JSON.stringify({ type: "message_end", message: { role: "assistant", content: [{ type: "text", text: "汉".repeat(400_000) }] } })}\n`;
+    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => ({ code: 1, error: "错".repeat(10_000), output }), uuid: () => runId }).run({ once: true });
+    const failed = (await store.load()).tasks[0]; assert.equal(failed.status, "failed"); assert.ok(Buffer.byteLength(failed.result) <= 1_000_000); assert.ok(Buffer.byteLength(failed.lastError) <= 10_000);
+    assert.doesNotThrow(() => new TextDecoder("utf-8", { fatal: true }).decode(Buffer.from(failed.result))); assert.doesNotThrow(() => new TextDecoder("utf-8", { fatal: true }).decode(Buffer.from(failed.lastError)));
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("runner restart completes persisted terminal evidence without re-executing the task", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-terminal-evidence-"));
+  const store = createTaskStore({ agentDir });
+  const runId = "018f47a0-7b20-7cc5-8a33-bdbdbdbdbdbd";
+  let executions = 0;
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "terminal evidence recovery", worktree: false });
+    const failingReceipts = { write: async () => { throw new Error("receipt unavailable"); } };
+    const first = createTaskRunner({ agentDir, receiptStore: failingReceipts, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { executions += 1; return { code: 0, output: "" }; }, uuid: () => runId });
+    await assert.rejects(first.run({ once: true }), /receipt unavailable/);
+    const retained = (await store.load()).tasks[0];
+    assert.equal(retained.status, "running"); assert.equal(retained.activeRunId, runId); assert.equal(retained.terminalEvidence.status, "completed");
+    const second = createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { executions += 1; return { code: 1, output: "must not run" }; } });
+    await second.run({ once: true });
+    const completed = (await store.load()).tasks[0];
+    assert.equal(executions, 1); assert.equal(completed.status, "completed"); assert.equal(completed.terminalEvidence, null); assert.equal(completed.activeRunId, null);
+    assert.equal((await createTaskReceiptStore({ agentDir }).read({ taskId: task.id, runId })).verdict, "passed");
+    assert.deepEqual((await createTaskEventStore({ agentDir }).read({ taskId: task.id, runId })).filter(({ type }) => type === "run.finished").map(({ outcome }) => outcome), ["completed"]);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("runner restart consumes a durable supervisor outcome without re-executing", { timeout: 10_000 }, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-supervisor-outcome-"));
+  const store = createTaskStore({ agentDir }); const supervisors = createTaskRunSupervisorStore({ agentDir }); const events = createTaskEventStore({ agentDir });
+  const runId = "018f47a0-7b20-7cc5-8a33-020202020202"; let executions = 0; let holder;
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "durable supervisor recovery", worktree: false });
+    const startedAt = new Date(Date.now() - 1000).toISOString();
+    await store.update((state) => { const target = state.tasks[0]; target.status = "running"; target.activeRunId = runId; target.startedAt = startedAt; target.updatedAt = startedAt; return state; });
+    await events.append({ at: startedAt, eventId: "018f47a0-7b20-7cc5-8a33-030303030303", runId, taskId: task.id, type: "run.started" });
+    const prepared = await supervisors.prepare({ cwd: process.cwd(), prompt: task.prompt, runId, taskId: task.id });
+    holder = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { detached: process.platform !== "win32", stdio: "ignore" }); holder.unref();
+    const identity = await processIdentity(holder.pid); await supervisors.register({ pid: holder.pid, processIdentity: identity, runId, taskId: task.id });
+    await supervisors.authorize({ runId, specSha256: prepared.specSha256, taskId: task.id });
+    await writeFile(prepared.paths.stdout, '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"recovered"}]}}\n', { mode: 0o600 });
+    await supervisors.writeOutcome({ endedAt: new Date().toISOString(), exitCode: 0, runId, specSha256: prepared.specSha256, startedAt, taskId: task.id });
+    await terminateProcessTree(holder.pid, { graceMs: 50, identity });
+    try { process.kill(-holder.pid, "SIGKILL"); } catch {} holder = null;
+    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { executions += 1; return { code: 1, output: "must not execute" }; } }).run({ once: true });
+    const completed = (await store.load()).tasks[0]; assert.equal(executions, 0); assert.equal(completed.status, "completed"); assert.equal(completed.result, "recovered");
+    assert.equal((await createTaskReceiptStore({ agentDir }).read({ taskId: task.id, runId })).verdict, "passed");
+  } finally {
+    if (holder?.pid) { const identity = await processIdentity(holder.pid); if (identity) await terminateProcessTree(holder.pid, { graceMs: 50, identity }); try { process.kill(-holder.pid, "SIGKILL"); } catch {} }
+    await rm(agentDir, { recursive: true, force: true });
+  }
+});
+
+test("runner restart never requeues an authorized run with no durable outcome", { timeout: 10_000 }, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-supervisor-indoubt-"));
+  const store = createTaskStore({ agentDir }); const supervisors = createTaskRunSupervisorStore({ agentDir });
+  const runId = "018f47a0-7b20-7cc5-8a33-040404040404"; let executions = 0; let holder;
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "in doubt supervisor", worktree: false });
+    const startedAt = new Date().toISOString();
+    await store.update((state) => { const target = state.tasks[0]; target.status = "running"; target.activeRunId = runId; target.startedAt = startedAt; target.updatedAt = startedAt; return state; });
+    const prepared = await supervisors.prepare({ cwd: process.cwd(), prompt: task.prompt, runId, taskId: task.id });
+    holder = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { detached: process.platform !== "win32", stdio: "ignore" }); holder.unref();
+    const identity = await processIdentity(holder.pid); await supervisors.register({ pid: holder.pid, processIdentity: identity, runId, taskId: task.id }); await supervisors.authorize({ runId, specSha256: prepared.specSha256, taskId: task.id });
+    await terminateProcessTree(holder.pid, { graceMs: 50, identity });
+    try { process.kill(-holder.pid, "SIGKILL"); } catch {} holder = null;
+    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { executions += 1; return { code: 0, output: "must not execute" }; } }).run({ once: true });
+    const retained = (await store.load()).tasks[0]; assert.equal(executions, 0); assert.equal(retained.status, "running"); assert.equal(retained.activeRunId, runId); assert.equal(retained.lastError, "EXECUTION_OUTCOME_IN_DOUBT");
+  } finally {
+    if (holder?.pid) { const identity = await processIdentity(holder.pid); if (identity) await terminateProcessTree(holder.pid, { graceMs: 50, identity }); try { process.kill(-holder.pid, "SIGKILL"); } catch {} }
+    await rm(agentDir, { recursive: true, force: true });
+  }
+});
+
 test("runner restart replays a terminal outbox intent idempotently", async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-task-event-replay-"));
   const store = createTaskStore({ agentDir });
@@ -198,6 +291,17 @@ test("scheduled attempts clear their run ID before requeueing and allocate a new
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });
 
+test("scheduled attempt cap becomes a durable failure without crashing the runner", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-attempt-cap-")); const store = createTaskStore({ agentDir });
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "attempt cap", schedule: { intervalMs: 60000, nextRunAt: new Date(0).toISOString() }, trigger: "schedule", worktree: false });
+    await store.update((state) => { state.tasks[0].attempts = 1000; return state; });
+    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { throw new Error("must not execute"); } }).run({ once: true });
+    const failed = (await store.load()).tasks.find(({ id }) => id === task.id);
+    assert.equal(failed.status, "failed"); assert.equal(failed.lastError, "TASK_ATTEMPT_LIMIT_REACHED"); assert.equal(failed.schedule, null); assert.equal(failed.attempts, 1000);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
 test("runner restart recovery clears an interrupted run ID before requeueing", async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-task-recovered-run-id-"));
   const store = createTaskStore({ agentDir });
@@ -256,8 +360,111 @@ test("runner rejects unsafe heartbeat intervals", () => {
   assert.throws(() => createTaskRunner({ agentDir: process.cwd(), heartbeatIntervalMs: Number.NaN, root: process.cwd() }), /TASK_HEARTBEAT_INTERVAL_INVALID/);
 });
 
+test("runner applies backpressure without dropping high-volume child output", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-output-backpressure-"));
+  const store = createTaskStore({ agentDir }); const persisted = [];
+  const runId = "018f47a0-7b20-7cc5-8a33-abababababab";
+  try {
+    await store.create({ cwd: process.cwd(), prompt: "high output", worktree: false });
+    const expected = "🎉汉字".repeat(100_000);
+    const spawnChild = () => spawn(process.execPath, ["-e", "process.stdout.write('🎉汉字'.repeat(100000))"], { stdio: ["ignore", "pipe", "pipe"] });
+    const logStore = { append: async ({ data, stream }) => { await new Promise((done) => setTimeout(done, 2)); persisted.push({ data, stream }); }, seal: async () => ({ bytes: Buffer.byteLength(expected), latestAt: null, records: persisted.length, ref: `task-logs/${(await store.load()).tasks[0].id}/${runId}.jsonl`, sha256: "0".repeat(64) }) };
+    const receiptStore = { write: async () => ({}) };
+    await createTaskRunner({ agentDir, logStore, receiptStore, root: new URL("..", import.meta.url).pathname, spawnChild, uuid: () => runId }).run({ once: true });
+    assert.equal((await store.load()).tasks[0].status, "completed");
+    assert.equal(persisted.every(({ stream }) => stream === "stdout"), true);
+    assert.equal(persisted.map(({ data }) => data).join(""), expected); assert.ok(persisted.length > 64);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("runner fails observably when child output cannot be persisted", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-output-failure-"));
+  const store = createTaskStore({ agentDir }); const runId = "018f47a0-7b20-7cc5-8a33-cdcdcdcdcdcd";
+  try {
+    await store.create({ cwd: process.cwd(), prompt: "failed logging", worktree: false });
+    const spawnChild = () => spawn(process.execPath, ["-e", "process.stdout.write('output')"], { stdio: ["ignore", "pipe", "pipe"] });
+    const logStore = { append: async () => { throw new Error("disk unavailable"); }, seal: async () => ({ bytes: 0, latestAt: null, records: 0, ref: `task-logs/${(await store.load()).tasks[0].id}/${runId}.jsonl`, sha256: "0".repeat(64) }) };
+    await createTaskRunner({ agentDir, logStore, receiptStore: { write: async () => ({}) }, root: new URL("..", import.meta.url).pathname, spawnChild, uuid: () => runId }).run({ once: true });
+    const failed = (await store.load()).tasks[0]; assert.equal(failed.status, "failed"); assert.match(failed.lastError, /TASK_LOG_WRITE_FAILED/);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("runner preserves child success when bounded log storage is saturated", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-output-saturated-"));
+  const store = createTaskStore({ agentDir }); const runId = "018f47a0-7b20-7cc5-8a33-efefefefefef"; let appends = 0;
+  try {
+    await store.create({ cwd: process.cwd(), prompt: "bounded logging", worktree: false });
+    const spawnChild = () => spawn(process.execPath, ["-e", "process.stdout.write('x'.repeat(30000))"], { stdio: ["ignore", "pipe", "pipe"] });
+    const logStore = { append: async () => { appends += 1; const error = new Error("TASK_LOG_LIMIT_EXCEEDED"); error.code = "TASK_LOG_LIMIT_EXCEEDED"; throw error; }, seal: async () => ({ bytes: 0, latestAt: null, records: 0, ref: `task-logs/${(await store.load()).tasks[0].id}/${runId}.jsonl`, sha256: "0".repeat(64) }) };
+    await createTaskRunner({ agentDir, logStore, receiptStore: { write: async () => ({}) }, root: new URL("..", import.meta.url).pathname, spawnChild, uuid: () => runId }).run({ once: true });
+    const completed = (await store.load()).tasks[0]; assert.equal(completed.status, "completed"); assert.equal(completed.lastError, null); assert.equal(completed.logsTruncated, true); assert.equal(appends, 1);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("supervised capture write failure publishes failed truncated evidence without re-execution", { timeout: 30_000 }, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-supervised-capture-failure-"));
+  const store = createTaskStore({ agentDir }); const runId = "018f47a0-7b20-7cc5-8a33-f1f1f1f1f1f1"; let injected = false, executions = 0;
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "--version", worktree: false });
+    const captureFileOpen = async (path, flags, mode) => {
+      const handle = await open(path, flags, mode);
+      return {
+        close: () => handle.close(),
+        sync: () => handle.sync(),
+        write: async (bytes) => {
+          if (!injected) { injected = true; const error = new Error("disk full"); error.code = "ENOSPC"; throw error; }
+          return handle.write(bytes);
+        },
+      };
+    };
+    await createTaskRunner({ agentDir, captureFileOpen, root: new URL("..", import.meta.url).pathname, uuid: () => runId }).run({ once: true });
+    const failed = (await store.load()).tasks[0];
+    assert.equal(injected, true); assert.equal(failed.status, "failed"); assert.equal(failed.logsTruncated, true); assert.match(failed.lastError, /TASK_LOG_CAPTURE_WRITE_FAILED: disk full/);
+    const receipt = await createTaskReceiptStore({ agentDir }).read({ taskId: task.id, runId }); assert.equal(receipt.verdict, "failed");
+    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { executions += 1; return { code: 0, output: "must not run" }; } }).run({ once: true });
+    assert.equal(executions, 0); assert.equal((await store.load()).tasks[0].status, "failed");
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("supervised capture close failure cannot publish a passed receipt", { timeout: 30_000 }, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-supervised-close-failure-"));
+  const store = createTaskStore({ agentDir }); const runId = "018f47a0-7b20-7cc5-8a33-f2f2f2f2f2f2"; let injected = false;
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "--version", worktree: false });
+    const captureFileOpen = async (path, flags, mode) => {
+      const handle = await open(path, flags, mode);
+      return {
+        close: async () => { await handle.close(); if (!injected) { injected = true; throw new Error("close failed"); } },
+        sync: () => handle.sync(),
+        write: (bytes) => handle.write(bytes),
+      };
+    };
+    await createTaskRunner({ agentDir, captureFileOpen, root: new URL("..", import.meta.url).pathname, uuid: () => runId }).run({ once: true });
+    const failed = (await store.load()).tasks[0];
+    assert.equal(injected, true); assert.equal(failed.status, "failed"); assert.equal(failed.logsTruncated, true); assert.match(failed.lastError, /TASK_LOG_CAPTURE_WRITE_FAILED: close failed/);
+    const receipt = await createTaskReceiptStore({ agentDir }).read({ taskId: task.id, runId }); assert.equal(receipt.verdict, "failed");
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
 test("empty task states have no runnable work", () => {
   assert.equal(selectRunnableTask(emptyTaskState()), null);
+});
+
+test("blocked tasks do not prevent selection of following queued work", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-blocked-selection-"));
+  const store = createTaskStore({ agentDir });
+  try {
+    const first = await store.create({ cwd: process.cwd(), prompt: "blocked", worktree: true });
+    const second = await store.create({ cwd: process.cwd(), prompt: "runnable", worktree: false });
+    await store.update((state) => {
+      const task = state.tasks.find(({ id }) => id === first.id);
+      task.status = "blocked"; task.lastError = "WORKTREE_CONFLICT";
+      return state;
+    });
+    const state = await store.load();
+    assert.equal(validTaskState(state), true);
+    assert.equal(selectRunnableTask(state).id, second.id);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
 });
 
 test("task state rejects outbox events associated with a different run", async () => {

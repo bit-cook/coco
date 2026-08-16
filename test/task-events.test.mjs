@@ -31,11 +31,25 @@ test("TaskEvent pagination and lifecycle checks fail closed", async () => {
   try {
     const store = createTaskEventStore({ agentDir, enforceLifecycle: true });
     await assert.rejects(store.append({ eventId: randomUUID(), runId, taskId, type: "run.heartbeat" }), /TASK_EVENT_LIFECYCLE_INVALID/);
+    await assert.rejects(store.append({ eventId: randomUUID(), outcome: "completed", runId, taskId, type: "run.finished" }), /TASK_EVENT_LIFECYCLE_INVALID/);
     await store.append({ eventId: randomUUID(), runId, taskId, type: "run.started" });
+    await assert.rejects(store.append({ eventId: randomUUID(), runId, taskId, type: "run.started" }), /TASK_EVENT_LIFECYCLE_INVALID/);
     await store.append({ eventId: randomUUID(), runId, taskId, type: "run.heartbeat" });
     const page = await store.readPage({ cursor: 1, limit: 1, runId, taskId });
     assert.deepEqual(page.events.map(({ seq }) => seq), [2]); assert.equal(page.hasMore, false);
     await store.append({ eventId: randomUUID(), outcome: "completed", runId, taskId, type: "run.finished" });
     await assert.rejects(store.append({ eventId: randomUUID(), runId, taskId, type: "run.heartbeat" }), /TASK_EVENT_LIFECYCLE_INVALID/);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("telemetry saturation preserves capacity for a terminal event", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-event-reserve-")); const runId = randomUUID();
+  try {
+    const store = createTaskEventStore({ agentDir, enforceLifecycle: true, maxEvents: 4 });
+    await store.append({ eventId: randomUUID(), runId, taskId, type: "run.started" });
+    await store.append({ eventId: randomUUID(), runId, taskId, type: "run.heartbeat" });
+    await assert.rejects(store.append({ eventId: randomUUID(), runId, taskId, type: "run.heartbeat" }), /TASK_EVENT_TELEMETRY_LIMIT_EXCEEDED/);
+    const terminal = await store.append({ eventId: randomUUID(), outcome: "completed", runId, taskId, type: "run.finished" });
+    assert.equal(terminal.type, "run.finished"); assert.equal(terminal.seq, 3);
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });

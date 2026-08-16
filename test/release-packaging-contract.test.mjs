@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import test from "node:test";
 
 import { packageNpmCli } from "./package-npm-cli.mjs";
+import { verifyTarballClosure } from "../scripts/verify-package-closure.mjs";
 
 const exec = promisify(execFile);
 const root = new URL("..", import.meta.url).pathname;
@@ -42,6 +43,8 @@ test("Given the public package contract, when CoCo is packed, then only release-
     const npmCli = await packageNpmCli(root);
     const { stdout } = await exec(process.execPath, [npmCli, "pack", "--json", "--pack-destination", output], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
     const [{ filename }] = JSON.parse(stdout);
+    const closure = await verifyTarballClosure({ root, tarball: join(output, filename) });
+    assert.equal(closure.status, "approved");
     const { stdout: members } = await exec("tar", ["-tzf", join(output, filename)], { maxBuffer: 64 * 1024 * 1024 });
     const paths = members.split("\n").filter(Boolean);
 
@@ -91,6 +94,22 @@ test("Given the public package contract, when CoCo is packed, then only release-
   }
 });
 
+test("Given a tarball with a directory outside npm's source inventory, when closure is verified, then it is rejected", async () => {
+  const output = await mkdtemp(join(tmpdir(), "coco-release-extra-directory-"));
+  try {
+    const npmCli = await packageNpmCli(root);
+    const { stdout } = await exec(process.execPath, [npmCli, "pack", "--json", "--pack-destination", output], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
+    const [{ filename }] = JSON.parse(stdout);
+    const extracted = join(output, "source");
+    await mkdir(extracted);
+    await exec("tar", ["-xzf", join(output, filename), "-C", extracted]);
+    await mkdir(join(extracted, "package", "not-in-npm-inventory"));
+    const malicious = join(output, "malicious.tgz");
+    await exec("tar", ["-czf", malicious, "package"], { cwd: extracted });
+    assert.equal((await verifyTarballClosure({ root, tarball: malicious })).code, "PACKAGE_TARBALL_INVENTORY_MISMATCH");
+  } finally { await rm(output, { force: true, recursive: true }); }
+});
+
 test("Given release workflows, when package sidecars are generated, then GNU checksums name only the tarball", async () => {
   for (const workflowName of ["ci.yml", "release.yml"]) {
     const workflow = await readFile(join(root, ".github", "workflows", workflowName), "utf8");
@@ -135,14 +154,15 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   assert.equal((ciWorkflow.match(/runs-on: \[self-hosted, Linux, X64, coco-ci\]/g) ?? []).length, 1);
   assert.equal((ciWorkflow.match(/runs-on: ubuntu-24\.04/g) ?? []).length, 1);
   assert.doesNotMatch(ciWorkflow, /needs: verify/);
-  assert.match(ciWorkflow, /verify-main:[\s\S]*?timeout-minutes: 20/);
+  assert.match(ciWorkflow, /verify-main:[\s\S]*?timeout-minutes: 45/);
   assert.match(ciWorkflow, /verify-main:[\s\S]*?\$RUNNER_TOOL_CACHE\/node\/22\.19\.0\/x64\/bin[\s\S]*?test "\$\(node --version\)" = "v22\.19\.0"/);
   assert.match(ciWorkflow, /verify-main:[\s\S]*?npm run test:core/);
   assert.match(ciWorkflow, /verify-main-integrity:[\s\S]*?runs-on: \[self-hosted, Linux, X64, coco-upstream\][\s\S]*?npm ci --ignore-scripts --no-audit --no-fund[\s\S]*?npm run build[\s\S]*?npm run test:integrity/);
   assert.equal((ciWorkflow.match(/npm run test:integrity/g) ?? []).length, 1);
-  assert.match(ciWorkflow, /verify-pr:[\s\S]*?timeout-minutes: 20/);
+  assert.match(ciWorkflow, /verify-pr:[\s\S]*?timeout-minutes: 45/);
   assert.match(pagesWorkflow, /timeout-minutes: 20/);
-  assert.match(releaseWorkflow, /timeout-minutes: 40/);
+  assert.match(releaseWorkflow, /timeout-minutes: 75/);
+  assert.match(ciWorkflow, /verify-main-integrity:[\s\S]*?timeout-minutes: 30/);
   for (const workflow of [ciWorkflow, releaseWorkflow, pagesWorkflow, promotionWorkflow]) assert.match(workflow, /actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09/);
   for (const workflow of [ciWorkflow, releaseWorkflow]) assert.match(workflow, /actions\/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38/);
   assert.match(ciWorkflow, /actions\/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4/);
@@ -178,8 +198,8 @@ test("Given release workflows, when tarball closure runs through the shell, then
   }
 });
 
-test("Given the v0.5.3 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
-  const version = "0.5.3";
+test("Given the v0.6.0 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
+  const version = "0.6.0";
   const [packageJson, packageLock, installer, readme, englishReadme, chineseReadme, ciWorkflow, releaseWorkflow] = await Promise.all([
     readFile(join(root, "package.json"), "utf8"),
     readFile(join(root, "package-lock.json"), "utf8"),

@@ -27,8 +27,10 @@ export function statePaths(agentDir) {
     taskExecutionBindings: join(root, "task-execution-bindings"),
     taskLogs: join(root, "task-logs"),
     taskReceipts: join(root, "task-receipts"),
+    taskRuns: join(root, "task-runs"),
     tasks: join(root, "tasks.json"),
     worktrees: join(root, "worktrees"),
+    webhookDeliveries: join(root, "webhook-deliveries.json"),
   });
 }
 

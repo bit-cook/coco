@@ -3,7 +3,10 @@ import { join } from "node:path";
 import test from "node:test";
 
 import cocoGoal from "../resources/coco-goal.mjs";
+import { createLanguageService } from "../resources/coco-language.mjs";
 import { dispatchCoco } from "../scripts/coco-dispatcher.mjs";
+
+globalThis[Symbol.for("coco.language.service")] = createLanguageService({ agentDir: join(new URL(".", import.meta.url).pathname, ".nonexistent-language-state") });
 
 function createHarness({ entries = [], hasUI = true } = {}) {
   const commands = new Map();

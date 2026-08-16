@@ -5,6 +5,7 @@ import { canonicalJson } from "./canonical-json.mjs";
 import { StateError, parseStrictJson } from "./state-schema.mjs";
 import { ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { applyStateTransaction } from "./state-transaction.mjs";
+import { createTaskLogStore } from "./task-logs.mjs";
 
 const ID = /^[a-z0-9_-]{12}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -49,13 +50,14 @@ async function ensureDirectory(root, taskId) {
 
 export function createTaskReceiptStore({ agentDir } = {}) {
   const directory = resolve(agentDir), root = statePaths(directory).taskReceipts;
+  const logs = createTaskLogStore({ agentDir: directory });
   let queue = Promise.resolve();
   const serialized = (operation) => { const result = queue.then(operation, operation); queue = result.catch(() => {}); return result; };
 
   async function read({ taskId, runId }) {
     return serialized(async () => {
-      await ensureAgentDirectory(directory); await ensureDirectory(root, taskId);
       const path = receiptPath(root, taskId, runId);
+      await ensureAgentDirectory(directory); await ensureDirectory(root, taskId);
       if (await inspectRegular(path) === null) return null;
       let receipt;
       try { receipt = parseStrictJson(await readFile(path, "utf8"), "TASK_RECEIPT_CORRUPT"); } catch (error) { if (error instanceof StateError) throw error; fail("TASK_RECEIPT_CORRUPT"); }
@@ -68,6 +70,8 @@ export function createTaskReceiptStore({ agentDir } = {}) {
     return serialized(async () => {
       const receipt = { command: "coco --mode json --no-approve <task-prompt>", endedAt: input?.endedAt, executor: "coco.task-runner", exitCode: input?.exitCode, log: input?.log ?? null, runId: input?.runId?.toLowerCase(), schemaVersion: 1, startedAt: input?.startedAt, taskId: input?.taskId, verdict: input?.exitCode === 0 ? "passed" : "failed" };
       if (!validReceipt(receipt)) fail("TASK_RECEIPT_INVALID");
+      const sealed = await logs.seal({ taskId: receipt.taskId, runId: receipt.runId });
+      if (receipt.log === null || receipt.log.bytes !== sealed.bytes || receipt.log.records !== sealed.records || receipt.log.ref !== sealed.ref || receipt.log.sha256 !== sealed.sha256) fail("TASK_RECEIPT_LOG_SEAL_MISMATCH");
       await ensureAgentDirectory(directory); await ensureDirectory(root, receipt.taskId);
       const path = receiptPath(root, receipt.taskId, receipt.runId);
       await applyStateTransaction({ agentDir: directory, operations: async () => {

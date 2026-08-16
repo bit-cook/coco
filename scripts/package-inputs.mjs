@@ -14,6 +14,7 @@ export async function snapshotPackageInputs({ globalRoot, onCheckpoint, root }) 
     const requestId = randomUUID();
     let buffer = "";
     let settled = false;
+    let checkpointPending = false;
     const finish = (result) => { if (!settled) { settled = true; resolve(result); } };
     const fail = () => finish(rejected("PACKAGE_INPUT_INVALID"));
     process.once("error", fail);
@@ -28,10 +29,12 @@ export async function snapshotPackageInputs({ globalRoot, onCheckpoint, root }) 
         let message;
         try { message = JSON.parse(line); } catch { process.kill(); fail(); return; }
         if (message.kind === "checkpoint" && message.id === requestId && typeof message.name === "string") {
-          Promise.resolve(onCheckpoint?.(message.name)).then(
-            () => process.stdin.write(canonical({ id: requestId, kind: "continue" }), (error) => { if (error) fail(); }),
-            () => { process.kill(); fail(); },
-          );
+          if (checkpointPending) { process.kill(); fail(); return; }
+          checkpointPending = true;
+          Promise.resolve(onCheckpoint?.(message.name)).then(() => {
+            if (settled || process.stdin.destroyed) return;
+            process.stdin.write(canonical({ id: requestId, kind: "continue" }), (error) => { if (error) fail(); });
+          }, () => { process.kill(); fail(); }).finally(() => { checkpointPending = false; });
         } else if (message.kind === "result" && message.id === requestId && typeof message.result === "object" && message.result !== null) {
           finish(message.result);
         } else { process.kill(); fail(); }

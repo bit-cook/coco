@@ -12,6 +12,7 @@ const TYPES = new Set(["run.started", "run.heartbeat", "run.output", "run.diagno
 const ACTORS = new Set(["runner"]);
 const OUTCOMES = new Set([null, "completed", "failed", "abandoned"]);
 const MAX_EVENT_BYTES = 16 * 1024, MAX_EVENTS = 4096, MAX_STREAM_BYTES = 4 * 1024 * 1024;
+const TERMINAL_RESERVE_EVENTS = 2, TERMINAL_RESERVE_BYTES = 2 * MAX_EVENT_BYTES;
 const INPUT_KEYS = new Set(["actor", "at", "eventId", "outcome", "runId", "taskId", "type"]);
 
 function fail(code) { throw new StateError(code); }
@@ -84,7 +85,8 @@ function eventInput(input) {
   return event;
 }
 
-export function createTaskEventStore({ agentDir, enforceLifecycle = false, now = () => new Date() } = {}) {
+export function createTaskEventStore({ agentDir, enforceLifecycle = false, maxEvents = MAX_EVENTS, now = () => new Date() } = {}) {
+  if (!Number.isSafeInteger(maxEvents) || maxEvents < TERMINAL_RESERVE_EVENTS + 1 || maxEvents > MAX_EVENTS) fail("TASK_EVENT_CONFIGURATION_INVALID");
   const directory = resolve(agentDir), root = statePaths(directory).taskEvents; let queue = Promise.resolve();
   const serialized = (operation) => { const result = queue.then(operation, operation); queue = result.catch(() => {}); return result; };
   async function recoverAndRead(path, identity) {
@@ -110,9 +112,17 @@ export function createTaskEventStore({ agentDir, enforceLifecycle = false, now =
             }
             const last = stream.events.at(-1);
             if (enforceLifecycle && last && ["run.finished", "run.abandoned"].includes(last.type)) fail("TASK_EVENT_LIFECYCLE_INVALID");
-            if (enforceLifecycle && base.type === "run.heartbeat" && (!last || !stream.events.some((event) => event.type === "run.started"))) fail("TASK_EVENT_LIFECYCLE_INVALID");
+            if (enforceLifecycle) {
+              const started = stream.events.filter((event) => event.type === "run.started").length;
+              if (base.type === "run.started" && stream.events.length !== 0) fail("TASK_EVENT_LIFECYCLE_INVALID");
+              if (base.type === "run.finished" && started !== 1) fail("TASK_EVENT_LIFECYCLE_INVALID");
+              if (!["run.started", "run.abandoned"].includes(base.type) && started !== 1) fail("TASK_EVENT_LIFECYCLE_INVALID");
+              if (base.type === "run.abandoned" && stream.events.length > 0 && started !== 1) fail("TASK_EVENT_LIFECYCLE_INVALID");
+            }
             output = { ...base, seq: stream.events.length + 1 };
-            if (stream.events.length >= MAX_EVENTS || stream.bytes.length + Buffer.byteLength(canonicalJson(output)) > MAX_STREAM_BYTES) fail("TASK_EVENT_LIMIT_EXCEEDED");
+            const terminal = ["run.finished", "run.abandoned"].includes(base.type);
+            if (!terminal && (stream.events.length >= maxEvents - TERMINAL_RESERVE_EVENTS || stream.bytes.length + Buffer.byteLength(canonicalJson(output)) > MAX_STREAM_BYTES - TERMINAL_RESERVE_BYTES)) fail("TASK_EVENT_TELEMETRY_LIMIT_EXCEEDED");
+            if (stream.events.length >= maxEvents || stream.bytes.length + Buffer.byteLength(canonicalJson(output)) > MAX_STREAM_BYTES) fail("TASK_EVENT_LIMIT_EXCEEDED");
             return [{ bytes: Buffer.concat([stream.bytes, Buffer.from(canonicalJson(output))]), path }];
           } });
           return output;
@@ -123,7 +133,7 @@ export function createTaskEventStore({ agentDir, enforceLifecycle = false, now =
   async function readPage({ runId, taskId, cursor = 0, limit = MAX_EVENTS }) {
     return serialized(async () => {
       if (!Number.isSafeInteger(cursor) || cursor < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > MAX_EVENTS) fail("TASK_EVENT_QUERY_INVALID");
-      await ensureAgentDirectory(directory); const path = eventPath(root, taskId, runId); await ensureEventDirectory(root, taskId);
+      const path = eventPath(root, taskId, runId); await ensureAgentDirectory(directory); await ensureEventDirectory(root, taskId);
       const events = (await recoverAndRead(path, { runId: runId.toLowerCase(), taskId })).events;
       const page = events.filter((event) => event.seq > cursor).slice(0, limit), nextCursor = page.at(-1)?.seq ?? cursor;
       return structuredClone({ events: page, nextCursor, hasMore: events.some((event) => event.seq > nextCursor) });

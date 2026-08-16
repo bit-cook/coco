@@ -5,12 +5,7 @@ import { homedir } from "node:os";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const agentDir = process.env.COCO_CODING_AGENT_DIR || resolve(homedir(), ".coco", "agent");
 const { verifyRuntimeIntegrity } = await import("./runtime-integrity.mjs");
-// coco-bootstrap.cjs runs the same verification synchronously before importing
-// this launcher and stamps COCO_INTEGRITY_VERIFIED=1 on success. Skipping the
-// duplicate scan cuts cold-start cost roughly in half.
-const integrity = process.env.COCO_INTEGRITY_VERIFIED === "1"
-  ? { code: undefined, entries: 0, status: "approved" }
-  : await verifyRuntimeIntegrity({ root, cachePath: resolve(agentDir, ".runtime-integrity-cache.json") });
+const integrity = await verifyRuntimeIntegrity({ root, cachePath: resolve(process.env.COCO_RUNTIME_INTEGRITY_CACHE_PATH || resolve(agentDir, ".runtime-integrity-cache.json")) });
 if (integrity.status !== "approved") {
   process.stderr.write(`coco: ${integrity.code}\n`);
   process.exitCode = 1;

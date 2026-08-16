@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-const root = new URL("..", import.meta.url).pathname;
+const launcher = join(new URL("..", import.meta.url).pathname, "scripts", "coco-launcher.mjs");
 
 function run(cwd, environment) {
   return new Promise((finish) => {
-    const child = spawn(process.execPath, [join(root, "scripts", "coco-launcher.mjs"), "--version"], {
+    const child = spawn(process.execPath, [launcher, "--version"], {
       cwd,
       env: environment,
       stdio: "pipe",
@@ -28,7 +28,6 @@ test("Given forbidden project executable resources, when launcher preflight fail
     const result = await run(fixture, {
       ...process.env,
       COCO_CODING_AGENT_DIR: join(fixture, "agent"),
-      COCO_INTEGRITY_VERIFIED: "1",
     });
     assert.equal(result.code, 1, result.stderr);
     assert.equal(result.stderr, "coco: PROJECT_EXECUTABLE_RESOURCES_FORBIDDEN\n");
@@ -36,4 +35,14 @@ test("Given forbidden project executable resources, when launcher preflight fail
   } finally {
     await rm(fixture, { force: true, recursive: true });
   }
+});
+
+test("Given a forged process integrity nonce, when launcher source is inspected, then it has no nonce bypass", async () => {
+  const [bootstrapSource, launcherSource] = await Promise.all([
+    readFile(join(new URL("..", import.meta.url).pathname, "scripts", "coco-bootstrap.cjs"), "utf8"),
+    readFile(launcher, "utf8"),
+  ]);
+  assert.doesNotMatch(bootstrapSource, /_cocoIntegrityNonce|COCO_INTEGRITY_NONCE/);
+  assert.doesNotMatch(launcherSource, /_cocoIntegrityNonce|COCO_INTEGRITY_NONCE/);
+  assert.match(launcherSource, /await verifyRuntimeIntegrity\(/);
 });

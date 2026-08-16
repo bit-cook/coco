@@ -108,18 +108,23 @@ test("Given an exact selector is replaced with an identical raw target, when its
   }
 });
 
-test("Given source bytes change after a copy checkpoint, when package inputs are snapshotted, then it rejects and retains destinations", async () => {
+test("Given staging is changed while the source changes and is restored, when package inputs are snapshotted, then it rejects despite an identical source manifest", async () => {
   const input = await fixture();
   try {
     const result = await snapshotPackageInputs({
       ...input,
       onCheckpoint: async (checkpoint) => {
-        if (checkpoint === "after-copy:examples") await writeFile(join(input.globalRoot, "examples", "asset.txt"), "changed\n");
+        if (checkpoint !== "after-copy:examples") return;
+        const stageName = (await readdir(input.root)).find((name) => name.startsWith(".package-inputs-"));
+        assert.ok(stageName);
+        await writeFile(join(input.root, stageName, "examples", "asset.txt"), "staging-tampered\n");
+        await writeFile(join(input.globalRoot, "examples", "asset.txt"), "changed\n");
+        await writeFile(join(input.globalRoot, "examples", "asset.txt"), "examples\n");
       },
     });
     assert.equal(result.code, "PACKAGE_INPUT_RACE");
     await assertLinked(input.root);
-    assert.equal(await readFile(join(input.globalRoot, "examples", "asset.txt"), "utf8"), "changed\n");
+    assert.equal(await readFile(join(input.globalRoot, "examples", "asset.txt"), "utf8"), "examples\n");
   } finally {
     await rm(input.directory, { force: true, recursive: true });
   }

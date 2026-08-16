@@ -27,14 +27,17 @@ async function bootstrapFixture() {
   await writeFile(join(directory, "README.md"), "\n");
   await writeFile(join(directory, "package.json"), "{}\n");
   await writeFile(join(scripts, "coco-bootstrap.cjs"), await readFile(join(root, "scripts", "coco-bootstrap.cjs"), "utf8"));
+  await writeFile(join(scripts, "runtime-store-policy.cjs"), await readFile(join(root, "scripts", "runtime-store-policy.cjs"), "utf8"));
   await writeFile(join(scripts, "coco-launcher.mjs"), 'process.stdout.write(`${process.env.PI_OFFLINE ?? "unset"}\\n`);\n');
   const { createHash } = await import("node:crypto");
-  const manifestPaths = ["CHANGELOG.md", "README.md", "package.json", "scripts/coco-launcher.mjs"];
+  const assetMap = '{"entries":[],"schemaVersion":2}\n';
+  await writeFile(join(scripts, "package-asset-map.v1.json"), assetMap);
+  const manifestPaths = ["CHANGELOG.md", "README.md", "package.json", "scripts/coco-launcher.mjs", "scripts/package-asset-map.v1.json", "scripts/runtime-store-policy.cjs"];
   const entries = await Promise.all(manifestPaths.map(async (path) => {
     const info = await stat(join(directory, path));
-    return { mode: info.mode & 0o111 ? 0o755 : 0o644, path, sha256: createHash("sha256").update(await readFile(join(directory, path))).digest("hex") };
+    return { class: path.endsWith(".mjs") ? "runtime-code" : "runtime-asset", mode: info.mode & 0o111 ? 0o755 : 0o644, path, sha256: createHash("sha256").update(await readFile(join(directory, path))).digest("hex"), size: info.size };
   }));
-  const manifest = { assetMapSha256: "0".repeat(64), entries };
+  const manifest = { assetMapSha256: createHash("sha256").update(assetMap).digest("hex"), entries, schemaVersion: 1, startupClosure: manifestPaths };
   const bytes = `${JSON.stringify(manifest)}\n`;
   await writeFile(join(resources, "runtime-integrity-manifest.v1.json"), bytes);
   await writeFile(join(resources, "runtime-integrity-manifest.v1.json.sha256"), `${createHash("sha256").update(bytes).digest("hex")}  runtime-integrity-manifest.v1.json\n`);
@@ -94,7 +97,7 @@ test("Given a bare installed CoCo PTY with missing fd and rg, when startup begin
     const startupOutputs = [];
     for (const width of [80, 20]) {
       const result = await run("/usr/bin/timeout", ["15", "/usr/bin/script", "-qfec", `/usr/bin/stty cols ${width} rows 24; ${process.execPath} ${join(root, "bin", "coco")}`, "/dev/null"], environment, fixture.directory);
-      assert.equal(result.code, 124);
+      assert.equal(result.code, 124, `${result.stdout}${result.stderr}`);
       startupOutputs.push(`${result.stdout}${result.stderr}`);
     }
     const [wideStartup, narrowStartup] = startupOutputs;

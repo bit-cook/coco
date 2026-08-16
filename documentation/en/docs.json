@@ -60,7 +60,8 @@
     {
       "title": "Development",
       "items": [
-        { "title": "Development", "path": "development.md" }
+        { "title": "Development", "path": "development.md" },
+        { "title": "Migration and Recovery Journal", "path": "development-migration-journal.md" }
       ]
     }
   ],

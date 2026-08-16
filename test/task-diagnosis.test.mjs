@@ -13,6 +13,11 @@ test("task diagnosis uses process, heartbeat, and output signals", () => {
   assert.equal(diagnoseTask({ task, now, processAlive: false }).state, "unknown");
 });
 
+test("task diagnosis uses the newer persisted or event heartbeat", () => {
+  assert.equal(diagnoseTask({ latestHeartbeatAt: "2026-08-11T11:59:00.000Z", task: { ...task, heartbeatAt: "2026-08-11T12:01:45.000Z" }, now, processAlive: true }).state, "healthy");
+  assert.equal(diagnoseTask({ latestHeartbeatAt: "2026-08-11T12:01:45.000Z", task, now, processAlive: true }).state, "healthy");
+});
+
 test("non-running tasks do not produce a false stuck diagnosis", () => {
   const result = diagnoseTask({ task: { ...task, status: "completed" }, now, processAlive: true });
   assert.deepEqual(result, { schemaVersion: 1, state: "unknown", reason: "NOT_RUNNING", signals: {} });
