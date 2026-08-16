@@ -1682,3 +1682,26 @@ stale v0.5.3/v0.5.4/187ms/current-branch review links in site: none
 ```
 
 Documentation is governed package content, so generated package/integrity assets are stale after this edit. Next action: build once, rerun focused documentation/package checks, commit and push the documentation/site update, then dispatch and verify GitHub Pages. No new release or npm publication is authorized or required.
+
+Documentation and website delivery result:
+
+```text
+build: passed
+documentation/homepage/current-plan contracts: 3/3 passed
+real package and v0.6.1 release contracts: 2/2 passed
+package closure: approved, 175 manifests
+publication scanner: clean
+commit: f72768a9f9dc0e268b110b0a2d7a334e3ff279f7
+branch push: candidate/v0.6.1 passed
+Pages run: 31967483422 passed in 21 seconds
+```
+
+The first workflow-dispatch run (`31967435519`) failed before runner assignment because the `github-pages` environment allowed only `main` and `gh-pages`. It was not a content, build, or runner failure. A temporary exact deployment policy for `candidate/v0.6.1` was added, the verified commit was deployed, and that temporary policy was immediately deleted. The environment again allows only `main` and `gh-pages`.
+
+Cache-busted public reads verified all three deployed pages:
+
+- English homepage contains v0.6.1, 2.18s warm, 9.37s cold, integrity 37/37, and the three engineering priorities.
+- Chinese homepage contains the equivalent localized evidence and priorities.
+- `plan.html` contains the b88190b baseline, v0.6.2/v0.7.0/v0.8.0 route, four immediate batches, and ten explicit v0.6.2 exit criteria.
+
+No tag, release, npm publication, or release asset was changed by this documentation deployment.
