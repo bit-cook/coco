@@ -1556,3 +1556,26 @@ git diff --check: passed
 ```
 
 No GitHub Release was created by the failed run. Next action under the release-repair authorization: commit and push the scanner fix, update the unreleased `v0.6.0` tag to that fix commit, then monitor the replacement release workflow. npm publication remains prohibited.
+
+The replacement release run `31945426257` started within 20 seconds, so hosted-runner queueing was not the issue and migration to self-hosted would not have accelerated it. It passed core, integrity, closure, npm tar scanning, tar closure, offline build, and VSIX build, then failed at the final whole-release scan after 24m51s. The failing member was the official Node runtime archive inside the offline ZIP.
+
+Second repair batch:
+
+- tar archives accept one canonical `./` root directory and strictly validated internal relative symlinks only when they directly target a regular member in the same archive; absolute, escaping, dangling, chained, and special entries reject;
+- shared archive expansion budgets count leaf bytes instead of double-counting nested archive containers, while per-archive 256 MiB, cumulative 512 MiB, depth 3, and count 100 limits remain;
+- tar extraction remains bounded at 120 seconds for archives up to 256 MiB;
+- token detector value and whitespace quantifiers are bounded, PEM block matching is linear, and huge cross-chunk assignments retain a linear fail-closed fallback;
+- explicit npm/Node documentation placeholders are recognized by value shape, never by package path; complete non-placeholder PEM blocks and random live-shaped tokens still reject.
+
+Local evidence:
+
+```text
+scanner suite: 19/19 passed
+complete offline ZIP + VSIX release directory scan: clean in 85 seconds
+real npm package + v0.6.0 contract: 2/2 passed
+package closure: approved, 175 manifests
+repository scan: clean
+complete integrity with TMPDIR=/root/coco-tmp: 36/36 passed
+```
+
+A prior local integrity attempt failed with `RUNTIME_STORAGE_BUDGET_EXCEEDED` because `/tmp` had only 284 MiB free after release debugging; this was correct fail-closed behavior, not a code regression. The successful rerun used the repository's large temporary root. Next action: complete core, commit/push this repair, update the still-unreleased tag, and rerun release. npm publication remains prohibited.

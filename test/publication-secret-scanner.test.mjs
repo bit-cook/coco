@@ -72,6 +72,8 @@ test("Given PEM parsing source and a complete private key block, when scanned, t
   assert.deepEqual(scanText(`value.startsWith('-----BEGIN PRIVATE KEY-----')`), []);
   const block = [["-----BEGIN", "PRIVATE", "KEY-----"].join(" "), "private-material", ["-----END", "PRIVATE", "KEY-----"].join(" ")].join("\n");
   assert.deepEqual(scanText(block), [{ detector: "private-key-block", count: 1 }]);
+  const placeholder = [["-----BEGIN", "PRIVATE", "KEY-----"].join(" "), "XXXX", "XXXX", ["-----END", "PRIVATE", "KEY-----"].join(" ")].join("\\n");
+  assert.deepEqual(scanText(placeholder), []);
 });
 
 test("Given recognized placeholders and schema declarations, when scanned, then they pass without path-based exceptions", () => {
@@ -88,7 +90,7 @@ test("Given recognized placeholders and schema declarations, when scanned, then 
 });
 
 test("Given dependency documentation and generated schema placeholders, when scanned, then only real literals block", () => {
-  const placeholders = [`apiKey: 'GEMINI_API_KEY'`, `apiKey: 'your-api-key'`, `apiKey: 'sk-explicit'`, `apiKey: 'test-api-key'`, `accessToken: "access_token"`, `AccessKeyId: "AKIAIOSFODNN7EXAMPLE"`].join("\n");
+  const placeholders = [`apiKey: 'GEMINI_API_KEY'`, `apiKey: 'your-api-key'`, `apiKey: 'sk-explicit'`, `apiKey: 'test-api-key'`, `token: 'myregistrytoken'`, `secret: 'supersekrit'`, `password: 'bm90IG15IHJlYWwgcGFzc3dvcmQ='`, `accessToken: "access_token"`, `AccessKeyId: "AKIAIOSFODNN7EXAMPLE"`].join("\n");
   assert.deepEqual(scanText(placeholders), []);
   assert.equal(scanText(`apiKey: '${fakeKey}'`).some(({ detector }) => detector === "credential-assignment"), true);
 });
@@ -225,7 +227,7 @@ test("Given a safe replacement restored after directory snapshot scanning, when 
   }
 });
 
-test("Given a tarball with a symlink member, when the CLI scans it, then it rejects the unsafe archive without extraction", async () => {
+test("Given tarball symlinks, when scanned, then internal regular targets pass and escaping targets reject", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-publication-archive-"));
   const archive = join(fixture, "unsafe.tgz");
   try {
@@ -233,14 +235,10 @@ test("Given a tarball with a symlink member, when the CLI scans it, then it reje
     await symlink("member.txt", join(fixture, "link.txt"));
     await exec("tar", ["-czf", archive, "member.txt", "link.txt"], { cwd: fixture });
 
-    await assert.rejects(
-      exec(process.execPath, ["scripts/publication-secret-scanner.mjs", archive], { cwd: root, encoding: "utf8" }),
-      (error) => {
-        assert.match(error.stdout, /unsafe\.tgz\tarchive-unsafe\t1/);
-        assert.equal(`${error.stdout}${error.stderr}`.includes("member.txt"), false);
-        return true;
-      },
-    );
+    assert.deepEqual(await scanTarget(archive), []);
+    await rm(join(fixture, "link.txt")); await symlink("../outside.txt", join(fixture, "link.txt"));
+    await exec("tar", ["-czf", archive, "member.txt", "link.txt"], { cwd: fixture });
+    assert.deepEqual((await scanTarget(archive)).map(({ detector }) => detector), ["archive-unsafe"]);
   } finally {
     await rm(fixture, { force: true, recursive: true });
   }

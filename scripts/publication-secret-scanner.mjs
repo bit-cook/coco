@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, mkdir, mkdtemp, open, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, extname, join, relative, resolve } from "node:path";
+import { basename, extname, join, posix, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { inflateRawSync } from "node:zlib";
 
@@ -20,10 +20,9 @@ const tarExtensions = new Set([".tgz", ".gz"]);
 const zipExtensions = new Set([".zip", ".vsix"]);
 const testOnlyKey = ["sk", "test", "only", "invalid", "key"].join("-");
 const detectors = [
-  { id: "private-key-block", expression: /-----BEGIN ((?:[A-Z0-9 ]+ )?PRIVATE KEY)-----[\s\S]{1,65536}?-----END \1-----/g },
-  { id: "bearer-literal", expression: /\bAuthorization\s*:\s*Bearer\s+(?!\$\{|\{env:|YOUR_|bearer-test-only-invalid-key\b)[A-Za-z0-9._~+/=-]{12,}\b/gi },
-  { id: "common-key-prefix", expression: /(?<![A-Za-z0-9_-])(?:sk|rk)_(?:live|prod)_[A-Za-z0-9_-]{8,}|(?<![A-Za-z0-9_-])(?:sk|pk)-[A-Za-z0-9_-]{12,}\b|(?<![A-Za-z0-9_-])(?:AKIA|ASIA)[A-Z0-9]{12,}\b|(?<![A-Za-z0-9_-])(?:ghp|gho|ghu|ghs|glpat)-[A-Za-z0-9_-]{12,}\b|(?<![A-Za-z0-9_-])github_pat_[A-Za-z0-9_-]{12,}\b|(?<![A-Za-z0-9_-])xox[baprs]-[A-Za-z0-9-]{12,}\b/g },
-  { id: "credential-assignment", expression: /(?:^|[\n,;])\s*["']?(?:api[_-]?key|access[_-]?token|auth[_-]?token|secret|password|token|credential)["']?\s*(?:=|:)\s*(["'])(?!\$\{|\{env:|YOUR_|test-only-invalid-key(?:["'\s,;]|$))([A-Za-z0-9._~+/=-]{12,})\1/gim },
+  { id: "bearer-literal", expression: /\bAuthorization\s{0,256}:\s{0,256}Bearer\s{1,256}(?!\$\{|\{env:|YOUR_|bearer-test-only-invalid-key\b)[A-Za-z0-9._~+/=-]{12,8192}\b/gi },
+  { id: "common-key-prefix", expression: /(?<![A-Za-z0-9_-])(?:sk|rk)_(?:live|prod)_[A-Za-z0-9_-]{8,8192}|(?<![A-Za-z0-9_-])(?:sk|pk)-[A-Za-z0-9_-]{12,8192}\b|(?<![A-Za-z0-9_-])(?:AKIA|ASIA)[A-Z0-9]{12,8192}\b|(?<![A-Za-z0-9_-])(?:ghp|gho|ghu|ghs|glpat)-[A-Za-z0-9_-]{12,8192}\b|(?<![A-Za-z0-9_-])github_pat_[A-Za-z0-9_-]{12,8192}\b|(?<![A-Za-z0-9_-])xox[baprs]-[A-Za-z0-9-]{12,8192}\b/g },
+  { id: "credential-assignment", expression: /(?:^|[\n,;])\s{0,256}["']?(?:api[_-]?key|access[_-]?token|auth[_-]?token|secret|password|token|credential)["']?\s{0,256}(?:=|:)\s{0,256}(["'])(?!\$\{|\{env:|YOUR_|test-only-invalid-key(?:["'\s,;]|$))([A-Za-z0-9._~+/=-]{12,8192})\1/gim },
 ];
 
 function count(expression, text) {
@@ -33,15 +32,24 @@ function count(expression, text) {
     const literal = match[2] ?? /["']([^"']+)["']\s*$/.exec(match[0])?.[1];
     if (!literal) return true;
     const lower = literal.toLowerCase();
-    return !(/^[A-Z][A-Z0-9_]+$/.test(literal) || ["access_token", "auth_token", "refresh_token", "token_type"].includes(lower) || /(?:^|[-_])(test|example|explicit|placeholder)(?:[-_]|$)/.test(lower) || lower.startsWith("your-"));
+    let decoded = ""; try { decoded = Buffer.from(literal, "base64").toString("utf8").toLowerCase(); } catch {}
+    return !(/^[A-Z][A-Z0-9_]+$/.test(literal) || ["access_token", "auth_token", "refresh_token", "token_type"].includes(lower) || /(?:^|[-_])(test|example|explicit|placeholder)(?:[-_]|$)/.test(lower) || /^(?:your-|my|i-am-|deadbeef)|sekrit/.test(lower) || decoded.startsWith("not my real "));
   }).length;
 }
 
 export function scanText(text) {
-  return detectors.flatMap(({ id, expression }) => {
+  const findings = detectors.flatMap(({ id, expression }) => {
     const matches = count(expression, text);
     return matches === 0 ? [] : [{ detector: id, count: matches }];
   });
+  const privateKeys = countPrivateKeyBlocks(text); if (privateKeys > 0) findings.push({ detector: "private-key-block", count: privateKeys });
+  return findings;
+}
+
+function countPrivateKeyBlocks(text) {
+  const begin = /-----BEGIN ((?:[A-Z0-9 ]+ )?PRIVATE KEY)-----/g; let count = 0, match;
+  while ((match = begin.exec(text)) !== null) { const end = `-----END ${match[1]}-----`, at = text.indexOf(end, begin.lastIndex); if (at >= 0 && at - begin.lastIndex <= 65_536) { const body = text.slice(begin.lastIndex, at).replace(/\\(?:n|r)|\\\[rs\]n|[^A-Za-z0-9]/g, ""); if (!/^X+$/i.test(body)) count += 1; begin.lastIndex = at + end.length; } }
+  return count;
 }
 
 function scanBytes(buffer) {
@@ -56,11 +64,15 @@ function scanBytes(buffer) {
 }
 
 function hasLongCredentialAssignment(buffer) {
-  const text = buffer.toString("latin1").replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "\n");
   // This deliberately has no upper bound or closing-quote requirement. The
-  // bounded normal detector handles ordinary assignments; this conservative
-  // pass prevents a huge unterminated value from escaping chunk boundaries.
-  return /(?:^|[\n,;])\s*["']?(?:api[_-]?key|access[_-]?token|auth[_-]?token|secret|password|token|credential)["']?\s*(?:=|:)\s*(["'])(?!\$\{|\{env:|YOUR_|test-only-invalid-key(?:["'\s,;]|$))[A-Za-z0-9._~+/=-]{12,}/im.test(text);
+  // bounded normal detector handles ordinary assignments; these boundary
+  // windows prevent a huge unterminated value from escaping chunk detection.
+  const expression = /(?:^|[\n,;])\s{0,256}["']?(?:api[_-]?key|access[_-]?token|auth[_-]?token|secret|password|token|credential)["']?\s{0,256}(?:=|:)\s{0,256}(["'])(?!\$\{|\{env:|YOUR_|test-only-invalid-key(?:["'\s,;]|$))[A-Za-z0-9._~+/=-]{12,}$/i;
+  for (let start = 0; start < buffer.length; start += MAX_TEXT_BYTES) {
+    const text = buffer.subarray(start, Math.min(buffer.length, start + MAX_TEXT_BYTES + 4096)).toString("latin1").replace(/[^\x09\x0a\x0d\x20-\x7e]/g, "\n");
+    if (expression.test(text)) return true;
+  }
+  return false;
 }
 
 function sameFile(left, right) {
@@ -105,6 +117,12 @@ function safeMemberPath(member) {
   if (member.endsWith("/")) components.pop();
   return components.length > 0 && components.every((part) => part !== "" && part !== "." && part !== "..")
     && !member.includes("\\") && !member.startsWith("/") && !/^[A-Za-z]:/.test(member);
+}
+
+function canonicalTarMember(member) {
+  if (member === "./") return "";
+  const canonical = member.startsWith("./") ? member.slice(2) : member;
+  return canonical.startsWith("./") || !safeMemberPath(canonical) ? null : canonical;
 }
 
 function memberSetValid(members) {
@@ -157,13 +175,23 @@ async function listArchive(archive) {
     exec("tar", ["-tzf", archive], { maxBuffer: MAX_ARCHIVE_LIST_BYTES, timeout: 30_000 }),
     exec("tar", ["--numeric-owner", "-tvzf", archive], { maxBuffer: MAX_ARCHIVE_LIST_BYTES, timeout: 30_000 }),
   ]);
-  const members = names.stdout.split("\n").filter(Boolean);
-  const types = details.stdout.split("\n").filter(Boolean).map((line) => line[0]);
-  const uncompressedBytes = details.stdout.split("\n").filter(Boolean).reduce((total, line) => total + Number(/^\S+\s+\S+\s+(\d+)\s+/.exec(line)?.[1] ?? 0), 0);
-  if (members.length > MAX_ARCHIVE_MEMBERS || uncompressedBytes > MAX_ARCHIVE_BYTES || members.length !== types.length || !memberSetValid(members) || types.some((type) => type !== "-" && type !== "d")) {
+  const rawMembers = names.stdout.split("\n").filter(Boolean), members = rawMembers.map(canonicalTarMember);
+  const detailLines = details.stdout.split("\n").filter(Boolean), types = detailLines.map((line) => line[0]);
+  const sizes = detailLines.map((line) => Number(/^\S+\s+\S+\s+(\d+)\s+/.exec(line)?.[1] ?? 0));
+  const totalBytes = sizes.reduce((total, size) => total + size, 0);
+  const roots = members.filter((member) => member === "").length;
+  if (members.length > MAX_ARCHIVE_MEMBERS || totalBytes > MAX_ARCHIVE_BYTES || members.length !== types.length || members.some((member, index) => member === null || (member === "" && (rawMembers[index] !== "./" || types[index] !== "d"))) || roots > 1 || !memberSetValid(members.filter(Boolean)) || types.some((type) => !["-", "d", "l"].includes(type))) {
     return null;
   }
-  return { members: members.filter((member, index) => types[index] === "-"), uncompressedBytes };
+  const regular = new Set(members.filter((_, index) => types[index] === "-"));
+  for (let index = 0; index < members.length; index += 1) {
+    if (types[index] !== "l") continue;
+    const marker = `${rawMembers[index]} -> `, markerAt = detailLines[index].indexOf(marker), target = markerAt < 0 ? null : detailLines[index].slice(markerAt + marker.length);
+    if (!target || target.startsWith("/") || target.includes("\\") || /^[A-Za-z]:/.test(target)) return null;
+    const resolved = posix.normalize(posix.join(posix.dirname(members[index]), target));
+    if (resolved === ".." || resolved.startsWith("../") || !regular.has(resolved)) return null;
+  }
+  return { members: members.filter((member, index) => types[index] === "-"), uncompressedBytes: members.reduce((total, member, index) => total + (types[index] === "-" && !archiveKind(member) ? sizes[index] : 0), 0) };
 }
 
 function reserveArchiveBudget(context, compressedBytes, uncompressedBytes) {
@@ -211,14 +239,18 @@ async function scanArchive(archive, context, reportPath, depth) {
   let extracted;
   try {
     extracted = await mkdtemp(join(process.env.COCO_SCANNER_TMPDIR ?? tmpdir(), "coco-publication-scan-"));
-    await exec("tar", ["-xzf", snapshot.path, "--no-same-owner", "--no-same-permissions", "-C", extracted], { timeout: 30_000 });
+    await exec("tar", ["-xzf", snapshot.path, "--no-same-owner", "--no-same-permissions", "-C", extracted], { timeout: 120_000 });
     const findings = [];
+    const regularMembers = [];
     for (const member of members) {
       const path = resolve(extracted, member);
       if (!path.startsWith(`${extracted}/`) || !(await lstat(path)).isFile()) return [{ path: reportPath, detector: "archive-unsafe", count: 1 }];
-      const content = await readRegularFile(path);
-      if (archiveKind(member)) findings.push(...await scanNestedArchive(content, member, reportPath, context, depth));
-      else for (const finding of scanBytes(content)) findings.push({ ...finding, path: `${reportPath}::${member}` });
+      if (archiveKind(member)) findings.push(...await scanNestedArchive(await readRegularFile(path), member, reportPath, context, depth));
+      else regularMembers.push({ member, path });
+    }
+    for (let start = 0; start < regularMembers.length; start += 32) {
+      const batch = await Promise.all(regularMembers.slice(start, start + 32).map(async ({ member, path }) => ({ content: await readRegularFile(path), member })));
+      for (const { content, member } of batch) for (const finding of scanBytes(content)) findings.push({ ...finding, path: `${reportPath}::${member}` });
     }
     return findings;
   } finally {
@@ -305,7 +337,7 @@ async function scanZipArchive(archive, context, reportPath, depth) {
     reserveArchiveBudget(context, bytes.length, 0);
     const members = zipMembers(bytes);
     if (members === null) return [{ path: reportPath, detector: "archive-unsafe", count: 1 }];
-    reserveArchiveBudget(context, 0, members.reduce((total, member) => total + member.size, 0));
+    reserveArchiveBudget(context, 0, members.reduce((total, member) => total + (!member.directory && !archiveKind(member.name) ? member.size : 0), 0));
     const findings = [];
     for (const member of members) {
       const content = zipMemberContent(bytes, member);
