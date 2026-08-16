@@ -15,3 +15,12 @@ test("Given the runtime manifest, when startup closure is selected, then it stri
   assert.ok(dependencyEntries.some((path) => path.startsWith("node_modules/@earendil-works/pi-tui/dist/")));
   assert.ok(dependencyEntries.some((path) => path.startsWith("node_modules/@modelcontextprotocol/sdk/dist/")));
 });
+
+test("Given the bootstrap warm path, then CAS reuse is metadata-gated and critical entries remain content-verified", async () => {
+  const source = await readFile(join(root, "scripts", "coco-bootstrap.cjs"), "utf8");
+  assert.match(source, /entrySnapshotsMatch\(cached\.entries, manifest, snapshotRoot\)/);
+  assert.match(source, /directorySnapshotsMatch\(cached\.directories, runtimeRoots, snapshotRoot\)/);
+  assert.match(source, /\["scripts\/coco-launcher\.mjs", "scripts\/runtime-store-policy\.cjs"\]/);
+  assert.match(source, /hash\(storedManifest\) === hash\(manifestBytes\)/);
+  assert.match(source, /hash\(storedSidecar\) === hash\(sidecarBytes\)/);
+});

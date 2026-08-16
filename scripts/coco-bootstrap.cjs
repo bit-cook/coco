@@ -1,5 +1,6 @@
 const { createHash, randomBytes } = require("node:crypto");
 const { closeSync, constants, fchmodSync, fsyncSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statfsSync, statSync, writeFileSync } = require("node:fs");
+const { mkdir: mkdirAsync, open: openAsync } = require("node:fs/promises");
 const { homedir } = require("node:os");
 const { basename, dirname, join, relative, resolve, sep } = require("node:path");
 const { pathToFileURL } = require("node:url");
@@ -9,6 +10,7 @@ const manifestPath = join(root, "resources", "runtime-integrity-manifest.v1.json
 const sidecarPath = `${manifestPath}.sha256`;
 const agentDir = process.env.COCO_CODING_AGENT_DIR || join(homedir(), ".coco", "agent");
 const cachePath = join(agentDir, ".runtime-integrity-cache.json");
+const runtimeCachePath = join(agentDir, ".runtime-cas-integrity-cache.json");
 const runtimeStore = join(agentDir, "runtime");
 
 const EXCLUDED_COMPONENTS = new Set([".bin", ".package-lock.json", "coverage", "node-gyp-bin", "npm", "src", "test", "tests"]);
@@ -92,21 +94,21 @@ function cacheValid(cached) {
     && cached.directories && typeof cached.directories === "object" && !Array.isArray(cached.directories);
 }
 
-function readCache() {
+function readCache(path = cachePath) {
   let descriptor;
   try {
-    const verified = openVerified(cachePath, "file");
+    const verified = openVerified(path, "file");
     if (!verified) return undefined;
     descriptor = verified.descriptor;
     const parsed = JSON.parse(readFileSync(descriptor, "utf8"));
-    if (!revalidatePath(cachePath, verified)) return undefined;
+    if (!revalidatePath(path, verified)) return undefined;
     if (cacheValid(parsed)) return parsed;
   } catch { /* cache absent or corrupt - fall through to full verification */ }
   finally { closeQuietly(descriptor); }
   return undefined;
 }
 
-function writeCache(manifestHash, snapshots, directories) {
+function writeCache(manifestHash, snapshots, directories, path = cachePath) {
   let directoryDescriptor;
   let temporaryDescriptor;
   let temporary;
@@ -114,14 +116,14 @@ function writeCache(manifestHash, snapshots, directories) {
     for (const value of Object.values(snapshots)) if (!snapshotValid(value)) return;
     for (const value of Object.values(directories)) if (!snapshotValid(value)) return;
     if (typeof constants.O_NOFOLLOW !== "number") return;
-    const directory = dirname(cachePath);
+    const directory = dirname(path);
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     const directoryInfo = lstatSync(directory);
     if (!expectedType(directoryInfo, "directory")) return;
     directoryDescriptor = openSync(directory, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
     const openedDirectory = fstatSync(directoryDescriptor);
     if (!expectedType(openedDirectory, "directory") || !sameSnapshot(snapshot(directoryInfo), snapshot(openedDirectory))) return;
-    try { if (lstatSync(cachePath).isSymbolicLink()) return; } catch (error) { if (error.code !== "ENOENT") throw error; }
+    try { if (lstatSync(path).isSymbolicLink()) return; } catch (error) { if (error.code !== "ENOENT") throw error; }
     temporary = join(directory, `.${randomBytes(16).toString("hex")}.tmp`);
     temporaryDescriptor = openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
     writeFileSync(temporaryDescriptor, JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, manifestHash, entries: snapshots, directories }), "utf8");
@@ -130,8 +132,8 @@ function writeCache(manifestHash, snapshots, directories) {
     closeSync(temporaryDescriptor); temporaryDescriptor = undefined;
     const currentDirectory = lstatSync(directory);
     if (!expectedType(currentDirectory, "directory") || !sameIdentity(snapshot(openedDirectory), snapshot(currentDirectory))) return;
-    try { if (lstatSync(cachePath).isSymbolicLink()) return; } catch (error) { if (error.code !== "ENOENT") throw error; }
-    renameSync(temporary, cachePath); temporary = undefined;
+    try { if (lstatSync(path).isSymbolicLink()) return; } catch (error) { if (error.code !== "ENOENT") throw error; }
+    renameSync(temporary, path); temporary = undefined;
     fsyncSync(directoryDescriptor);
   } catch { /* cache write is best-effort */ }
   finally {
@@ -141,10 +143,10 @@ function writeCache(manifestHash, snapshots, directories) {
   }
 }
 
-function directorySnapshots(runtimeRoots) {
+function directorySnapshots(runtimeRoots, base = root) {
   const directories = {};
   for (const directory of runtimeRoots) {
-    const absolute = join(root, directory);
+    const absolute = join(base, directory);
     let info;
     try { info = lstatSync(absolute); } catch { return null; }
     if (info.isFile() && !info.isSymbolicLink()) continue;
@@ -152,8 +154,8 @@ function directorySnapshots(runtimeRoots) {
     directories[directory] = snapshot(info);
     for (const dirent of readdirSync(absolute, { withFileTypes: true, recursive: true })) {
       if (!dirent.isDirectory() || EXCLUDED_COMPONENTS.has(dirent.name) || dirent.parentPath.split(sep).some((component) => EXCLUDED_COMPONENTS.has(component))) continue;
-      const path = pathOf(join(dirent.parentPath, dirent.name));
-      const child = lstatSync(join(root, path));
+      const path = pathOf(join(dirent.parentPath, dirent.name), base);
+      const child = lstatSync(join(base, path));
       if (!child.isDirectory() || child.isSymbolicLink()) return null;
       directories[path] = snapshot(child);
     }
@@ -161,14 +163,26 @@ function directorySnapshots(runtimeRoots) {
   return directories;
 }
 
-function directorySnapshotsMatch(directories, runtimeRoots) {
+function directorySnapshotsMatch(directories, runtimeRoots, base = root) {
   if (Object.keys(directories).length === 0) return false;
-  const current = directorySnapshots(runtimeRoots);
+  const current = directorySnapshots(runtimeRoots, base);
   if (current === null || Object.keys(current).length !== Object.keys(directories).length) return false;
   return Object.entries(directories).every(([path, cachedSnapshot]) => {
     if (!snapshotValid(cachedSnapshot)) return false;
     return Object.hasOwn(current, path) && sameSnapshot(current[path], cachedSnapshot);
   });
+}
+
+function entrySnapshotsMatch(cached, manifest, base) {
+  if (!cached || Object.keys(cached).length !== manifest.entries.length) return false;
+  try {
+    return manifest.entries.every((entry) => {
+      const expected = cached[entry.path];
+      if (!snapshotValid(expected)) return false;
+      const info = lstatSync(join(base, entry.path));
+      return expectedType(info, "file") && mode(info) === entry.mode && sameSnapshot(snapshot(info), expected);
+    });
+  } catch { return false; }
 }
 
 /** Walk a runtime root with readdir only (no per-file stat), returning file
@@ -243,7 +257,7 @@ function verifyAssetMap(manifest) {
   return true;
 }
 
-function rehashEntry(entry, base = root) {
+function rehashEntry(entry, base = root, snapshots) {
   const path = join(base, entry.path);
   let descriptor;
   try {
@@ -254,7 +268,9 @@ function rehashEntry(entry, base = root) {
     if (!revalidatePath(path, verified) || bytes.length !== entry.size || hash(bytes) !== entry.sha256 || mode(verified.opened) !== entry.mode) return undefined;
     closeSync(descriptor); descriptor = undefined;
     const current = lstatSync(path);
-    return expectedType(current, "file") && sameSnapshot(verified.opened, snapshot(current)) ? bytes : undefined;
+    if (!expectedType(current, "file") || !sameSnapshot(verified.opened, snapshot(current))) return undefined;
+    if (snapshots) snapshots[entry.path] = snapshot(current);
+    return bytes;
   } finally {
     closeQuietly(descriptor);
   }
@@ -270,6 +286,17 @@ function writeSnapshotFile(snapshotRoot, path, bytes, fileMode) {
     fchmodSync(descriptor, fileMode);
   } finally {
     closeQuietly(descriptor);
+  }
+}
+
+async function writeSnapshotEntries(snapshotRoot, entries, verifiedBytes) {
+  for (let start = 0; start < entries.length; start += 64) {
+    await Promise.all(entries.slice(start, start + 64).map(async (entry) => {
+      const bytes = verifiedBytes.get(entry.path); if (!bytes) throw new Error("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
+      const absolute = join(snapshotRoot, entry.path); await mkdirAsync(dirname(absolute), { recursive: true, mode: 0o700 });
+      const descriptor = await openAsync(absolute, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+      try { await descriptor.writeFile(bytes); await descriptor.chmod(entry.mode); } finally { await descriptor.close(); }
+    }));
   }
 }
 
@@ -356,43 +383,84 @@ function releaseRuntimeLock(lockPath, owner) {
   const current = readRuntimeLock(lockPath);
   if (current?.ownerId === owner.ownerId && current.pid === owner.pid && current.processIdentity === owner.processIdentity) rmSync(lockPath, { force: true });
 }
-function snapshotValidForManifest(snapshotRoot, manifest, manifestBytes, sidecarBytes, runtimeRoots, expected, policy, key) {
+function snapshotValidForManifest(snapshotRoot, manifest, manifestBytes, sidecarBytes, runtimeRoots, expected, policy, key, verifiedState) {
   try {
+    const directories = directorySnapshots(runtimeRoots, snapshotRoot);
+    const entries = {};
+    if (!directories) return false;
     const complete = JSON.parse(readFileSync(join(snapshotRoot, ".runtime-complete.json"), "utf8"));
     if (!policy.completionValid(complete, key, hash(manifestBytes)) || !structureCheck(expected, runtimeRoots, snapshotRoot)) return false;
-    for (const entry of manifest.entries) if (!rehashEntry(entry, snapshotRoot)) return false;
+    for (const entry of manifest.entries) if (!rehashEntry(entry, snapshotRoot, entries)) return false;
     const storedManifest = readVerifiedBytes(join(snapshotRoot, MANIFEST_ENTRY), "RUNTIME_INTEGRITY_REVALIDATION_FAILED");
     const storedSidecar = readVerifiedBytes(join(snapshotRoot, SIDECAR_ENTRY), "RUNTIME_INTEGRITY_REVALIDATION_FAILED");
     const manifestInfo = lstatSync(join(snapshotRoot, MANIFEST_ENTRY)), sidecarInfo = lstatSync(join(snapshotRoot, SIDECAR_ENTRY));
-    return storedManifest.equals(manifestBytes) && storedSidecar.equals(sidecarBytes) && mode(manifestInfo) === 0o644 && mode(sidecarInfo) === 0o644;
+    const valid = storedManifest.equals(manifestBytes) && storedSidecar.equals(sidecarBytes) && mode(manifestInfo) === 0o644 && mode(sidecarInfo) === 0o644
+      && directorySnapshotsMatch(directories, runtimeRoots, snapshotRoot);
+    if (valid && verifiedState) Object.assign(verifiedState, { directories, entries });
+    return valid;
   } catch { return false; }
 }
 
-function createRuntimeSnapshot(manifest, manifestBytes, sidecarBytes, verifiedBytes, runtimeRoots, expected, policy) {
+function criticalSnapshotValid(snapshotRoot, manifest, manifestBytes, sidecarBytes, policy, key) {
+  try {
+    const complete = JSON.parse(readFileSync(join(snapshotRoot, ".runtime-complete.json"), "utf8"));
+    if (!policy.completionValid(complete, key, hash(manifestBytes))) return false;
+    for (const path of ["scripts/coco-launcher.mjs", "scripts/runtime-store-policy.cjs"]) {
+      const entry = manifest.entries.find((candidate) => candidate.path === path);
+      if (!entry || !rehashEntry(entry, snapshotRoot)) return false;
+    }
+    const storedManifest = readVerifiedBytes(join(snapshotRoot, MANIFEST_ENTRY), "RUNTIME_INTEGRITY_REVALIDATION_FAILED");
+    const storedSidecar = readVerifiedBytes(join(snapshotRoot, SIDECAR_ENTRY), "RUNTIME_INTEGRITY_REVALIDATION_FAILED");
+    return hash(storedManifest) === hash(manifestBytes) && storedManifest.equals(manifestBytes)
+      && hash(storedSidecar) === hash(sidecarBytes) && storedSidecar.equals(sidecarBytes)
+      && mode(lstatSync(join(snapshotRoot, MANIFEST_ENTRY))) === 0o644 && mode(lstatSync(join(snapshotRoot, SIDECAR_ENTRY))) === 0o644;
+  } catch { return false; }
+}
+
+function cachedSnapshotValid(snapshotRoot, manifest, manifestBytes, sidecarBytes, runtimeRoots, policy, key) {
+  const cached = readCache(runtimeCachePath);
+  return cached?.manifestHash === hash(manifestBytes)
+    && directorySnapshotsMatch(cached.directories, runtimeRoots, snapshotRoot)
+    && entrySnapshotsMatch(cached.entries, manifest, snapshotRoot)
+    && criticalSnapshotValid(snapshotRoot, manifest, manifestBytes, sidecarBytes, policy, key);
+}
+
+function cacheRuntimeSnapshot(manifestBytes, verifiedState) {
+  if (verifiedState.entries && verifiedState.directories) writeCache(hash(manifestBytes), verifiedState.entries, verifiedState.directories, runtimeCachePath);
+}
+
+async function createRuntimeSnapshot(manifest, manifestBytes, sidecarBytes, sourceBytes, runtimeRoots, expected, policy) {
   mkdirSync(runtimeStore, { recursive: true, mode: 0o700 });
   const key = runtimeKey(manifestBytes), snapshotRoot = join(runtimeStore, key), leaseStore = join(runtimeStore, ".leases"), leasePath = join(leaseStore, `${key}-${process.pid}`), lockPath = join(runtimeStore, `.${key}.lock`);
   collectRuntimeGarbage(key, policy);
   const lock = waitForRuntimeLock(lockPath);
   let stagingRoot;
   let rootDescriptor;
+  let validated = false;
+  let cacheHit = false;
+  const verifiedState = {};
+  let verifiedBytes;
+  const createStaging = () => {
+    verifiedBytes = sourceBytes();
+    stagingRoot = mkdtempSync(join(runtimeStore, `.staging-${key}-`));
+    rootDescriptor = openSync(stagingRoot, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+  };
   try {
     mkdirSync(runtimeStore, { recursive: true, mode: 0o700 });
     try {
       rootDescriptor = openSync(snapshotRoot, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
       try {
-        if (!snapshotValidForManifest(snapshotRoot, manifest, manifestBytes, sidecarBytes, runtimeRoots, expected, policy, key)) throw new Error("RUNTIME_INTEGRITY_COMPLETION_INVALID");
+        cacheHit = cachedSnapshotValid(snapshotRoot, manifest, manifestBytes, sidecarBytes, runtimeRoots, policy, key);
+        if (!cacheHit && !snapshotValidForManifest(snapshotRoot, manifest, manifestBytes, sidecarBytes, runtimeRoots, expected, policy, key, verifiedState)) throw new Error("RUNTIME_INTEGRITY_COMPLETION_INVALID");
+        validated = true;
       } catch {
         closeSync(rootDescriptor); rootDescriptor = undefined; rmSync(snapshotRoot, { force: true, recursive: true });
-        stagingRoot = mkdtempSync(join(runtimeStore, `.staging-${key}-`)); rootDescriptor = openSync(stagingRoot, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+        createStaging();
       }
-    } catch (error) { if (error?.code !== "ENOENT") throw error; stagingRoot = mkdtempSync(join(runtimeStore, `.staging-${key}-`)); rootDescriptor = openSync(stagingRoot, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW); }
+    } catch (error) { if (error?.code !== "ENOENT") throw error; createStaging(); }
     fchmodSync(rootDescriptor, 0o700);
     if (stagingRoot) {
-      for (const entry of manifest.entries) {
-        const bytes = verifiedBytes.get(entry.path);
-        if (!bytes) throw new Error("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
-        writeSnapshotFile(stagingRoot, entry.path, bytes, entry.mode);
-      }
+      await writeSnapshotEntries(stagingRoot, manifest.entries, verifiedBytes);
       writeSnapshotFile(stagingRoot, MANIFEST_ENTRY, manifestBytes, 0o644);
       writeSnapshotFile(stagingRoot, SIDECAR_ENTRY, sidecarBytes, 0o644);
       writeSnapshotFile(stagingRoot, ".runtime-complete.json", Buffer.from(JSON.stringify(canonical({ key, manifestHash: hash(manifestBytes), schemaVersion: 1 })) + "\n"), 0o600);
@@ -401,7 +469,8 @@ function createRuntimeSnapshot(manifest, manifestBytes, sidecarBytes, verifiedBy
       renameSync(stagingRoot, snapshotRoot); stagingRoot = undefined;
       rootDescriptor = openSync(snapshotRoot, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
     }
-    if (!snapshotValidForManifest(snapshotRoot, manifest, manifestBytes, sidecarBytes, runtimeRoots, expected, policy, key)) throw new Error("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
+    if (!validated && !snapshotValidForManifest(snapshotRoot, manifest, manifestBytes, sidecarBytes, runtimeRoots, expected, policy, key, verifiedState)) throw new Error("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
+    if (!cacheHit) cacheRuntimeSnapshot(manifestBytes, verifiedState);
     closeSync(rootDescriptor); rootDescriptor = undefined;
     mkdirSync(leaseStore, { recursive: true, mode: 0o700 });
     writeFileSync(leasePath, JSON.stringify({ key, pid: process.pid, processIdentity: processIdentitySync(process.pid), startedAt: new Date().toISOString(), schemaVersion: 1 }) + "\n", { mode: 0o600 });
@@ -459,7 +528,6 @@ async function main() {
     const startupSet = new Set(startupPaths);
     const runtimeRoots = runtimeRootsFor(manifest.entries);
     if (!verifyAssetMap(manifest)) return reject("RUNTIME_INTEGRITY_MISMATCH");
-
     // Fast path: cached directory topology + trusted-local file metadata.
     // Set COCO_INTEGRITY_FULL=1 (or delete the cache) to force full hashing.
     let verified = false;
@@ -471,13 +539,8 @@ async function main() {
           const cachedSnapshot = cached.entries?.[entry.path];
           if (!snapshotValid(cachedSnapshot)) return false;
           try {
-            const verifiedEntry = openVerified(join(root, entry.path), "file");
-            if (!verifiedEntry) return false;
-            try {
-              return revalidatePath(join(root, entry.path), verifiedEntry) && sameSnapshot(verifiedEntry.opened, cachedSnapshot) && mode(verifiedEntry.opened) === entry.mode;
-            } finally {
-              closeQuietly(verifiedEntry.descriptor);
-            }
+            const info = lstatSync(join(root, entry.path));
+            return expectedType(info, "file") && sameSnapshot(snapshot(info), cachedSnapshot) && mode(info) === entry.mode;
           } catch {
             return false;
           }
@@ -554,30 +617,36 @@ async function main() {
     closeSync(rootDescriptor); rootDescriptor = undefined;
     process.env.COCO_INTEGRITY_MODE = verified ? "fast" : "full";
     if (process.env.PI_OFFLINE === undefined) process.env.PI_OFFLINE = "1";
-    const verifiedBytes = new Map();
-    for (const entry of manifest.entries) {
-      if (!startupSet.has(entry.path)) continue;
-      const entryBytes = rehashEntry(entry);
-      if (!entryBytes) return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
-      verifiedBytes.set(entry.path, entryBytes);
-    }
     if (process.argv.length === 3 && (process.argv[2] === "--version" || process.argv[2] === "-v")) {
-      const packageBytes = verifiedBytes.get("package.json");
+      const packageEntry = manifest.entries.find((entry) => entry.path === "package.json");
+      const packageBytes = packageEntry && rehashEntry(packageEntry);
       if (!packageBytes) return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
       process.stdout.write(`${JSON.parse(packageBytes.toString("utf8")).version}\n`);
       return;
     }
     const launcherEntry = manifest.entries.find((entry) => entry.path === "scripts/coco-launcher.mjs");
-    if (!launcherEntry) return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
-    const policyBytes = verifiedBytes.get("scripts/runtime-store-policy.cjs");
+    const launcherBytes = launcherEntry && rehashEntry(launcherEntry);
+    if (!launcherBytes) return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
+    const policyEntry = manifest.entries.find((entry) => entry.path === "scripts/runtime-store-policy.cjs");
+    const policyBytes = policyEntry && rehashEntry(policyEntry);
     if (!policyBytes) return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
     const policyModule = { exports: {} };
     new Function("module", "exports", policyBytes.toString("utf8"))(policyModule, policyModule.exports);
     if (typeof policyModule.exports.collectRuntimeNames !== "function" || typeof policyModule.exports.completionValid !== "function" || typeof policyModule.exports.storageBudgetValid !== "function") return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
-    runtimeSnapshot = createRuntimeSnapshot(manifest, bytes, sidecarBytes, verifiedBytes, runtimeRoots, expected, policyModule.exports);
+    runtimeSnapshot = await createRuntimeSnapshot(manifest, bytes, sidecarBytes, () => {
+      const verifiedBytes = new Map();
+      for (const entry of manifest.entries) {
+        if (!startupSet.has(entry.path)) continue;
+        const entryBytes = rehashEntry(entry);
+        if (!entryBytes) throw new Error("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
+        verifiedBytes.set(entry.path, entryBytes);
+      }
+      return verifiedBytes;
+    }, runtimeRoots, expected, policyModule.exports);
     process.env.COCO_RUNTIME_INTEGRITY_CACHE_PATH = join(agentDir, ".runtime-integrity-runtime-cache.json");
     process.env.COCO_RUNTIME_KEY = runtimeKey(bytes);
     process.env.COCO_RUNTIME_ROOT = runtimeSnapshot;
+    globalThis[Symbol.for("coco.runtime.integrity.v1")] = Object.freeze({ key: process.env.COCO_RUNTIME_KEY, root: runtimeSnapshot });
     await import(pathToFileURL(join(runtimeSnapshot, "scripts", "coco-launcher.mjs")).href);
   } catch (error) {
     console.error("BOOTSTRAP_ERROR", error);

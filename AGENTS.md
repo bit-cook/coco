@@ -61,7 +61,7 @@ node -p "require('./package.json').version"
 git diff --check
 ```
 
-Expected candidate version is `0.6.0`. Read the latest checkpoint in the migration journal, then inspect only the files in the active batch.
+Expected candidate version is `0.6.1`. Read the latest checkpoint in the migration journal, then inspect only the files in the active batch.
 
 The Phase A-F implementation batch is frozen. Persistent CAS runtime roots, terminal evidence/log sealing, bounded supervisor capture, provisioning recovery, Control summary/detail DTOs, webhook idempotency, dependency materialization, and publication archive scanning are complete. Current generated assets pass core 470/470, integrity 36/36, real npm pack, closure, scanner, runtime probe, and detached lifecycle gates. Do not edit governed code without marking this evidence stale and regenerating artifacts.
 

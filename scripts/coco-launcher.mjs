@@ -1,15 +1,26 @@
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { resolve } from "node:path";
+import { chmod, lstat, mkdir } from "node:fs/promises";
+import { enableCompileCache } from "node:module";
+import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const agentDir = process.env.COCO_CODING_AGENT_DIR || resolve(homedir(), ".coco", "agent");
-const { verifyRuntimeIntegrity } = await import("./runtime-integrity.mjs");
-const integrity = await verifyRuntimeIntegrity({ root, cachePath: resolve(process.env.COCO_RUNTIME_INTEGRITY_CACHE_PATH || resolve(agentDir, ".runtime-integrity-cache.json")) });
+const capabilityKey = Symbol.for("coco.runtime.integrity.v1");
+const capability = globalThis[capabilityKey]; delete globalThis[capabilityKey];
+const preverified = capability && resolve(capability.root) === resolve(root) && capability.key === process.env.COCO_RUNTIME_KEY;
+const integrity = preverified
+  ? { status: "approved" }
+  : await (await import("./runtime-integrity.mjs")).verifyRuntimeIntegrity({ root, cachePath: resolve(process.env.COCO_RUNTIME_INTEGRITY_CACHE_PATH || resolve(agentDir, ".runtime-integrity-cache.json")) });
 if (integrity.status !== "approved") {
   process.stderr.write(`coco: ${integrity.code}\n`);
   process.exitCode = 1;
 } else {
+  const compileCache = join(agentDir, "compile-cache", process.env.COCO_RUNTIME_KEY || "direct");
+  await mkdir(compileCache, { recursive: true, mode: 0o700 });
+  const compileCacheInfo = await lstat(compileCache);
+  if (!compileCacheInfo.isDirectory() || compileCacheInfo.isSymbolicLink()) throw new Error("COMPILE_CACHE_INVALID");
+  await chmod(compileCache, 0o700); enableCompileCache(compileCache);
   const { applyCocoIdentity, resolveCocoRuntime } = await import("./coco-runtime-identity.mjs");
   const runtime = await resolveCocoRuntime({ root });
   if (runtime.status !== "approved") {

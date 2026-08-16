@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.1] - 2026-08-16
+
+### Performance
+
+- Reduced real cold startup from about 15.7 seconds to 9.4 seconds and warm startup from about 6.2 seconds to 2.2 seconds on the release candidate host.
+- Eliminated duplicate CAS verification between bootstrap and launcher, added metadata-gated CAS reuse with critical-entry hashing, enabled a runtime-keyed compile cache, and parallelized first materialization writes.
+
+### Security
+
+- Preserved full hashing on cache changes, direct-launch verification, source race detection, CAS tamper rebuilding, private staging, and atomic completion semantics.
+
 ## [0.6.0] - 2026-08-16
 
 ### Added

@@ -44,7 +44,7 @@ test("Given the coco package root, when runtime identity is resolved, then it pi
   assert.equal(runtime.identity.configDir, ".coco");
   assert.equal(runtime.identity.agentEnv, "COCO_CODING_AGENT_DIR");
   assert.equal(runtime.identity.sessionEnv, "COCO_CODING_AGENT_SESSION_DIR");
-  assert.equal(runtime.identity.version, "0.6.0");
+  assert.equal(runtime.identity.version, "0.6.1");
   assert.equal(runtime.piVersion, "0.82.1");
   assert.equal(runtime.root, resolve(root));
 });
@@ -324,9 +324,10 @@ test("Given direct CJS bootstrap runs, when fast and full verification complete,
   }
 });
 
-test("Given a warm CJS integrity cache, when dependencies are unchanged, then final closure revalidation still reads dependency content", async () => {
+test("Given warm source and CAS metadata caches, then unchanged dependencies avoid content reads while critical CAS entries are always hashed", async () => {
   const packageRoot = await fixture();
   try {
+    await writeFile(join(packageRoot, "scripts", "coco-launcher.mjs"), "// verified launcher\n");
     await generateRuntimeIntegrityManifest({ root: packageRoot });
     const agentDir = join(packageRoot, "agent");
     const probe = join(packageRoot, "dependency-read-probe.cjs");
@@ -334,23 +335,32 @@ test("Given a warm CJS integrity cache, when dependencies are unchanged, then fi
 const promises = require("node:fs/promises");
 const root = ${JSON.stringify(packageRoot)};
 const rejectsDependencyRead = (path) => {
-  if (typeof path === "string") return path.startsWith(root + "/node_modules/");
-  try { return typeof path === "number" && fs.readlinkSync("/proc/self/fd/" + path).startsWith(root + "/node_modules/"); } catch { return false; }
+  let opened = path;
+  try { if (typeof path === "number") opened = fs.readlinkSync("/proc/self/fd/" + path); } catch { return false; }
+  return typeof opened === "string" && opened.includes("/node_modules/");
+};
+let criticalReads = 0;
+const recordsCriticalRead = (path) => {
+  let opened = path;
+  try { if (typeof path === "number") opened = fs.readlinkSync("/proc/self/fd/" + path); } catch { return; }
+  if (typeof opened === "string" && (opened.endsWith("/scripts/coco-launcher.mjs") || opened.endsWith("/scripts/runtime-store-policy.cjs") || opened.endsWith("/resources/runtime-integrity-manifest.v1.json") || opened.endsWith("/resources/runtime-integrity-manifest.v1.json.sha256")) && opened.includes("/runtime/")) criticalReads += 1;
 };
 const readFileSync = fs.readFileSync;
 const readFile = promises.readFile;
 fs.readFileSync = (path, ...arguments_) => {
   if (rejectsDependencyRead(path)) throw new Error("DEPENDENCY_CONTENT_READ");
+  recordsCriticalRead(path);
   return readFileSync(path, ...arguments_);
 };
 promises.readFile = async (path, ...arguments_) => {
   if (rejectsDependencyRead(path)) throw new Error("DEPENDENCY_CONTENT_READ");
   return readFile(path, ...arguments_);
 };
+process.on("exit", () => { if (criticalReads < 4) process.exitCode = 96; });
 `);
     await rm(agentDir, { force: true, recursive: true });
     const environment = { ...process.env, COCO_CODING_AGENT_DIR: agentDir };
-    const initial = await runBootstrap(packageRoot, ["--version"], environment);
+    const initial = await runBootstrap(packageRoot, [], environment);
     assert.equal(initial.code, 0, initial.stderr);
     const manifest = JSON.parse(await readFile(join(packageRoot, "resources", "runtime-integrity-manifest.v1.json"), "utf8"));
     const cache = JSON.parse(await readFile(join(agentDir, ".runtime-integrity-cache.json"), "utf8").catch((error) => { throw new Error(`${error.code}: ${initial.stderr}`); }));
@@ -361,9 +371,16 @@ promises.readFile = async (path, ...arguments_) => {
     for (const snapshot of Object.values(cache.entries)) assert.deepEqual(Object.keys(snapshot).sort(), ["ctimeMs", "dev", "ino", "mode", "mtimeMs", "size"]);
     assert.ok(Object.keys(cache.directories).length > 0);
     for (const snapshot of Object.values(cache.directories)) assert.deepEqual(Object.keys(snapshot).sort(), ["ctimeMs", "dev", "ino", "mode", "mtimeMs", "size"]);
-    const warm = await runBootstrap(packageRoot, ["--version"], { ...environment, NODE_OPTIONS: `--require=${probe}` });
-    assert.notEqual(warm.code, 0, warm.stderr);
-    assert.match(warm.stderr, /DEPENDENCY_CONTENT_READ/);
+    const casCachePath = join(agentDir, ".runtime-cas-integrity-cache.json");
+    const casCache = JSON.parse(await readFile(casCachePath, "utf8"));
+    assert.equal(casCache.schemaVersion, 2);
+    assert.equal((await stat(casCachePath)).mode & 0o777, 0o600);
+    assert.deepEqual(Object.keys(casCache.entries).sort(), manifest.entries.map((entry) => entry.path).sort());
+    for (const snapshot of Object.values(casCache.entries)) assert.deepEqual(Object.keys(snapshot).sort(), ["ctimeMs", "dev", "ino", "mode", "mtimeMs", "size"]);
+    assert.ok(Object.keys(casCache.directories).length > 0);
+    for (const snapshot of Object.values(casCache.directories)) assert.deepEqual(Object.keys(snapshot).sort(), ["ctimeMs", "dev", "ino", "mode", "mtimeMs", "size"]);
+    const warm = await runBootstrap(packageRoot, [], { ...environment, NODE_OPTIONS: `--require=${probe}` });
+    assert.equal(warm.code, 0, warm.stderr);
     const full = await runBootstrap(packageRoot, ["--version"], { ...environment, COCO_INTEGRITY_FULL: "1", NODE_OPTIONS: `--require=${probe}` });
     assert.notEqual(full.code, 0, full.stderr);
     assert.match(full.stderr, /DEPENDENCY_CONTENT_READ/);
@@ -400,7 +417,7 @@ test("Given a replacement after bytes are hashed, when bootstrap creates a cache
     await generateRuntimeIntegrityManifest({ root: packageRoot });
     const target = join(packageRoot, "package.json");
     const original = await readFile(target, "utf8");
-    const replacement = original.replace('"version": "0.6.0"', '"version": "9.9.9"');
+    const replacement = original.replace('"version": "0.6.1"', '"version": "9.9.9"');
     assert.notEqual(replacement, original);
     const sibling = `${target}.replacement`;
     await writeFile(sibling, replacement);
@@ -522,6 +539,30 @@ test("Given a completed CAS snapshot, when its launcher is tampered, then bootst
     assert.equal(reused.code, 0, reused.stderr);
     assert.equal(await readFile(sentinel, "utf8"), "verified");
     await assert.rejects(readFile(tampered));
+  } finally { await rm(join(packageRoot, ".."), { force: true, recursive: true }); }
+});
+
+test("Given a completed CAS snapshot, when noncritical file metadata changes, then bootstrap fully hashes and rebuilds it", async () => {
+  const packageRoot = await fixture();
+  try {
+    await writeFile(join(packageRoot, "scripts", "coco-launcher.mjs"), "// verified launcher\n");
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const agentDir = join(packageRoot, "agent"), environment = { ...process.env, COCO_CODING_AGENT_DIR: agentDir };
+    const initial = await runBootstrap(packageRoot, [], environment);
+    assert.equal(initial.code, 0, initial.stderr);
+    const [snapshotName] = (await readdir(join(agentDir, "runtime"))).filter((name) => /^[a-f0-9]{64}-node/.test(name));
+    const snapshotPackage = join(agentDir, "runtime", snapshotName, "package.json");
+    const original = await readFile(snapshotPackage, "utf8");
+    const metadata = await stat(snapshotPackage);
+    const replacement = `${original[0] === "{" ? "[" : "{"}${original.slice(1)}`;
+    await writeFile(snapshotPackage, replacement);
+    await utimes(snapshotPackage, metadata.atime, metadata.mtime);
+    const changed = await stat(snapshotPackage);
+    assert.equal(changed.size, metadata.size);
+    assert.notEqual(changed.ctimeMs, metadata.ctimeMs);
+    const reused = await runBootstrap(packageRoot, [], environment);
+    assert.equal(reused.code, 0, reused.stderr);
+    assert.equal(await readFile(snapshotPackage, "utf8"), original);
   } finally { await rm(join(packageRoot, ".."), { force: true, recursive: true }); }
 });
 

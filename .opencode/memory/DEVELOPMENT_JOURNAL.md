@@ -1579,3 +1579,35 @@ complete integrity with TMPDIR=/root/coco-tmp: 36/36 passed
 ```
 
 A prior local integrity attempt failed with `RUNTIME_STORAGE_BUDGET_EXCEEDED` because `/tmp` had only 284 MiB free after release debugging; this was correct fail-closed behavior, not a code regression. The successful rerun used the repository's large temporary root. Next action: complete core, commit/push this repair, update the still-unreleased tag, and rerun release. npm publication remains prohibited.
+
+## 2026-08-16: Startup Performance Repair for 0.6.1
+
+User report: published 0.6.0 startup can exceed ten seconds. Baseline on the candidate host:
+
+```text
+bootstrap --version cold: 6.09 s
+bootstrap --version warm: 1.92 s
+real coco --list-models cold: 15.74 s
+real coco --list-models warm: 6.19 s
+runtime manifest: 20,662 entries / 172.9 MiB
+```
+
+Root causes and corrections:
+
+- bootstrap validated an existing CAS snapshot twice in one launch; reuse now performs one validation;
+- bootstrap handed a same-process verification capability to the launcher, but trailing-slash path drift made the capability comparison fail, so launcher repeated a complete ESM integrity scan; roots are now normalized before capability comparison and the capability is deleted immediately after consumption;
+- direct launcher invocation still performs its own full integrity verification; no environment nonce or bypass was added;
+- private CAS warm cache records six-field file and directory snapshots; unchanged noncritical files use trusted-local metadata gating, while launcher, runtime policy, manifest, and sidecar are content-verified every launch; any metadata change falls back to complete hashing and rebuild;
+- source warm-cache checks use one `lstat` per entry instead of open/fstat/lstat/close; any metadata change still falls back to full source hashing;
+- first CAS materialization writes verified files in bounded 64-file asynchronous batches while preserving private staging, `O_EXCL`, `O_NOFOLLOW`, file modes, completion-last ordering, and atomic rename;
+- Node's official compile cache is enabled only after runtime integrity approval and is isolated by runtime key under the private agent directory.
+
+Performance after the frozen implementation:
+
+```text
+real coco --list-models cold: 9.37 s (40% faster)
+real coco --list-models warm: 2.18 s (65% faster)
+bootstrap --version warm: about 1.0 s (48% faster)
+```
+
+Focused security evidence: CAS tamper/rebuild, noncritical metadata change/full fallback, launcher replacement, lock identity, source metadata-preserved mutation, source inode replacement, direct launcher, and runtime-store tests passed. Next action: complete integrity/core/package gates, bump to 0.6.1, regenerate assets, commit, push/tag, and publish GitHub Release. npm publication remains prohibited.

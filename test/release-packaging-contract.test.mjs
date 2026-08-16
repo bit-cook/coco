@@ -198,8 +198,8 @@ test("Given release workflows, when tarball closure runs through the shell, then
   }
 });
 
-test("Given the v0.6.0 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
-  const version = "0.6.0";
+test("Given the v0.6.1 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
+  const version = "0.6.1";
   const [packageJson, packageLock, installer, readme, englishReadme, chineseReadme, ciWorkflow, releaseWorkflow] = await Promise.all([
     readFile(join(root, "package.json"), "utf8"),
     readFile(join(root, "package-lock.json"), "utf8"),

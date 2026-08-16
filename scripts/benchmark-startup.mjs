@@ -13,10 +13,10 @@ if (!Number.isSafeInteger(samples) || samples < 1 || samples > 100) {
   throw new Error("COCO_BENCHMARK_SAMPLES must be an integer from 1 to 100");
 }
 
-function run(agentDir, full = false) {
+function run(agentDir, full = false, args = ["--version"]) {
   return new Promise((resolveRun, reject) => {
     const started = performance.now();
-    const child = spawn(process.execPath, [bootstrap, "--version"], {
+    const child = spawn(process.execPath, [bootstrap, ...args], {
       cwd: root,
       env: { ...process.env, COCO_CODING_AGENT_DIR: agentDir, ...(full ? { COCO_INTEGRITY_FULL: "1" } : {}) },
       stdio: ["ignore", "ignore", "pipe"],
@@ -49,9 +49,18 @@ try {
   const coldMs = await run(agentDir);
   const warm = [];
   const full = [];
+  const command = process.env.COCO_BENCHMARK_COMMAND?.split(" ").filter(Boolean);
   for (let index = 0; index < samples; index += 1) warm.push(await run(agentDir));
   for (let index = 0; index < samples; index += 1) full.push(await run(agentDir, true));
-  process.stdout.write(`${JSON.stringify({ coldMs: Number(coldMs.toFixed(2)), full: summarize(full), node: process.version, platform: process.platform, warm: summarize(warm) }, null, 2)}\n`);
+  let commandResult;
+  if (command?.length) {
+    const commandAgentDir = join(directory, "command-agent");
+    const commandColdMs = await run(commandAgentDir, false, command);
+    const commandWarm = [];
+    for (let index = 0; index < samples; index += 1) commandWarm.push(await run(commandAgentDir, false, command));
+    commandResult = { args: command, coldMs: Number(commandColdMs.toFixed(2)), warm: summarize(commandWarm) };
+  }
+  process.stdout.write(`${JSON.stringify({ coldMs: Number(coldMs.toFixed(2)), command: commandResult, full: summarize(full), node: process.version, platform: process.platform, warm: summarize(warm) }, null, 2)}\n`);
 } finally {
   await rm(directory, { force: true, recursive: true });
 }
