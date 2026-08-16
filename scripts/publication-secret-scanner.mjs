@@ -10,6 +10,7 @@ import { inflateRawSync } from "node:zlib";
 const exec = promisify(execFile);
 const MAX_TEXT_BYTES = 4 * 1024 * 1024;
 const MAX_ARCHIVE_BYTES = 256 * 1024 * 1024;
+const MAX_CUMULATIVE_ARCHIVE_BYTES = 512 * 1024 * 1024;
 const MAX_ARCHIVE_MEMBERS = 25_000;
 const MAX_ARCHIVE_LIST_BYTES = 32 * 1024 * 1024;
 const MAX_NESTED_ARCHIVE_DEPTH = 3;
@@ -19,7 +20,7 @@ const tarExtensions = new Set([".tgz", ".gz"]);
 const zipExtensions = new Set([".zip", ".vsix"]);
 const testOnlyKey = ["sk", "test", "only", "invalid", "key"].join("-");
 const detectors = [
-  { id: "private-key-block", expression: /-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY-----/g },
+  { id: "private-key-block", expression: /-----BEGIN ((?:[A-Z0-9 ]+ )?PRIVATE KEY)-----[\s\S]{1,65536}?-----END \1-----/g },
   { id: "bearer-literal", expression: /\bAuthorization\s*:\s*Bearer\s+(?!\$\{|\{env:|YOUR_|bearer-test-only-invalid-key\b)[A-Za-z0-9._~+/=-]{12,}\b/gi },
   { id: "common-key-prefix", expression: /(?<![A-Za-z0-9_-])(?:sk|rk)_(?:live|prod)_[A-Za-z0-9_-]{8,}|(?<![A-Za-z0-9_-])(?:sk|pk)-[A-Za-z0-9_-]{12,}\b|(?<![A-Za-z0-9_-])(?:AKIA|ASIA)[A-Z0-9]{12,}\b|(?<![A-Za-z0-9_-])(?:ghp|gho|ghu|ghs|glpat)-[A-Za-z0-9_-]{12,}\b|(?<![A-Za-z0-9_-])github_pat_[A-Za-z0-9_-]{12,}\b|(?<![A-Za-z0-9_-])xox[baprs]-[A-Za-z0-9-]{12,}\b/g },
   { id: "credential-assignment", expression: /(?:^|[\n,;])\s*["']?(?:api[_-]?key|access[_-]?token|auth[_-]?token|secret|password|token|credential)["']?\s*(?:=|:)\s*(["'])(?!\$\{|\{env:|YOUR_|test-only-invalid-key(?:["'\s,;]|$))([A-Za-z0-9._~+/=-]{12,})\1/gim },
@@ -168,7 +169,7 @@ async function listArchive(archive) {
 function reserveArchiveBudget(context, compressedBytes, uncompressedBytes) {
   context.compressedBytes += compressedBytes;
   context.uncompressedBytes += uncompressedBytes;
-  if (context.compressedBytes > MAX_ARCHIVE_BYTES || context.uncompressedBytes > MAX_ARCHIVE_BYTES) throw new Error("ARCHIVE_BUDGET_EXCEEDED");
+  if (context.compressedBytes > MAX_CUMULATIVE_ARCHIVE_BYTES || context.uncompressedBytes > MAX_CUMULATIVE_ARCHIVE_BYTES) throw new Error("ARCHIVE_BUDGET_EXCEEDED");
 }
 
 function archiveKind(path) {

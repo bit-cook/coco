@@ -1527,3 +1527,32 @@ git diff --check: passed
 ```
 
 Governed files are frozen. Authorized next action: create local branch `candidate/v0.6.0`, stage the reviewed candidate inventory including this durable handoff journal, inspect staged status/diff and recent history, run the scanner against staged bytes/current tree, and create one local candidate commit. Tag, push, PR, release, publication, and remote mutation remain prohibited.
+
+## 2026-08-16: v0.6.0 Release Workflow Repair
+
+The user authorized branch/tag push and GitHub Release, excluding npm publication. Release run `31943349934` was not stuck in queue: the hosted job started after about seven minutes and completed core, integrity, closure, and npm pack. It failed after 21m47s while scanning the generated tarball.
+
+Root causes:
+
+- `jose` runtime source compares input with the PEM header string, and the scanner treated a standalone `BEGIN PRIVATE KEY` header as a complete private key block.
+- The outer npm tar expands to about 196.6 MiB and its legitimate nested pinned candidate expands to about 115.8 MiB. Both satisfy the 256 MiB per-archive limit, but the shared cumulative 256 MiB limit rejected their combined 312.4 MiB.
+
+Repair:
+
+- Private-key detection now requires a matching complete BEGIN/END block with bounded content; standalone parser/header strings pass.
+- The 256 MiB per-archive limit remains. The bounded cumulative nested-archive budget is 512 MiB, while depth 3 and count 100 remain unchanged.
+- Added complete-block and header-only regression coverage; fixtures construct key markers at runtime so repository scanning does not whitelist test paths.
+
+Evidence:
+
+```text
+scanner suite: 19/19 passed
+real generated coco-0.6.0.tgz scan: clean
+repository scan: clean
+npm run build: passed
+real package + v0.6.0 contract: 2/2 passed
+package closure: approved, 175 manifests
+git diff --check: passed
+```
+
+No GitHub Release was created by the failed run. Next action under the release-repair authorization: commit and push the scanner fix, update the unreleased `v0.6.0` tag to that fix commit, then monitor the replacement release workflow. npm publication remains prohibited.

@@ -58,12 +58,20 @@ test("Given credential-shaped text, when scanned, then live literals are found w
     `Authorization: Bearer ${testOnlyBearer}`,
     `Authorization: Bearer ${fakeBearer}`,
     ["-----BEGIN", "PRIVATE", "KEY-----"].join(" "),
+    "private-material",
+    ["-----END", "PRIVATE", "KEY-----"].join(" "),
     "schema: { apiKey: string }",
   ].join("\n");
 
   const findings = scanText(text);
 
   assert.deepEqual(findings.map((finding) => finding.detector).sort(), ["bearer-literal", "common-key-prefix", "credential-assignment", "private-key-block"]);
+});
+
+test("Given PEM parsing source and a complete private key block, when scanned, then only the complete block is rejected", () => {
+  assert.deepEqual(scanText(`value.startsWith('-----BEGIN PRIVATE KEY-----')`), []);
+  const block = [["-----BEGIN", "PRIVATE", "KEY-----"].join(" "), "private-material", ["-----END", "PRIVATE", "KEY-----"].join(" ")].join("\n");
+  assert.deepEqual(scanText(block), [{ detector: "private-key-block", count: 1 }]);
 });
 
 test("Given recognized placeholders and schema declarations, when scanned, then they pass without path-based exceptions", () => {
