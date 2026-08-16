@@ -1727,3 +1727,59 @@ stale default-model/provider wording in homepage: none
 ```
 
 Only site HTML, its contract test, and this live journal changed. These paths do not require runtime manifest regeneration. Next action: commit, push, deploy Pages from the verified branch, restore the environment branch policy, and verify live localized content.
+
+## 2026-08-16: Executable Development System and Pre-0.6.2 Backup
+
+Before restructuring development documentation, a non-destructive backup was created and verified at commit `e085d3dc2b59074c23a52f4fe4c76c17504d0e5b`:
+
+```text
+local branch: backup/pre-v0.6.2-20260816
+bundle: /root/coco-tmp/coco-backups/coco-pre-v0.6.2-20260816.bundle
+checksum: /root/coco-tmp/coco-backups/coco-pre-v0.6.2-20260816.bundle.sha256
+bundle verification: passed, complete history, 50 refs
+checksum verification: passed
+existing remote backup-equivalent: origin/candidate/v0.6.1 at e085d3d
+```
+
+The active branch is now `candidate/v0.6.2`. No historical document was deleted or moved. The permanent discovery and recovery entry is `HISTORICAL_DOCUMENTS.md`; it lists the English/Chinese migration journals, strategy pages, legacy roadmap, research page, RFCs, changelogs, backup branch, bundle, checksum, verification commands, and safe restore command.
+
+The agent collaboration structure is now:
+
+```text
+AGENTS.md                              current collaboration and invariants
+DEVELOPMENT_PLAN.md                    current status, dependency graph, evidence and next action
+HISTORICAL_DOCUMENTS.md                preserved-document and backup index
+development/WORK_ITEM_TEMPLATE.md      required packet format
+development/GENERATED_ASSETS.md        generation and evidence-freshness rules
+development/work-items/0.6.2/          ten agent-ready work packets
+documentation/architecture/decisions/ four runtime/supervision/release/platform ADRs
+.opencode/work-leases.json             local file-scope lease registry
+```
+
+The ten work packets are REL-001 through REL-004, RUN-001 through RUN-005, and CON-001. Each packet records status, priority, dependencies, reproduction, invariants, allowed scope, out-of-scope work, design, fault matrix where applicable, acceptance tests, verification, rollback, and evidence.
+
+Focused evidence:
+
+```text
+development plan/documentation/current-plan contracts: 4/4 passed
+work item IDs: unique
+work item inventory: exact 10/10
+ADR inventory: exact 4/4
+publication scanner: clean
+git diff --check: passed
+```
+
+The new architecture ADRs are packaged documentation, so package and runtime generated assets are stale. Next action: run the canonical build once, repeat plan/package/closure checks, then commit and push the collaboration structure. No product feature implementation, version bump, tag, release, or npm publication is part of this batch.
+
+Post-build evidence:
+
+```text
+npm run build: passed
+development plan/documentation/current-plan contracts: 4/4 passed
+real package and v0.6.1 release contracts: 2/2 passed
+package closure: approved, 175 manifests
+publication scanner: clean
+git diff --check: passed
+```
+
+Generated package and runtime assets now match the packaged ADR documentation. Complete core and integrity counts remain historical and intentionally marked stale for the 0.6.2 implementation cycle; no product implementation was changed in this collaboration-structure batch.

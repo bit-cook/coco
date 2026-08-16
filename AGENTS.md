@@ -1,95 +1,98 @@
-# CoCo Agent Handoff
+# CoCo Agent Collaboration Rules
 
 Read this file before changing the repository.
 
-## Canonical Development Worktree
+## Current Truth
 
-- Active migration worktree: `/root/coco-tmp/coco-v053-migration`
-- Baseline commit: `6ec5dd3d2105cacbed2e6ea795d74b9eb2155118`
-- Baseline product version: `0.5.3`
-- Git state: detached HEAD by design; do not create commits, tags, branches, or remote changes unless the user explicitly requests them.
-- Live execution journal: `.opencode/memory/DEVELOPMENT_JOURNAL.md`
-- Stable English migration guide: `documentation/en/docs/development-migration-journal.md`
-- Stable Chinese migration guide: `documentation/zh-CN/docs/development-migration-journal.md`
+- Worktree: `/root/coco-tmp/coco-v053-migration`
+- Current branch: `candidate/v0.6.2`
+- Released version: `0.6.1`
+- Current target: `0.6.2`
+- Active plan: `DEVELOPMENT_PLAN.md`
+- Work items: `development/work-items/0.6.2/`
+- Execution journal: `.opencode/memory/DEVELOPMENT_JOURNAL.md`
+- Historical document index: `HISTORICAL_DOCUMENTS.md`
+- Generated asset rules: `development/GENERATED_ASSETS.md`
 
-`/root/coco` is a dirty migration source based on `0.2.1`. It contains useful, tested security work, but it is not the product-version source of truth and must not be released or advanced as the main candidate.
+The protected migration source `/root/coco` remains a dirty `0.2.1` behavior source. Never clean, reset, overwrite, or release it.
+
+## Required Reading Order
+
+1. `AGENTS.md`
+2. `DEVELOPMENT_PLAN.md`
+3. The selected work item
+4. The latest journal checkpoint
+5. Relevant ADRs and generated-asset rules
+6. Implementation and tests in the work-item scope
 
 ## Non-Destructive Rules
 
-- Never reset, clean, checkout over, rebase, pull into, or delete either worktree.
-- Never remove untracked files from `/root/coco`, including profiler output.
-- Never overwrite a `0.5.3` file wholesale with its `/root/coco` counterpart. Migrate behavior semantically and preserve upstream execution evidence, provider, TUI, model-panel, and release features.
-- Do not commit, push, tag, publish, upload, or edit remote state without explicit user authorization.
+- Never use destructive reset, clean, rebase, pull, or overwrite checkout operations.
+- Never modify unrelated user or agent changes.
+- Never delete or rewrite historical documentation; update `HISTORICAL_DOCUMENTS.md` when adding an archive or successor.
+- Do not commit, push, tag, publish, deploy, or edit remote state without explicit user authorization.
 - Use `apply_patch` for manual edits.
-- Regenerate asset maps and runtime manifests only after a code batch is frozen.
+- Do not hand-edit generated assets unless their documented generator is unavailable and the exception is recorded.
+- Regenerate governed assets only after a code batch is frozen.
+
+## Work Item Protocol
+
+- Work only on a `ready` item whose dependencies are completed.
+- Before editing, claim the item in `.opencode/work-leases.json` with the base commit, exact file scope, and expiry.
+- Parallel agents must have non-overlapping file scopes.
+- One coordinating agent owns shared files and reconciles cross-batch tests.
+- Do not expand scope silently. Record a follow-up item instead.
+- Completion requires the item acceptance tests, journal evidence, plan status update, and lease removal.
 
 ## Required Invariants
 
-### Terminal Execution Evidence
+### Terminal Execution
 
-- A child exit result must be persisted as `terminalEvidence` before receipt or terminal-event publication.
-- Once terminal evidence exists, the run must never execute again.
-- Recovery order is log seal, receipt, terminal event intent, task completion, terminal event publication.
-- Receipt or event failure must retain the terminal evidence outbox for restart recovery.
+- Persist terminal evidence before receipt or terminal-event publication.
+- Once terminal evidence exists, never execute the run again.
+- Authorized/no-outcome dead runs remain `EXECUTION_OUTCOME_IN_DOUBT` and are never automatically repeated.
+- Recovery order remains log seal, receipt, terminal intent, task completion, terminal publication.
 
-### Task Logs
+### Logs and Receipts
 
-- JSONL records are canonical, contiguous, private, bounded, and UTF-8 valid.
-- The index is a validated cache, not a source of truth.
-- A sealed run rejects all later appends.
-- A receipt may reference only a sealed descriptor whose bytes, record count, latest timestamp, and SHA-256 still match the log.
-
-### Archive Verification
-
-- Archive listing, scanning, and extraction operate on one private snapshot, never the caller-controlled path after validation starts.
-- Reject non-canonical paths, duplicates, aliases, special entries, prefix conflicts, overlapping ZIP ranges, malformed EOCD, metadata disagreement, and CRC mismatch.
-- A release tarball regular file must match the current source candidate in bytes and normalized mode.
+- JSONL is canonical, private, contiguous, bounded, and UTF-8 valid.
+- A sealed run rejects appends.
+- Receipt bytes, record count, latest timestamp, hash, and seal must agree.
+- Invalid output encoding must not permanently block terminal recovery.
 
 ### Runtime Integrity
 
-- No environment variable or process property may bypass verification.
-- CJS and ESM cache readers/writers must use the same schema and startup closure.
-- Warm cache is trusted-local change detection, not protection from an attacker who can modify both runtime and cache.
+- No environment variable or externally forgeable process property may bypass verification.
+- Direct launcher invocation verifies itself.
+- Warm caches are trusted-local change detection; any metadata change falls back to complete hashing.
+- CAS completion is written last and reuse must reject symlinks, corruption, and identity drift.
+
+### Publication
+
+- Archive operations use one private snapshot.
+- Reject traversal, aliases, duplicates, special entries, prefix conflicts, malformed ZIP ranges/CRC, and unbound package input.
+- Build/test code must not execute while repository write credentials are available.
+- Failed release attempts must not expose partial public assets.
+
+## Evidence Freshness
+
+Every gate is one of `current`, `stale`, `not run`, `blocked`, or `failed`, and is bound to a commit. Any governed edit marks affected complete evidence stale immediately. Never quote an old green count as current after relevant code or generated assets change.
+
+## Verification Policy
+
+- Run focused tests after each work item.
+- Run typechecks and `git diff --check` before integration.
+- Read `development/GENERATED_ASSETS.md` before building.
+- Run complete core/integrity/package/lifecycle gates only after a batch is frozen.
+- Record exact commands, pass/fail/blocked status, and failure attribution in the journal.
 
 ## Resume Checklist
 
-Run these commands before continuing:
-
 ```bash
 git status --short --branch
+git rev-parse HEAD
 node -p "require('./package.json').version"
 git diff --check
 ```
 
-Expected candidate version is `0.6.1`. Read the latest checkpoint in the migration journal, then inspect only the files in the active batch.
-
-The Phase A-F implementation batch is frozen. Persistent CAS runtime roots, terminal evidence/log sealing, bounded supervisor capture, provisioning recovery, Control summary/detail DTOs, webhook idempotency, dependency materialization, and publication archive scanning are complete. Current generated assets pass core 470/470, integrity 36/36, real npm pack, closure, scanner, runtime probe, and detached lifecycle gates. Do not edit governed code without marking this evidence stale and regenerating artifacts.
-
-## Verification Policy
-
-- Run narrow tests after each batch.
-- Do not run the ten-minute integrity suite until all governed files are frozen and the manifest is regenerated.
-- A failed test caused by absent `node_modules` in this worktree is an environment blocker, not proof of code correctness. Restore or link dependencies using a verified non-mutating approach before final validation.
-- Record every test command, result, and failure attribution in the journal.
-
-## Mandatory Journal Protocol
-
-- Treat the migration journal as part of every implementation batch. Update it
-  after discovery, implementation, any failed assumption or test, plan changes,
-  generated-asset changes, and before handoff or stopping.
-- Each checkpoint must state the date, objective, exact files changed, decisions
-  and invariants, commands actually run, pass/fail/blocked results, stale
-  generated assets, unresolved risks, and the next executable action.
-- Never call a blocked or unrun test passed. Mark evidence as `passed`, `failed`,
-  `blocked`, `not run`, or `stale`, and explain why.
-- Keep the recovery header and latest checkpoint in
-  `.opencode/memory/DEVELOPMENT_JOURNAL.md` synchronized with the real worktree.
-  Stable design belongs in packaged documentation; chronological execution
-  evidence belongs only in the live journal so routine logging does not stale
-  runtime or package assets.
-- Parallel agents must have non-overlapping file scopes and return changed files,
-  tests, and blockers. The coordinating agent records and cross-checks their
-  results in the journal.
-- Never write credentials, raw private prompts, sensitive output, email contents,
-  or tokens to the journal. Use hashes, redacted labels, bounded metadata, and
-  stable error codes.
+Then read `DEVELOPMENT_PLAN.md`, inspect `.opencode/work-leases.json`, and continue the single active work item. If plan, lease, branch, or journal disagree, stop implementation and reconcile the documents first.
