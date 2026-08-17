@@ -1783,3 +1783,46 @@ git diff --check: passed
 ```
 
 Generated package and runtime assets now match the packaged ADR documentation. Complete core and integrity counts remain historical and intentionally marked stale for the 0.6.2 implementation cycle; no product implementation was changed in this collaboration-structure batch.
+
+## 2026-08-16: PERF-001 Startup and Runtime Performance
+
+The user explicitly prioritized further startup and runtime optimization. `PERF-001` was added to the active plan and claimed with a file-scope lease at base commit `7b2c5a6b45f580ece596a62a2dc0edbbc0e7a6b4`.
+
+Measured baseline on Node v24.15.0:
+
+```text
+--version cold: 6.64 s
+--version warm p50: 0.704 s
+--list-models cold: 9.18 s
+--list-models warm p50: 2.401 s
+forced full p50: 2.283 s
+--help warm p50: 1.192 s
+task list --json warm p50: 1.245 s
+control status warm p50: 1.363 s
+```
+
+Retained optimizations:
+
+- Project-resource preflight no longer performs four identical walks. It performs an initial scan and a descriptor-bound final revalidation immediately before Pi import. Every command still performs the initial forbidden-resource check.
+- `--list-models` uses a lightweight entry composed from the bundled Pi `ModelRuntime` and the bundled, CoCo-patched `listModels` formatter. It does not duplicate model visibility, authentication status, custom provider, search, or output logic. Explicit extension arguments or an agent extension directory fall back to the full Pi entry.
+- Warm directory topology validation compares the six-field snapshots of every cached directory directly instead of recursively enumerating the tree again. Any added/removed/renamed entry changes its direct parent directory metadata and triggers complete fallback.
+- The benchmark now supports expected nonzero command exit codes and records the expected code with full percentile summaries.
+
+Rejected experiments:
+
+- Skipping project-resource preflight for native commands was reverted because it violated the existing contract that forbidden project executables reject even `--version`/help startup.
+- 128-way asynchronous metadata `lstat` was reverted because warm `--version` regressed from approximately 0.765 s to 0.993 s and `--list-models` from 1.656 s to 2.296 s.
+
+Current measured results after retained changes:
+
+```text
+--version warm p50: 0.486 s
+--list-models cold: 7.57 s
+--list-models warm p50: 1.275 s
+--help warm p50: 0.795 s
+task list --json warm p50: 0.872 s
+```
+
+Relative to the 0.6.1 post-release baseline, warm model listing is approximately 47% faster and remains below the 10-second cold-start target. Focused output-equivalence, extension fallback, project-resource rejection, cache topology, source/CAS metadata fallback, tamper, visible-model, and launcher tests passed. Generated assets were refreshed after each governed freeze. Next action: run final focused/typecheck checks, complete integrity/core/package/lifecycle gates, update PERF-001 evidence, clear the lease, and commit the batch.
+
+PERF-001 completed at implementation commit `f67851c` with generated assets at `6262f75`. Final current-byte gates are integrity 37/37, core 478/478, package 2/2, closure 175 approved, runtime probe 20,668 approved, scanner clean, detached lifecycle passed, and both typecheck suites passed. Final measured `--list-models` cold was 7.14 seconds and warm p50 1.224 seconds; `--version` warm p50 was 0.500 seconds. The lease is cleared. Subsequent governed startup edits must mark this evidence stale.

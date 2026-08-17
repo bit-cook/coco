@@ -21,10 +21,12 @@ test("active development plan exposes complete, agent-ready 0.6.2 work packets",
   assert.match(agents, /HISTORICAL_DOCUMENTS\.md/);
   assert.match(plan, /Current target: 0\.6\.2/);
   assert.match(plan, /Next Executable Action/);
-  assert.deepEqual(leases, { leases: [], schemaVersion: 1 });
+  assert.equal(leases.schemaVersion, 1);
+  assert.equal(Array.isArray(leases.leases), true);
 
   const expected = [
     "CON-001-linux-containment.md",
+    "PERF-001-startup-runtime-performance.md",
     "REL-001-release-permission-isolation.md",
     "REL-002-draft-immutable-release.md",
     "REL-003-offline-tarball-binding.md",

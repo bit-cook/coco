@@ -31,6 +31,7 @@ Claim `REL-001` and implement read-only build versus minimal publish credential 
 | RUN-004 | P0 | pending | RUN-001 | Invalid cwd and provisioning isolation |
 | RUN-005 | P0 | ready | none | Invalid UTF-8 terminal recovery |
 | CON-001 | P0 decision | pending | RUN-001 | Linux cgroup v2 containment feasibility and implementation |
+| PERF-001 | P0 user-approved | completed | none | Optimize startup and runtime latency without weakening integrity |
 
 Detailed definitions live in `development/work-items/0.6.2/`.
 
@@ -56,16 +57,20 @@ RUN-001 -> CON-001 final integration decision
 
 The coordinator owns `DEVELOPMENT_PLAN.md`, `AGENTS.md`, generated manifests, shared release contract tests, and final gate reconciliation.
 
+PERF-001 temporarily owns launcher, dispatcher, project preflight, startup benchmark, and performance-contract files. It may proceed before REL/RUN implementation because the user explicitly prioritized performance, but it must not weaken the P0 invariants or edit their state-machine files.
+
 ## Evidence
 
 | Gate | Commit | Status | Last result |
 |---|---|---|---|
-| Core | b88190b | stale for 0.6.2 work | 472/472 passed |
-| Integrity | b88190b | stale for 0.6.2 work | 37/37 passed |
-| Package | f72768a | current before implementation | 2/2 passed |
-| Closure | f72768a | current before implementation | 175 manifests approved |
-| Scanner | e085d3d | current before implementation | clean |
+| Core | 6262f75 | current | 478/478 passed |
+| Integrity | 6262f75 | current | 37/37 passed |
+| Package | 6262f75 | current | 2/2 passed |
+| Closure | 6262f75 | current | 175 manifests approved |
+| Scanner | 6262f75 | current | clean |
 | Pages | e085d3d | current | deployed and live-verified |
+
+PERF-001 is complete at `6262f75`; later governed startup changes make these gates stale again.
 
 Any implementation edit must update this table immediately.
 
