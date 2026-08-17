@@ -9,6 +9,28 @@ import { generateAssetMap } from "../scripts/generate-asset-map.mjs";
 import { snapshotPackageInputs } from "../scripts/package-inputs.mjs";
 import { verifyPackageClosure, verifyTarballClosure } from "../scripts/verify-package-closure.mjs";
 
+const directPackages = [
+  ["@earendil-works/pi-coding-agent", "0.82.1"],
+  ["@earendil-works/pi-tui", "0.82.1"],
+  ["@modelcontextprotocol/sdk", "1.30.0"],
+];
+
+async function packageClosureFixture(root, { lock = true, omit } = {}) {
+  const dependencies = Object.fromEntries(directPackages);
+  await writeFile(join(root, "package.json"), JSON.stringify({ bundledDependencies: directPackages.map(([name]) => name), dependencies, devDependencies: { npm: "11.18.0" }, packageManager: "npm@11.18.0" }));
+  if (lock) await writeFile(join(root, "package-lock.json"), JSON.stringify({ lockfileVersion: 3, packages: {
+    "": { dependencies },
+    ...Object.fromEntries(directPackages.map(([name, version]) => [`node_modules/${name}`, { integrity: `sha512-${"A".repeat(86)}==`, resolved: `https://registry.npmjs.org/${name}/-/${name.split("/").at(-1)}-${version}.tgz`, version }])),
+  } }));
+  for (const [name, version] of directPackages) {
+    if (name === omit) continue;
+    await mkdir(join(root, "node_modules", name), { recursive: true });
+    await writeFile(join(root, "node_modules", name, "package.json"), JSON.stringify({ name, version }));
+  }
+  await mkdir(join(root, "node_modules", directPackages[0][0], "dist"), { recursive: true });
+  await writeFile(join(root, "node_modules", directPackages[0][0], "dist", "cli.js"), "");
+}
+
 test("Given valid linked package inputs, when snapshotted, then destinations become real identical files", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-package-inputs-"));
   try {
@@ -189,6 +211,26 @@ test("Given an installed core at 0.82.0, when its package closure is verified, t
   } finally {
     await rm(fixture, { force: true, recursive: true });
   }
+});
+
+test("Given a missing package lock, when package closure is verified, then it rejects with the stable lock code", async () => {
+  const fixture = await mkdtemp(join(tmpdir(), "coco-lock-missing-"));
+  try {
+    await packageClosureFixture(fixture, { lock: false });
+    assert.equal((await verifyPackageClosure({ root: fixture })).code, "PACKAGE_LOCK_MISSING");
+  } finally { await rm(fixture, { force: true, recursive: true }); }
+});
+
+for (const [name, , label] of [
+  ["@earendil-works/pi-coding-agent", "0.82.1", "PI"],
+  ["@earendil-works/pi-tui", "0.82.1", "TUI"],
+  ["@modelcontextprotocol/sdk", "1.30.0", "MCP"],
+]) test(`Given the ${label} manifest is missing, when package closure is verified, then it rejects with its stable code`, async () => {
+  const fixture = await mkdtemp(join(tmpdir(), "coco-direct-manifest-missing-"));
+  try {
+    await packageClosureFixture(fixture, { omit: name });
+    assert.equal((await verifyPackageClosure({ root: fixture })).code, `PACKAGE_${label}_MANIFEST_MISSING`);
+  } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
 test("Given a tarball without bundled pi, when its physical closure is verified, then it rejects", async () => {

@@ -21,7 +21,8 @@ test("Given the bootstrap warm path, then CAS reuse is metadata-gated and critic
   assert.match(source, /entrySnapshotsMatch\(cached\.entries, manifest, snapshotRoot\)/);
   assert.match(source, /directorySnapshotsMatch\(cached\.directories, runtimeRoots, snapshotRoot\)/);
   assert.match(source, /directoryCount: Object\.keys\(directories\)\.length/);
-  assert.doesNotMatch(source, /function directorySnapshotsMatch[\s\S]{0,500}directorySnapshots\(runtimeRoots, base\)/);
+  assert.match(source, /function directorySnapshotsMatch[\s\S]{0,500}directorySnapshots\(runtimeRoots, base\)/);
+  assert.match(source, /COCO_RUNTIME_CAS_INTEGRITY_MODE = cacheHit \? "fast" : "full"/);
   assert.match(source, /\["scripts\/coco-launcher\.mjs", "scripts\/runtime-store-policy\.cjs"\]/);
   assert.match(source, /hash\(storedManifest\) === hash\(manifestBytes\)/);
   assert.match(source, /hash\(storedSidecar\) === hash\(sidecarBytes\)/);

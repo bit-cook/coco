@@ -14,6 +14,7 @@ const fakeKey = ["sk", "live", "000000000000"].join("-");
 const testOnlyKey = ["sk", "test", "only", "invalid", "key"].join("-");
 const testOnlyBearer = ["bearer", "test", "only", "invalid", "key"].join("-");
 const fakeBearer = ["bearer", "live", "000000000000"].join("-");
+const fakeNpmToken = `npm_${"A1b2".repeat(9)}`;
 const credentialAssignment = (value) => ["token = '", value, "'"].join("");
 
 function storedZip(name, content) {
@@ -84,9 +85,25 @@ test("Given recognized placeholders and schema declarations, when scanned, then 
     `api_key = '${testOnlyKey}'`,
     "type Config = { apiKey: string };",
     "const taskName = 'task-build';",
+    "token = 'npm_YOUR_TOKEN';",
+    "npm_test_only_invalid_token",
+    `npm_${"x".repeat(36)}`,
   ].join("\n");
 
   assert.deepEqual(scanText(text), []);
+});
+
+test("Given a standalone npm token, when scanned without assignment syntax, then the npm detector blocks it", () => {
+  assert.deepEqual(scanText(`registry auth ${fakeNpmToken}\n`), [{ detector: "npm-token", count: 1 }]);
+});
+
+test("Given a standalone npm token crossing a scanner chunk boundary, when scanned, then it is detected", async () => {
+  const fixture = await mkdtemp(join(tmpdir(), "coco-publication-npm-boundary-"));
+  try {
+    const path = join(fixture, "token.txt");
+    await writeFile(path, `${"x".repeat(4 * 1024 * 1024 - 7)} ${fakeNpmToken}\n`);
+    assert.equal((await scanTarget(path)).some(({ detector }) => detector === "npm-token"), true);
+  } finally { await rm(fixture, { force: true, recursive: true }); }
 });
 
 test("Given dependency documentation and generated schema placeholders, when scanned, then only real literals block", () => {

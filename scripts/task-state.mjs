@@ -50,6 +50,12 @@ export function validTask(task) {
       || Object.keys(evidence).sort().join(",") !== ["endedAt", "eventId", "exitCode", "lastError", "logsTruncated", "result", "status"].sort().join(",")) return false;
     if (task.status !== "running" || task.activeRunId === null || task.pendingRunEvent !== null) return false;
   }
+  if (task.outcomeInDoubt !== null) {
+    const doubt = task.outcomeInDoubt;
+    if (!object(doubt) || !iso(doubt.at) || !UUID.test(doubt.runId) || doubt.runId !== task.activeRunId || !Number.isSafeInteger(doubt.generation) || doubt.generation < 1 || doubt.reason !== "authorized-without-outcome"
+      || Object.keys(doubt).sort().join(",") !== "at,generation,reason,runId") return false;
+    if (task.status !== "running" || task.terminalEvidence !== null) return false;
+  }
   if (typeof task.cancelPending !== "boolean") return false;
   if (task.cancelPending && task.status !== "running") return false;
   if (task.activeRunId !== null && task.status !== "running" && !(["run.finished", "run.abandoned"].includes(task.pendingRunEvent?.type))) return false;
@@ -65,7 +71,7 @@ export function validTask(task) {
   if (task.lastError !== null && (typeof task.lastError !== "string" || Buffer.byteLength(task.lastError) > 10000)) return false;
   if (typeof task.logsTruncated !== "boolean") return false;
   if (task.result !== null && (typeof task.result !== "string" || Buffer.byteLength(task.result) > 1000000)) return false;
-  return Object.keys(task).sort().join(",") === ["activeRunId", "attempts", "baseCommit", "branch", "cancelPending", "createdAt", "cwd", "finishedAt", "github", "heartbeatAt", "id", "lastError", "launchPending", "logsTruncated", "pendingRunEvent", "pid", "processIdentity", "prompt", "provisioning", "result", "schedule", "startedAt", "status", "terminalEvidence", "trigger", "updatedAt", "webhookSecret", "worktree", "worktreePath"].sort().join(",");
+  return Object.keys(task).sort().join(",") === ["activeRunId", "attempts", "baseCommit", "branch", "cancelPending", "createdAt", "cwd", "finishedAt", "github", "heartbeatAt", "id", "lastError", "launchPending", "logsTruncated", "outcomeInDoubt", "pendingRunEvent", "pid", "processIdentity", "prompt", "provisioning", "result", "schedule", "startedAt", "status", "terminalEvidence", "trigger", "updatedAt", "webhookSecret", "worktree", "worktreePath"].sort().join(",");
 }
 
 export function validTaskState(value) {
@@ -76,7 +82,7 @@ export async function readTaskState(path) {
   if (await inspectRegular(path) === null) return emptyTaskState();
   let value;
   try { value = JSON.parse(await readFile(path, "utf8")); } catch { fail("TASK_STATE_INVALID"); }
-  if (object(value) && value.schemaVersion === 1 && Array.isArray(value.tasks)) for (const task of value.tasks) if (object(task)) { if (!("activeRunId" in task)) task.activeRunId = null; if (!("baseCommit" in task)) task.baseCommit = null; if (!("cancelPending" in task)) task.cancelPending = false; if (!("heartbeatAt" in task)) task.heartbeatAt = null; if (!("logsTruncated" in task)) task.logsTruncated = false; if (!("pendingRunEvent" in task)) task.pendingRunEvent = null; if (!("processIdentity" in task)) task.processIdentity = null; if (!("launchPending" in task)) task.launchPending = false; if (!("terminalEvidence" in task)) task.terminalEvidence = null; if (!("provisioning" in task)) task.provisioning = null; }
+  if (object(value) && value.schemaVersion === 1 && Array.isArray(value.tasks)) for (const task of value.tasks) if (object(task)) { if (!("activeRunId" in task)) task.activeRunId = null; if (!("baseCommit" in task)) task.baseCommit = null; if (!("cancelPending" in task)) task.cancelPending = false; if (!("heartbeatAt" in task)) task.heartbeatAt = null; if (!("logsTruncated" in task)) task.logsTruncated = false; if (!("outcomeInDoubt" in task)) task.outcomeInDoubt = task.lastError === "EXECUTION_OUTCOME_IN_DOUBT" && task.activeRunId ? { at: task.updatedAt, generation: 1, reason: "authorized-without-outcome", runId: task.activeRunId } : null; if (!("pendingRunEvent" in task)) task.pendingRunEvent = null; if (!("processIdentity" in task)) task.processIdentity = null; if (!("launchPending" in task)) task.launchPending = false; if (!("terminalEvidence" in task)) task.terminalEvidence = null; if (!("provisioning" in task)) task.provisioning = null; }
   if (!validTaskState(value)) fail("TASK_STATE_INVALID");
   return value;
 }
@@ -123,7 +129,7 @@ export function createTaskStore({ agentDir, now = () => new Date(), random = ran
     const createdAt = now().toISOString();
     const task = {
       activeRunId: null, attempts: 0, baseCommit: null, branch: null, cancelPending: false, createdAt, cwd: resolve(input.cwd), finishedAt: null,
-      github: input.github ?? null, heartbeatAt: null, id: taskId(random), lastError: null, launchPending: false, logsTruncated: false, pid: null, processIdentity: null,
+      github: input.github ?? null, heartbeatAt: null, id: taskId(random), lastError: null, launchPending: false, logsTruncated: false, outcomeInDoubt: null, pid: null, processIdentity: null,
       pendingRunEvent: null, prompt: input.prompt.trim(), provisioning: null, result: null, schedule: input.schedule ?? null, terminalEvidence: null,
       startedAt: null, status: input.initialStatus ?? "queued", trigger: input.trigger ?? "manual", updatedAt: createdAt,
       webhookSecret: input.webhookSecret ?? null, worktree: input.worktree !== false, worktreePath: null,

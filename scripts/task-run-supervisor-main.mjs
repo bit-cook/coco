@@ -4,8 +4,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createTaskRunSupervisorStore } from "./task-run-supervisor.mjs";
 
 function option(name) { const index = process.argv.indexOf(name); return index === -1 ? null : process.argv[index + 1]; }
-const taskId = option("--task-id"), runId = option("--run-id"), agentDir = process.env.COCO_CODING_AGENT_DIR;
-if (!taskId || !runId || !agentDir) throw new Error("TASK_RUN_SUPERVISOR_USAGE");
+const taskId = option("--task-id"), runId = option("--run-id"), ownerId = option("--owner-id"), generation = Number(option("--generation")), agentDir = process.env.COCO_CODING_AGENT_DIR;
+if (!taskId || !runId || !ownerId || !Number.isSafeInteger(generation) || generation < 1 || !agentDir) throw new Error("TASK_RUN_SUPERVISOR_USAGE");
 
 const store = createTaskRunSupervisorStore({ agentDir: resolve(agentDir) });
 function normalizedExitCode(value) {
@@ -13,7 +13,7 @@ function normalizedExitCode(value) {
   const integer = Math.trunc(value);
   return ((integer % 256) + 256) % 256;
 }
-await store.register({ taskId, runId });
+const registered = await store.register({ generation, ownerId, taskId, runId });
 let state;
 for (let attempt = 0; attempt < 2400; attempt += 1) {
   state = await store.inspect({ taskId, runId });
@@ -71,6 +71,6 @@ if (!state.outcome) {
   process.removeListener("uncaughtException", captureException);
   process.removeListener("beforeExit", captureBeforeExit);
   process.exit = originalExit;
-  await store.writeOutcome({ endedAt: new Date().toISOString(), exitCode, runId, specSha256: state.specSha256, startedAt, stderrTruncated, stdoutTruncated, taskId });
+  await store.writeOutcome({ endedAt: new Date().toISOString(), exitCode, generation, ownerId, pid: process.pid, processIdentity: registered.processIdentity, runId, specSha256: state.specSha256, startedAt, stderrTruncated, stdoutTruncated, taskId });
   process.exitCode = exitCode;
 }

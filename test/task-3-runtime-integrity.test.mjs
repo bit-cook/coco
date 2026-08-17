@@ -305,20 +305,164 @@ test("Given a partial or symlink async cache, when verification runs, then it sa
   }
 });
 
+test("Given a warm async source cache, topology, inode, and cache-record changes never remain fast", async () => {
+  const packageRoot = await fixture();
+  try {
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const cachePath = join(packageRoot, "..", "runtime-cache.json");
+    assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "full");
+    assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "fast");
+
+    const empty = join(packageRoot, "dist", "integrity-empty");
+    await mkdir(empty);
+    assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "full");
+    assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "fast");
+    await rm(empty, { recursive: true });
+    assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "full");
+
+    const renamed = join(packageRoot, "dist", "integrity-renamed");
+    await mkdir(empty);
+    assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "full");
+    assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "fast");
+    await rename(empty, renamed);
+    assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "full");
+    await rm(renamed, { recursive: true });
+
+    const unexpected = join(packageRoot, "dist", "unexpected-integrity.js");
+    await writeFile(unexpected, "export {};\n");
+    const rejected = await verifyRuntimeIntegrity({ root: packageRoot, cachePath });
+    assert.equal(rejected.code, "RUNTIME_INTEGRITY_UNEXPECTED_ENTRY");
+    assert.equal(rejected.mode, "full");
+    await rm(unexpected);
+    assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "full");
+
+    const governed = join(packageRoot, "package.json");
+    const governedBytes = await readFile(governed);
+    const governedInfo = await stat(governed);
+    await rename(governed, `${governed}.old`);
+    await writeFile(governed, governedBytes, { mode: governedInfo.mode & 0o777 });
+    await rm(`${governed}.old`);
+    await utimes(governed, governedInfo.atime, governedInfo.mtime);
+    assert.notEqual((await stat(governed)).ino, governedInfo.ino);
+    assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "full");
+
+    for (const damage of ["delete", "rename", "directory-count"]) {
+      assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "fast");
+      const cache = JSON.parse(await readFile(cachePath, "utf8"));
+      const path = Object.keys(cache.entries)[0];
+      if (damage === "delete") delete cache.entries[path];
+      if (damage === "rename") { cache.entries[`${path}.renamed`] = cache.entries[path]; delete cache.entries[path]; }
+      if (damage === "directory-count") cache.directoryCount += 1;
+      await writeFile(cachePath, JSON.stringify(cache));
+      assert.equal((await verifyRuntimeIntegrity({ root: packageRoot, cachePath })).mode, "full", damage);
+    }
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
 test("Given direct CJS bootstrap runs, when fast and full verification complete, then each emits a machine-readable integrity mode", async () => {
   const packageRoot = await fixture();
   try {
-    await writeFile(join(packageRoot, "scripts", "coco-launcher.mjs"), 'process.stdout.write(JSON.stringify({ integrityMode: process.env.COCO_INTEGRITY_MODE ?? null }) + "\\n");\n');
+    await writeFile(join(packageRoot, "scripts", "coco-launcher.mjs"), 'process.stdout.write(JSON.stringify({ casMode: process.env.COCO_RUNTIME_CAS_INTEGRITY_MODE ?? null, integrityMode: process.env.COCO_INTEGRITY_MODE ?? null }) + "\\n");\n');
     await generateRuntimeIntegrityManifest({ root: packageRoot });
     const environment = { ...process.env, COCO_CODING_AGENT_DIR: join(packageRoot, "agent") };
     const warm = await runBootstrap(packageRoot, ["--version"], environment);
     assert.equal(warm.code, 0, warm.stderr);
     const fast = await runBootstrap(packageRoot, [], environment);
     assert.equal(fast.code, 0, fast.stderr);
-    assert.deepEqual(JSON.parse(fast.stdout), { integrityMode: "fast" });
+    assert.deepEqual(JSON.parse(fast.stdout), { casMode: "full", integrityMode: "fast" });
     const full = await runBootstrap(packageRoot, [], { ...environment, COCO_INTEGRITY_FULL: "1" });
     assert.equal(full.code, 0, full.stderr);
-    assert.deepEqual(JSON.parse(full.stdout), { integrityMode: "full" });
+    assert.deepEqual(JSON.parse(full.stdout), { casMode: "fast", integrityMode: "full" });
+  } finally {
+    await rm(join(packageRoot, ".."), { force: true, recursive: true });
+  }
+});
+
+test("Given warm source and CAS caches, structural and cache-record damage is directly reported as non-fast", async () => {
+  const packageRoot = await fixture();
+  try {
+    await writeFile(join(packageRoot, "scripts", "coco-launcher.mjs"), 'process.stdout.write(JSON.stringify({ casMode: process.env.COCO_RUNTIME_CAS_INTEGRITY_MODE, sourceMode: process.env.COCO_INTEGRITY_MODE }) + "\\n");\n');
+    await generateRuntimeIntegrityManifest({ root: packageRoot });
+    const agentDir = join(packageRoot, "agent");
+    const environment = { ...process.env, COCO_CODING_AGENT_DIR: agentDir };
+    const modes = async () => {
+      const result = await runBootstrap(packageRoot, [], environment);
+      assert.equal(result.code, 0, result.stderr);
+      return JSON.parse(result.stdout);
+    };
+    await modes();
+    assert.deepEqual(await modes(), { casMode: "fast", sourceMode: "fast" });
+
+    const sourceEmpty = join(packageRoot, "dist", "source-empty");
+    await mkdir(sourceEmpty);
+    assert.deepEqual(await modes(), { casMode: "fast", sourceMode: "full" });
+    assert.deepEqual(await modes(), { casMode: "fast", sourceMode: "fast" });
+    await rename(sourceEmpty, join(packageRoot, "dist", "source-renamed"));
+    assert.deepEqual(await modes(), { casMode: "fast", sourceMode: "full" });
+    await rm(join(packageRoot, "dist", "source-renamed"), { recursive: true });
+    assert.deepEqual(await modes(), { casMode: "fast", sourceMode: "full" });
+
+    const unexpected = join(packageRoot, "dist", "unexpected-source.js");
+    await writeFile(unexpected, "export {};\n");
+    const rejected = await runBootstrap(packageRoot, [], environment);
+    assert.notEqual(rejected.code, 0, rejected.stderr);
+    assert.match(rejected.stderr, /RUNTIME_INTEGRITY_UNEXPECTED_ENTRY/);
+    await rm(unexpected);
+    await modes();
+
+    const sourceCachePath = join(agentDir, ".runtime-integrity-cache.json");
+    for (const damage of ["delete", "rename", "directory-count"]) {
+      const cache = JSON.parse(await readFile(sourceCachePath, "utf8"));
+      const path = Object.keys(cache.entries)[0];
+      if (damage === "delete") delete cache.entries[path];
+      if (damage === "rename") { cache.entries[`${path}.renamed`] = cache.entries[path]; delete cache.entries[path]; }
+      if (damage === "directory-count") cache.directoryCount += 1;
+      await writeFile(sourceCachePath, JSON.stringify(cache));
+      assert.equal((await modes()).sourceMode, "full", damage);
+    }
+
+    const [snapshotName] = (await readdir(join(agentDir, "runtime"))).filter((name) => /^[a-f0-9]{64}-node/.test(name));
+    const snapshotRoot = join(agentDir, "runtime", snapshotName);
+    const casEmpty = join(snapshotRoot, "dist", "cas-empty");
+    await mkdir(casEmpty);
+    assert.equal((await modes()).casMode, "full");
+    assert.equal((await modes()).casMode, "fast");
+    await rm(casEmpty, { recursive: true });
+    assert.equal((await modes()).casMode, "full");
+    await mkdir(casEmpty);
+    assert.equal((await modes()).casMode, "full");
+    assert.equal((await modes()).casMode, "fast");
+    await rename(casEmpty, join(snapshotRoot, "dist", "cas-renamed"));
+    assert.equal((await modes()).casMode, "full");
+
+    const casUnexpected = join(snapshotRoot, "dist", "unexpected-cas.js");
+    await writeFile(casUnexpected, "export {};\n");
+    assert.equal((await modes()).casMode, "full");
+    await mkdir(casEmpty);
+    assert.equal((await modes()).casMode, "full");
+
+    const snapshotPackage = join(snapshotRoot, "package.json");
+    const packageBytes = await readFile(snapshotPackage);
+    const packageInfo = await stat(snapshotPackage);
+    await rename(snapshotPackage, `${snapshotPackage}.old`);
+    await writeFile(snapshotPackage, packageBytes, { mode: packageInfo.mode & 0o777 });
+    await rm(`${snapshotPackage}.old`);
+    await utimes(snapshotPackage, packageInfo.atime, packageInfo.mtime);
+    assert.notEqual((await stat(snapshotPackage)).ino, packageInfo.ino);
+    assert.equal((await modes()).casMode, "full");
+
+    const casCachePath = join(agentDir, ".runtime-cas-integrity-cache.json");
+    for (const damage of ["delete", "rename", "directory-count"]) {
+      const cache = JSON.parse(await readFile(casCachePath, "utf8"));
+      const path = Object.keys(cache.entries)[0];
+      if (damage === "delete") delete cache.entries[path];
+      if (damage === "rename") { cache.entries[`${path}.renamed`] = cache.entries[path]; delete cache.entries[path]; }
+      if (damage === "directory-count") cache.directoryCount += 1;
+      await writeFile(casCachePath, JSON.stringify(cache));
+      assert.equal((await modes()).casMode, "full", damage);
+    }
   } finally {
     await rm(join(packageRoot, ".."), { force: true, recursive: true });
   }

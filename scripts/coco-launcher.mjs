@@ -9,9 +9,14 @@ const agentDir = process.env.COCO_CODING_AGENT_DIR || resolve(homedir(), ".coco"
 const capabilityKey = Symbol.for("coco.runtime.integrity.v1");
 const capability = globalThis[capabilityKey]; delete globalThis[capabilityKey];
 const preverified = capability && resolve(capability.root) === resolve(root) && capability.key === process.env.COCO_RUNTIME_KEY;
+let verifyRuntimeIntegrity;
+async function verifyIntegrity(options) {
+  verifyRuntimeIntegrity ??= (await import("./runtime-integrity.mjs")).verifyRuntimeIntegrity;
+  return verifyRuntimeIntegrity(options);
+}
 const integrity = preverified
   ? { status: "approved" }
-  : await (await import("./runtime-integrity.mjs")).verifyRuntimeIntegrity({ root, cachePath: resolve(process.env.COCO_RUNTIME_INTEGRITY_CACHE_PATH || resolve(agentDir, ".runtime-integrity-cache.json")) });
+  : await verifyIntegrity({ root, cachePath: resolve(process.env.COCO_RUNTIME_INTEGRITY_CACHE_PATH || resolve(agentDir, ".runtime-integrity-cache.json")) });
 if (integrity.status !== "approved") {
   process.stderr.write(`coco: ${integrity.code}\n`);
   process.exitCode = 1;
@@ -33,7 +38,7 @@ if (integrity.status !== "approved") {
     // duplicate scan cuts cold-start cost roughly in half.
     const finalIntegrity = resolve(root) === runtime.root
       ? integrity
-      : await verifyRuntimeIntegrity({ root: runtime.root });
+      : await verifyIntegrity({ root: runtime.root });
     if (finalIntegrity.status !== "approved") {
       process.stderr.write(`coco: ${finalIntegrity.code}\n`);
       process.exitCode = 1;

@@ -139,7 +139,7 @@ export async function cancelTask(store, id) {
     const supervisor = createTaskRunSupervisorStore({ agentDir: store.agentDir });
     const state = await supervisor.inspect({ taskId: id, runId: afterTermination.activeRunId });
     if (state.authorization) {
-      try { await supervisor.revoke({ taskId: id, runId: afterTermination.activeRunId, specSha256: state.specSha256 }); }
+      try { await supervisor.revoke({ generation: state.generation, ownerId: state.owner?.ownerId, taskId: id, runId: afterTermination.activeRunId, specSha256: state.specSha256 }); }
       catch (error) {
         if (error?.code !== "TASK_RUN_OUTCOME_EXISTS") throw error;
         await store.update((value) => { const task = value.tasks.find((entry) => entry.id === id); if (task) task.cancelPending = false; return value; });
@@ -360,7 +360,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
         claimed = structuredClone(task);
         return state;
       }
-      task.status = "running"; task.startedAt = new Date().toISOString(); task.updatedAt = task.startedAt; task.attempts += 1; task.activeRunId = uuid(); task.cancelPending = false; task.logsTruncated = false; task.terminalEvidence = null;
+       task.status = "running"; task.startedAt = new Date().toISOString(); task.updatedAt = task.startedAt; task.attempts += 1; task.activeRunId = uuid(); task.cancelPending = false; task.logsTruncated = false; task.outcomeInDoubt = null; task.terminalEvidence = null;
       task.pendingRunEvent = pendingRunEvent("run.started", task.activeRunId);
       task.launchPending = true;
        if (worktree) { task.worktreePath = worktree.path; task.branch = worktree.branch; task.baseCommit = worktree.baseCommit; task.provisioning = null; }
@@ -394,7 +394,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
       if (task.status !== "running" || task.activeRunId === null || task.pendingRunEvent !== null) fail("TASK_TERMINAL_EVIDENCE_INVALID");
       const status = outcome.code === 0 ? "completed" : "failed";
       const endedAt = terminal.endedAt ?? new Date().toISOString();
-      task.heartbeatAt = null; task.launchPending = false; task.pid = null; task.processIdentity = null;
+       task.heartbeatAt = null; task.launchPending = false; task.outcomeInDoubt = null; task.pid = null; task.processIdentity = null;
       task.terminalEvidence = { endedAt, eventId: terminal.eventId ?? randomUUID(), exitCode: outcome.code, lastError: outcome.code === 0 ? null : truncateUtf8(outcome.error || "TASK_PROCESS_FAILED", 10000), logsTruncated: outcome.logsTruncated === true, result: truncateUtf8(finalAssistantText(outcome.output ?? ""), 1000000), status };
       task.updatedAt = endedAt; persisted = true;
       return state;
@@ -426,16 +426,22 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
       if (waitForLive && state.authorization && !state.outcome && state.registration && await processMatches(state.registration.pid, state.registration.processIdentity)) {
         for (let attempt = 0; attempt < 200 && !state.outcome && await processMatches(state.registration.pid, state.registration.processIdentity); attempt += 1) { await delay(25); state = await supervisors.inspect({ taskId: task.id, runId: task.activeRunId }); }
       }
-      if (state.outcome) { await consumeSupervisorOutcome(task, state); continue; }
-      if (state.authorization) {
-        const alive = state.registration && await processMatches(state.registration.pid, state.registration.processIdentity);
-        if (!alive) await store.update((tasks) => { const target = tasks.tasks.find(({ id }) => id === task.id); if (target?.activeRunId === task.activeRunId) { target.cancelPending = false; target.heartbeatAt = null; target.launchPending = false; target.lastError = "EXECUTION_OUTCOME_IN_DOUBT"; target.pid = null; target.processIdentity = null; target.updatedAt = new Date().toISOString(); } return tasks; });
-        continue;
-      }
-      if (state.registration && await processMatches(state.registration.pid, state.registration.processIdentity)) {
-        const terminated = await terminateProcessTree(state.registration.pid, { identity: state.registration.processIdentity });
-        if (!["terminated", "absent"].includes(terminated.status)) fail("TASK_PROCESS_STILL_ALIVE");
-      }
+       if (state.outcome) { await consumeSupervisorOutcome(task, state); continue; }
+       if (state.phase === "abandoned") { supervised.delete(task.id); continue; }
+       if (state.authorization) {
+         const alive = state.registration && await processMatches(state.registration.pid, state.registration.processIdentity);
+         if (!alive) await store.update((tasks) => { const target = tasks.tasks.find(({ id }) => id === task.id); if (target?.activeRunId === task.activeRunId) { const at = new Date().toISOString(); target.cancelPending = false; target.heartbeatAt = null; target.launchPending = false; target.lastError = "EXECUTION_OUTCOME_IN_DOUBT"; target.outcomeInDoubt = { at, generation: state.generation, reason: "authorized-without-outcome", runId: task.activeRunId }; target.pid = null; target.processIdentity = null; target.updatedAt = at; } return tasks; });
+         continue;
+       }
+       if (state.registration && await processMatches(state.registration.pid, state.registration.processIdentity)) {
+         const terminated = await terminateProcessTree(state.registration.pid, { identity: state.registration.processIdentity });
+         if (!["terminated", "absent"].includes(terminated.status)) fail("TASK_PROCESS_STILL_ALIVE");
+       }
+       if (["prepared", "registered"].includes(state.phase) && state.stale) {
+         const takeover = await supervisors.takeover({ expectedGeneration: state.generation, taskId: task.id, runId: task.activeRunId });
+         await supervisors.abandon({ ...takeover, specSha256: state.specSha256, taskId: task.id, runId: task.activeRunId });
+         supervised.delete(task.id);
+       }
     }
     return supervised;
   }
@@ -461,6 +467,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
   async function runOne(task) {
     let worktree = null;
     let claimed = false;
+    let claimedRunId = null;
     let started = false;
     let terminalPersisted = false;
     try {
@@ -477,7 +484,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
          if (current?.status !== "provisioning") return;
          worktree = await ensureTaskWorktree({ agentDir, cwd: task.cwd, id: task.id, planned: { ...planned, repo: planned.repo ?? await repositoryRoot(task.cwd) } });
        }
-      const currentTask = await claim(task.id, worktree); claimed = true;
+      const currentTask = await claim(task.id, worktree); claimed = true; claimedRunId = currentTask.activeRunId;
       if (currentTask.status === "failed" && currentTask.lastError === "TASK_ATTEMPT_LIMIT_REACHED") return;
       await flushPending(task.id); started = true;
       let launch = false;
@@ -513,7 +520,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
           error.taskLogCaptureFailure = true;
           throw error;
         }
-        child = spawnChild(process.execPath, [join(root, "scripts", "task-run-supervisor-main.mjs"), "--task-id", current.id, "--run-id", current.activeRunId], {
+        child = spawnChild(process.execPath, [join(root, "scripts", "task-run-supervisor-main.mjs"), "--task-id", current.id, "--run-id", current.activeRunId, "--generation", String(prepared.generation), "--owner-id", prepared.ownerId], {
           cwd, detached: process.platform !== "win32", env: { ...process.env, COCO_CODING_AGENT_DIR: agentDir }, stdio: ["ignore", "pipe", "pipe"],
         });
         const spawned = child;
@@ -538,6 +545,12 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
         if (!registered || registered.pid !== spawned.pid || !await processMatches(registered.pid, registered.processIdentity)) {
           const identity = await processIdentity(spawned.pid);
           if (identity) await terminateProcessTree(spawned.pid, { identity });
+          await captureWrites;
+          for (const file of [stdoutFile, stderrFile]) {
+            try { await file.sync(); } catch (error) { recordCaptureError(error); }
+            try { await file.close(); } catch (error) { recordCaptureError(error); }
+          }
+          await supervisors.abandon({ generation: prepared.generation, ownerId: prepared.ownerId, runId: current.activeRunId, specSha256: prepared.specSha256, taskId: current.id });
           fail("TASK_RUN_REGISTRATION_INVALID");
         }
         childIdentity = Promise.resolve(registered.processIdentity);
@@ -549,7 +562,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
           return state;
         });
         if (!authorize) { await terminateProcessTree(registered.pid, { identity: registered.processIdentity }); fail("TASK_RUN_NOT_AUTHORIZED"); }
-        await supervisors.authorize({ taskId: current.id, runId: current.activeRunId, specSha256: prepared.specSha256 });
+        await supervisors.authorize({ generation: prepared.generation, ownerId: prepared.ownerId, taskId: current.id, runId: current.activeRunId, specSha256: prepared.specSha256 });
         const closedOutcome = await closed;
         await captureWrites;
         for (const file of [stdoutFile, stderrFile]) {
@@ -558,7 +571,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
         }
         const state = await supervisors.inspect({ taskId: current.id, runId: current.activeRunId });
         if (!state.outcome) {
-          await store.update((tasks) => { const target = tasks.tasks.find(({ id }) => id === current.id); if (target) { target.lastError = "EXECUTION_OUTCOME_IN_DOUBT"; target.pid = null; target.processIdentity = null; target.launchPending = false; } return tasks; });
+          await store.update((tasks) => { const target = tasks.tasks.find(({ id }) => id === current.id); if (target) { const at = new Date().toISOString(); target.lastError = "EXECUTION_OUTCOME_IN_DOUBT"; target.outcomeInDoubt = { at, generation: prepared.generation, reason: "authorized-without-outcome", runId: current.activeRunId }; target.pid = null; target.processIdentity = null; target.launchPending = false; target.updatedAt = at; } return tasks; });
           fail("EXECUTION_OUTCOME_IN_DOUBT");
         }
         const { outcome } = await supervisedOutcome(current, state);
@@ -644,6 +657,17 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
       }
       if (!claimed || !started) throw error;
       if (terminalPersisted || error?.code === "EXECUTION_OUTCOME_IN_DOUBT") throw error;
+      if (error?.code === "TASK_RUN_REGISTRATION_INVALID") {
+        await store.update((state) => {
+          const target = state.tasks.find(({ id }) => id === task.id);
+          if (target?.status === "running" && !target.cancelPending && target.activeRunId === claimedRunId) {
+            const at = new Date().toISOString(); target.status = "queued"; target.pendingRunEvent = pendingRunEvent("run.abandoned", target.activeRunId, "abandoned"); target.heartbeatAt = null; target.startedAt = null; target.updatedAt = at; target.lastError = "TASK_RUN_REGISTRATION_INVALID"; target.launchPending = false; target.pid = null; target.processIdentity = null;
+          }
+          return state;
+        });
+        await flushPending(task.id);
+        return "abandoned";
+      }
       const outcome = { code: 1, error: error instanceof Error ? error.message : "TASK_FAILED", logsTruncated: error?.taskLogCaptureFailure === true, output: "" };
       terminalPersisted = await persistTerminalEvidence(task.id, outcome);
       if (terminalPersisted) await flushTerminalEvidence(task.id);
@@ -677,7 +701,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
       });
       await store.update((state) => {
         for (const task of state.tasks) {
-          if (task.status !== "running" || task.terminalEvidence || task.lastError === "EXECUTION_OUTCOME_IN_DOUBT") continue;
+          if (task.status !== "running" || task.terminalEvidence || task.outcomeInDoubt) continue;
           const at = new Date().toISOString();
           task.status = "queued"; task.pendingRunEvent = task.activeRunId ? pendingRunEvent("run.abandoned", task.activeRunId, "abandoned") : null; task.startedAt = null; task.updatedAt = at; task.lastError = "RECOVERED_AFTER_RUNNER_RESTART";
         }

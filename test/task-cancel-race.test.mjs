@@ -115,8 +115,8 @@ test("durable supervisor outcome cannot be overwritten by cancellation", async (
     child = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { detached: process.platform !== "win32", stdio: "ignore" }); const identity = await processIdentity(child.pid);
     await store.update((state) => { const active = state.tasks[0]; active.status = "running"; active.activeRunId = runId; active.pid = child.pid; active.processIdentity = identity; active.startedAt = "2026-08-15T00:00:00.000Z"; return state; });
     const supervisor = createTaskRunSupervisorStore({ agentDir }), prepared = await supervisor.prepare({ cwd: process.cwd(), prompt: "outcome wins", runId, taskId: task.id });
-    await supervisor.register({ pid: child.pid, processIdentity: identity, taskId: task.id, runId }); await supervisor.authorize({ taskId: task.id, runId, specSha256: prepared.specSha256 });
-    await supervisor.writeOutcome({ endedAt: "2026-08-15T00:00:01.000Z", exitCode: 0, runId, specSha256: prepared.specSha256, startedAt: "2026-08-15T00:00:00.000Z", taskId: task.id });
+    await supervisor.register({ generation: prepared.generation, ownerId: prepared.ownerId, pid: child.pid, processIdentity: identity, taskId: task.id, runId }); await supervisor.authorize({ generation: prepared.generation, ownerId: prepared.ownerId, taskId: task.id, runId, specSha256: prepared.specSha256 });
+    await supervisor.writeOutcome({ endedAt: "2026-08-15T00:00:01.000Z", exitCode: 0, generation: prepared.generation, ownerId: prepared.ownerId, pid: child.pid, processIdentity: identity, runId, specSha256: prepared.specSha256, startedAt: "2026-08-15T00:00:00.000Z", taskId: task.id });
     await assert.rejects(cancelTask(store, task.id), /TASK_NOT_CANCELLABLE/);
     const retained = (await store.load()).tasks[0]; assert.equal(retained.status, "running"); assert.equal(retained.activeRunId, runId);
   } finally {

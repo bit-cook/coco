@@ -76,15 +76,33 @@ async function metadata(root) {
   await physicalPath(root, root);
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   if (packageJson.packageManager !== "npm@11.18.0" || packageJson.dependencies?.[PI] !== "0.82.1" || packageJson.dependencies?.[TUI] !== "0.82.1" || packageJson.dependencies?.[MCP] !== "1.30.0" || packageJson.devDependencies?.npm !== "11.18.0" || JSON.stringify(packageJson.bundledDependencies) !== JSON.stringify([PI, TUI, MCP])) throw new Error("PACKAGE_METADATA_INVALID");
+  let lockBytes;
   try {
-    const lock = JSON.parse(await readFile(join(root, "package-lock.json"), "utf8"));
-    if (lock.lockfileVersion !== 3 || lock.packages?.[""]?.dependencies?.[PI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[TUI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[MCP] !== "1.30.0") throw new Error("PACKAGE_LOCK_INVALID");
-    for (const [name, version] of [[PI, "0.82.1"], [TUI, "0.82.1"], [MCP, "1.30.0"]]) {
-      const entry = lock.packages?.[`node_modules/${name}`];
-      if (entry?.version !== version || typeof entry.resolved !== "string" || !entry.resolved.startsWith("https://registry.npmjs.org/") || !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(entry.integrity ?? "")) throw new Error("PACKAGE_LOCK_INVALID");
-      const installed = JSON.parse(await readFile(join(root, "node_modules", name, "package.json"), "utf8")); if (installed.version !== version) throw new Error("PACKAGE_INSTALLED_VERSION_INVALID");
+    lockBytes = await readFile(join(root, "package-lock.json"), "utf8");
+  } catch (error) {
+    if (error instanceof Error && error.code === "ENOENT") throw new Error("PACKAGE_LOCK_MISSING");
+    throw error;
+  }
+  let lock;
+  try { lock = JSON.parse(lockBytes); } catch { throw new Error("PACKAGE_LOCK_INVALID"); }
+  if (lock.lockfileVersion !== 3 || lock.packages?.[""]?.dependencies?.[PI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[TUI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[MCP] !== "1.30.0") throw new Error("PACKAGE_LOCK_INVALID");
+  for (const [name, version, label] of [[PI, "0.82.1", "PI"], [TUI, "0.82.1", "TUI"], [MCP, "1.30.0", "MCP"]]) {
+    const entry = lock.packages?.[`node_modules/${name}`];
+    if (entry?.version !== version || typeof entry.resolved !== "string" || !entry.resolved.startsWith("https://registry.npmjs.org/") || !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(entry.integrity ?? "")) throw new Error("PACKAGE_LOCK_INVALID");
+    let installedBytes;
+    try {
+      const manifestPath = join(root, "node_modules", name, "package.json");
+      await physicalPath(root, manifestPath);
+      installedBytes = await readFile(manifestPath, "utf8");
     }
-  } catch (error) { if (!(error instanceof Error && error.code === "ENOENT")) throw error; }
+    catch (error) {
+      if (error instanceof Error && error.code === "ENOENT") throw new Error(`PACKAGE_${label}_MANIFEST_MISSING`);
+      throw error;
+    }
+    let installed;
+    try { installed = JSON.parse(installedBytes); } catch { throw new Error(`PACKAGE_${label}_MANIFEST_INVALID`); }
+    if (installed.version !== version) throw new Error("PACKAGE_INSTALLED_VERSION_INVALID");
+  }
 }
 
 function canonicalMembers(members, types) {
@@ -204,20 +222,30 @@ export async function verifyTarballClosure({ root, tarball }) {
     for (const path of BOUND_FILES) if (!Buffer.from(await readFile(join(root, path))).equals(await readFile(join(packagedRoot, path)))) return rejected("PACKAGE_TARBALL_SOURCE_MISMATCH");
     if (!await verifyPackagedManifest(packagedRoot)) return rejected("PACKAGE_TARBALL_INTEGRITY_INVALID");
     return { packages: actual.length, status: "approved" };
-  } catch { return rejected("PACKAGE_TARBALL_CLOSURE_INVALID"); }
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    return rejected(/^(?:PACKAGE_LOCK_MISSING|PACKAGE_(?:PI|TUI|MCP)_MANIFEST_(?:MISSING|INVALID))$/.test(code) ? code : "PACKAGE_TARBALL_CLOSURE_INVALID");
+  }
   finally { if (extracted) await rm(extracted, { force: true, recursive: true }).catch(() => {}); if (snapshot) await snapshot.cleanup().catch(() => {}); }
 }
 export async function verifyPackageClosure({ root }) {
   try {
     const pi = join(root, "node_modules", PI);
-    await physicalPath(root, pi);
-    const manifest = JSON.parse(await readFile(join(pi, "package.json"), "utf8"));
+    let manifestBytes;
+    try {
+      const manifestPath = join(pi, "package.json");
+      await physicalPath(root, manifestPath);
+      manifestBytes = await readFile(manifestPath, "utf8");
+    }
+    catch (error) {
+      if (error instanceof Error && error.code === "ENOENT") return rejected("PACKAGE_PI_MANIFEST_MISSING");
+      throw error;
+    }
+    let manifest;
+    try { manifest = JSON.parse(manifestBytes); } catch { return rejected("PACKAGE_PI_MANIFEST_INVALID"); }
     if (manifest.version !== "0.82.1") return rejected("PACKAGE_CORE_VERSION_MISMATCH");
     await metadata(root);
     if (!(await lstat(join(pi, "dist", "cli.js"))).isFile()) return rejected("PACKAGE_CLOSURE_INVALID");
-    const mcp = JSON.parse(await readFile(join(root, "node_modules", MCP, "package.json"), "utf8"));
-    await physicalPath(root, join(root, "node_modules", MCP));
-    if (mcp.version !== "1.30.0") return rejected("PACKAGE_MCP_VERSION_MISMATCH");
     return { packages: (await manifests(pi)).length, status: "approved" };
   } catch (error) { return rejected(error instanceof Error ? error.message : "PACKAGE_CLOSURE_INVALID"); }
 }

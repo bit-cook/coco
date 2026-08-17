@@ -76,6 +76,7 @@
     "build:offline": "node scripts/build-offline-bundle.mjs",
     "build:vscode": "node scripts/build-vscode-extension.mjs",
     "benchmark:startup": "node scripts/benchmark-startup.mjs",
+    "benchmark:startup:check": "COCO_BENCHMARK_BASELINE=scripts/startup-baseline-linux-x64-node22.v1.json node scripts/benchmark-startup.mjs",
     "generate:assets": "node scripts/generate-asset-map.mjs",
     "generate:preflight": "node scripts/generate-preflight-matrices.mjs",
     "generate:product-identity": "node scripts/generate-product-identity.mjs --write",

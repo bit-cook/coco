@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -140,27 +140,55 @@ function parseManage(argv) {
   return usage("NATIVE_USAGE");
 }
 
-function userExtensions(argv) {
-  const tokens = beforeSeparator(argv);
-  if (tokens.some((token) => token === "-e" || token === "--extension")) return true;
-  const agentDir = process.env.COCO_CODING_AGENT_DIR || join(process.env.HOME || homedir(), ".coco", "agent");
-  return existsSync(join(agentDir, "extensions"));
+function nonEmptyDirectory(path) {
+  try { return readdirSync(path).length > 0; } catch { return existsSync(path); }
 }
 
-export function canUseLightweightModelList(argv) {
+function settingsMayChangeModelVisibility(path) {
+  if (!existsSync(path)) return false;
+  try {
+    const settings = JSON.parse(readFileSync(path, "utf8"));
+    if (settings === null || typeof settings !== "object" || Array.isArray(settings)) return true;
+    const knownVisibilityNeutral = new Set([
+      "autocompleteMaxVisible", "branchSummary", "collapseChangelog", "compaction", "defaultModel", "defaultProjectTrust", "defaultProvider",
+      "defaultThinkingLevel", "doubleEscapeAction", "editorPaddingX", "enableAnalytics", "enableInstallTelemetry", "enableSkillCommands", "enabledModels",
+      "externalEditor", "followUpMode", "hideThinkingBlock", "httpIdleTimeoutMs", "httpProxy", "images", "lastChangelogVersion", "markdown", "npmCommand",
+      "outputPad", "prompts", "quietStartup", "retry", "sessionDir", "shellCommandPrefix", "shellPath", "showCacheMissNotices", "showHardwareCursor",
+      "skills", "steeringMode", "terminal", "theme", "themes", "thinkingBudgets", "trackingId", "transport", "treeFilterMode", "warnings",
+      "websocketConnectTimeoutMs",
+    ]);
+    return Object.entries(settings).some(([key, value]) => {
+      if (key === "extensions" || key === "packages") return !Array.isArray(value) || value.length > 0;
+      return !knownVisibilityNeutral.has(key);
+    });
+  } catch { return true; }
+}
+
+function userExtensions(argv, cwd = process.cwd(), environment = process.env) {
+  const tokens = beforeSeparator(argv);
+  if (tokens.some((token) => token === "-e" || token === "--extension")) return true;
+  const agentDir = environment.COCO_CODING_AGENT_DIR || join(environment.HOME || homedir(), ".coco", "agent");
+  return nonEmptyDirectory(join(agentDir, "extensions"))
+    || nonEmptyDirectory(join(cwd, ".coco", "extensions"))
+    || settingsMayChangeModelVisibility(join(agentDir, "settings.json"))
+    || settingsMayChangeModelVisibility(join(cwd, ".coco", "settings.json"));
+}
+
+export function canUseLightweightModelList(argv, { cwd = process.cwd(), environment = process.env } = {}) {
   return argv[0] === "--list-models"
     && argv.length <= 2
     && (argv.length === 1 || !argv[1].startsWith("-") && !argv[1].startsWith("@"))
-    && !userExtensions(argv);
+    && !userExtensions(argv, cwd, environment);
 }
 
 async function listModelsCommand(argv, root) {
   const piRoot = join(root, "node_modules", ...CORE_NAME.split("/"));
+  const agentDir = process.env.COCO_CODING_AGENT_DIR || join(process.env.HOME || homedir(), ".coco", "agent");
   const [{ listModels }, { ModelRuntime }] = await Promise.all([
     import(pathToFileURL(join(piRoot, "dist", "cli", "list-models.js")).href),
     import(pathToFileURL(join(piRoot, "dist", "core", "model-runtime.js")).href),
   ]);
-  const runtime = await ModelRuntime.create({ allowModelNetwork: false });
+  const runtime = await ModelRuntime.create({ allowModelNetwork: false, authPath: join(agentDir, "auth.json"), modelsPath: join(agentDir, "models.json") });
   await listModels(runtime, argv[1]);
   return { exitCode: 0, kind: "native" };
 }
@@ -302,7 +330,7 @@ export async function dispatchCoco({ argv = process.argv.slice(2), root }) {
     process.stdout.write(`${COCO_VERSION}\n`);
     return { exitCode: 0, kind: "native" };
   }
-  if (canUseLightweightModelList(argv)) return listModelsCommand(argv, root);
+  if (canUseLightweightModelList(argv, { cwd: process.cwd() })) return listModelsCommand(argv, root);
   if (NATIVE_COMMANDS.has(argv[0])) return native(argv, root);
   const language = join(root, "resources", "coco-language.mjs");
   const guard = join(root, "resources", "coco-guard.mjs");

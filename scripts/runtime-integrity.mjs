@@ -49,7 +49,7 @@ async function mapConcurrent(items, concurrency, task) {
   return results;
 }
 
-function rejected(code) { return { code, status: "rejected" }; }
+function rejected(code, mode) { return { code, ...(mode && { mode }), status: "rejected" }; }
 function pathOf(root, absolute) { return relative(root, absolute).split(sep).join("/"); }
 function safePath(path) { return path !== "" && !path.startsWith("/") && !path.startsWith("../") && !path.includes("/../") && path === path.normalize("NFC"); }
 function mode(info) { return (info.mode & 0o111) === 0 ? 0o644 : 0o755; }
@@ -245,14 +245,14 @@ export async function verifyRuntimeIntegrity({ beforeEntry, root, cachePath }) {
             && cachedPaths.every((path) => startupSet.has(path))
             && (await Promise.all(fastEntries.map((item) => lstatSnapshotMatches(absolute, item, cached.entries[item.path])))).every(Boolean);
           if (snapshotsMatch && await verifyMap(absolute, parsed)) {
-            return { entries: parsed.entries.length, status: "approved", fast: true };
+            return { entries: parsed.entries.length, status: "approved", fast: true, mode: "fast" };
           }
         }
       }
     }
 
     const actualRuntime = await scanRuntime();
-    if (actualRuntime.some((item) => !expected.has(item.path))) return rejected("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY");
+    if (actualRuntime.some((item) => !expected.has(item.path))) return rejected("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY", "full");
 
     const verified = await mapConcurrent(parsed.entries, VERIFY_CONCURRENCY, async (intended) => {
       const path = intended.path;
@@ -265,7 +265,7 @@ export async function verifyRuntimeIntegrity({ beforeEntry, root, cachePath }) {
     if (cachePath) {
       await writeCache(cachePath, sidecarHash, parsed.entries, startupSet, absolute, runtimeRoots).catch(() => {});
     }
-    return { entries: parsed.entries.length, status: "approved" };
+    return { entries: parsed.entries.length, status: "approved", mode: "full" };
   } catch (error) {
     return rejected(error instanceof Error && error.message.startsWith("RUNTIME_INTEGRITY_") ? error.message : "RUNTIME_INTEGRITY_INVALID");
   }

@@ -21,6 +21,7 @@ const zipExtensions = new Set([".zip", ".vsix"]);
 const testOnlyKey = ["sk", "test", "only", "invalid", "key"].join("-");
 const detectors = [
   { id: "bearer-literal", expression: /\bAuthorization\s{0,256}:\s{0,256}Bearer\s{1,256}(?!\$\{|\{env:|YOUR_|bearer-test-only-invalid-key\b)[A-Za-z0-9._~+/=-]{12,8192}\b/gi },
+  { id: "npm-token", expression: /(?<![A-Za-z0-9_])npm_[A-Za-z0-9]{36}(?![A-Za-z0-9_])/g },
   { id: "common-key-prefix", expression: /(?<![A-Za-z0-9_-])(?:sk|rk)_(?:live|prod)_[A-Za-z0-9_-]{8,8192}|(?<![A-Za-z0-9_-])(?:sk|pk)-[A-Za-z0-9_-]{12,8192}\b|(?<![A-Za-z0-9_-])(?:AKIA|ASIA)[A-Z0-9]{12,8192}\b|(?<![A-Za-z0-9_-])(?:ghp|gho|ghu|ghs|glpat)-[A-Za-z0-9_-]{12,8192}\b|(?<![A-Za-z0-9_-])github_pat_[A-Za-z0-9_-]{12,8192}\b|(?<![A-Za-z0-9_-])xox[baprs]-[A-Za-z0-9-]{12,8192}\b/g },
   { id: "credential-assignment", expression: /(?:^|[\n,;])\s{0,256}["']?(?:api[_-]?key|access[_-]?token|auth[_-]?token|secret|password|token|credential)["']?\s{0,256}(?:=|:)\s{0,256}(["'])(?!\$\{|\{env:|YOUR_|test-only-invalid-key(?:["'\s,;]|$))([A-Za-z0-9._~+/=-]{12,8192})\1/gim },
 ];
@@ -28,12 +29,12 @@ const detectors = [
 function count(expression, text) {
   expression.lastIndex = 0;
   return Array.from(text.matchAll(expression)).filter((match) => {
-    if (match[0].includes(testOnlyKey) || /(?:AKIA|ASIA)[A-Z0-9]*EXAMPLE\b/.test(match[0])) return false;
+    if (match[0].includes(testOnlyKey) || /^npm_(?:x{36}|0{36})$/i.test(match[0]) || /(?:AKIA|ASIA)[A-Z0-9]*EXAMPLE\b/.test(match[0])) return false;
     const literal = match[2] ?? /["']([^"']+)["']\s*$/.exec(match[0])?.[1];
     if (!literal) return true;
     const lower = literal.toLowerCase();
     let decoded = ""; try { decoded = Buffer.from(literal, "base64").toString("utf8").toLowerCase(); } catch {}
-    return !(/^[A-Z][A-Z0-9_]+$/.test(literal) || ["access_token", "auth_token", "refresh_token", "token_type"].includes(lower) || /(?:^|[-_])(test|example|explicit|placeholder)(?:[-_]|$)/.test(lower) || /^(?:your-|my|i-am-|deadbeef)|sekrit/.test(lower) || decoded.startsWith("not my real "));
+    return !(/^[A-Z][A-Z0-9_]+$/.test(literal) || ["access_token", "auth_token", "refresh_token", "token_type"].includes(lower) || /(?:^|[-_])(test|example|explicit|placeholder)(?:[-_]|$)/.test(lower) || /^(?:your-|my|i-am-|deadbeef|npm_your_)|sekrit/.test(lower) || decoded.startsWith("not my real "));
   }).length;
 }
 

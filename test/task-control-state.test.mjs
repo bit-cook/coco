@@ -172,10 +172,10 @@ test("runner restart consumes a durable supervisor outcome without re-executing"
     await events.append({ at: startedAt, eventId: "018f47a0-7b20-7cc5-8a33-030303030303", runId, taskId: task.id, type: "run.started" });
     const prepared = await supervisors.prepare({ cwd: process.cwd(), prompt: task.prompt, runId, taskId: task.id });
     holder = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { detached: process.platform !== "win32", stdio: "ignore" }); holder.unref();
-    const identity = await processIdentity(holder.pid); await supervisors.register({ pid: holder.pid, processIdentity: identity, runId, taskId: task.id });
-    await supervisors.authorize({ runId, specSha256: prepared.specSha256, taskId: task.id });
+    const identity = await processIdentity(holder.pid); await supervisors.register({ generation: prepared.generation, ownerId: prepared.ownerId, pid: holder.pid, processIdentity: identity, runId, taskId: task.id });
+    await supervisors.authorize({ generation: prepared.generation, ownerId: prepared.ownerId, runId, specSha256: prepared.specSha256, taskId: task.id });
     await writeFile(prepared.paths.stdout, '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"recovered"}]}}\n', { mode: 0o600 });
-    await supervisors.writeOutcome({ endedAt: new Date().toISOString(), exitCode: 0, runId, specSha256: prepared.specSha256, startedAt, taskId: task.id });
+    await supervisors.writeOutcome({ endedAt: new Date().toISOString(), exitCode: 0, generation: prepared.generation, ownerId: prepared.ownerId, runId, specSha256: prepared.specSha256, startedAt, taskId: task.id });
     await terminateProcessTree(holder.pid, { graceMs: 50, identity });
     try { process.kill(-holder.pid, "SIGKILL"); } catch {} holder = null;
     await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { executions += 1; return { code: 1, output: "must not execute" }; } }).run({ once: true });
@@ -197,15 +197,89 @@ test("runner restart never requeues an authorized run with no durable outcome", 
     await store.update((state) => { const target = state.tasks[0]; target.status = "running"; target.activeRunId = runId; target.startedAt = startedAt; target.updatedAt = startedAt; return state; });
     const prepared = await supervisors.prepare({ cwd: process.cwd(), prompt: task.prompt, runId, taskId: task.id });
     holder = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { detached: process.platform !== "win32", stdio: "ignore" }); holder.unref();
-    const identity = await processIdentity(holder.pid); await supervisors.register({ pid: holder.pid, processIdentity: identity, runId, taskId: task.id }); await supervisors.authorize({ runId, specSha256: prepared.specSha256, taskId: task.id });
+    const identity = await processIdentity(holder.pid); await supervisors.register({ generation: prepared.generation, ownerId: prepared.ownerId, pid: holder.pid, processIdentity: identity, runId, taskId: task.id }); await supervisors.authorize({ generation: prepared.generation, ownerId: prepared.ownerId, runId, specSha256: prepared.specSha256, taskId: task.id });
     await terminateProcessTree(holder.pid, { graceMs: 50, identity });
     try { process.kill(-holder.pid, "SIGKILL"); } catch {} holder = null;
     await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { executions += 1; return { code: 0, output: "must not execute" }; } }).run({ once: true });
     const retained = (await store.load()).tasks[0]; assert.equal(executions, 0); assert.equal(retained.status, "running"); assert.equal(retained.activeRunId, runId); assert.equal(retained.lastError, "EXECUTION_OUTCOME_IN_DOUBT");
+    assert.deepEqual(retained.outcomeInDoubt, { at: retained.updatedAt, generation: prepared.generation, reason: "authorized-without-outcome", runId });
   } finally {
     if (holder?.pid) { const identity = await processIdentity(holder.pid); if (identity) await terminateProcessTree(holder.pid, { graceMs: 50, identity }); try { process.kill(-holder.pid, "SIGKILL"); } catch {} }
     await rm(agentDir, { recursive: true, force: true });
   }
+});
+
+for (const faultPhase of ["prepared", "registered"]) test(`runner restart abandons a dead ${faultPhase} launch and requeues with a new run ID`, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), `coco-task-${faultPhase}-fault-`));
+  const store = createTaskStore({ agentDir }); const supervisors = createTaskRunSupervisorStore({ agentDir, leaseMs: 1 });
+  const oldRunId = faultPhase === "prepared" ? "018f47a0-7b20-7cc5-8a33-131313131313" : "018f47a0-7b20-7cc5-8a33-141414141414";
+  const newRunId = faultPhase === "prepared" ? "018f47a0-7b20-7cc5-8a33-151515151515" : "018f47a0-7b20-7cc5-8a33-161616161616";
+  let holder, executions = 0;
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: `${faultPhase} crash`, worktree: false });
+    const startedAt = new Date().toISOString();
+    await store.update((state) => { const target = state.tasks[0]; target.status = "running"; target.activeRunId = oldRunId; target.startedAt = startedAt; target.updatedAt = startedAt; return state; });
+    const prepared = await supervisors.prepare({ cwd: process.cwd(), prompt: task.prompt, runId: oldRunId, taskId: task.id });
+    if (faultPhase === "registered") {
+      holder = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { detached: process.platform !== "win32", stdio: "ignore" });
+      const identity = await processIdentity(holder.pid);
+      await supervisors.register({ generation: prepared.generation, ownerId: prepared.ownerId, pid: holder.pid, processIdentity: identity, runId: oldRunId, taskId: task.id });
+    }
+    await new Promise((done) => setTimeout(done, 5));
+    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async (claimed) => { executions += 1; assert.equal(claimed.activeRunId, newRunId); return { code: 0, output: "" }; }, supervisorStore: supervisors, uuid: () => newRunId }).run({ once: true });
+    const completed = (await store.load()).tasks[0];
+    assert.equal(executions, 1); assert.equal(completed.status, "completed"); assert.equal(completed.activeRunId, null);
+    assert.equal((await supervisors.inspect({ taskId: task.id, runId: oldRunId })).phase, "abandoned");
+    assert.deepEqual((await createTaskEventStore({ agentDir }).read({ taskId: task.id, runId: oldRunId })).map(({ outcome, type }) => ({ outcome, type })), [{ outcome: "abandoned", type: "run.abandoned" }]);
+  } finally {
+    if (holder?.pid) { const identity = await processIdentity(holder.pid); if (identity) await terminateProcessTree(holder.pid, { graceMs: 50, identity }); }
+    await rm(agentDir, { recursive: true, force: true });
+  }
+});
+
+test("legacy task state migrates outcome-in-doubt text to structured state", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-doubt-migration-")); const store = createTaskStore({ agentDir });
+  try {
+    await store.create({ cwd: process.cwd(), prompt: "legacy doubt", worktree: false });
+    const legacy = JSON.parse(await readFile(store.path, "utf8")), runId = "018f47a0-7b20-7cc5-8a33-171717171717";
+    const task = legacy.tasks[0]; task.status = "running"; task.activeRunId = runId; task.lastError = "EXECUTION_OUTCOME_IN_DOUBT"; delete task.outcomeInDoubt;
+    await writeFile(store.path, `${JSON.stringify(legacy)}\n`, { mode: 0o600 });
+    const migrated = (await store.load()).tasks[0];
+    assert.deepEqual(migrated.outcomeInDoubt, { at: migrated.updatedAt, generation: 1, reason: "authorized-without-outcome", runId });
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("repeated restart completes task requeue after the launch FSM already persisted abandonment", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-abandoned-restart-")); const store = createTaskStore({ agentDir });
+  const oldRunId = "018f47a0-7b20-7cc5-8a33-181818181818", newRunId = "018f47a0-7b20-7cc5-8a33-191919191919";
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "abandoned crash window", worktree: false });
+    await store.update((state) => { const target = state.tasks[0]; target.status = "running"; target.activeRunId = oldRunId; target.startedAt = target.updatedAt; return state; });
+    const supervisors = createTaskRunSupervisorStore({ agentDir });
+    const prepared = await supervisors.prepare({ cwd: process.cwd(), prompt: task.prompt, runId: oldRunId, taskId: task.id });
+    await supervisors.abandon({ generation: prepared.generation, ownerId: prepared.ownerId, runId: oldRunId, specSha256: prepared.specSha256, taskId: task.id });
+    let executions = 0;
+    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async (claimed) => { executions += 1; assert.equal(claimed.activeRunId, newRunId); return { code: 0, output: "" }; }, uuid: () => newRunId }).run({ once: true });
+    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { executions += 1; return { code: 1, output: "" }; } }).run({ once: true });
+    assert.equal(executions, 1); assert.equal((await store.load()).tasks[0].status, "completed");
+    assert.deepEqual((await createTaskEventStore({ agentDir }).read({ taskId: task.id, runId: oldRunId })).map(({ type }) => type), ["run.abandoned"]);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("a supervisor that dies before registration is abandoned instead of recorded as an execution failure", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-registration-death-")), runtimeRoot = await mkdtemp(join(tmpdir(), "coco-dead-supervisor-runtime-")); const store = createTaskStore({ agentDir });
+  const oldRunId = "018f47a0-7b20-7cc5-8a33-212121212121", newRunId = "018f47a0-7b20-7cc5-8a33-222222222223";
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "dead before registration", worktree: false });
+    await mkdir(join(runtimeRoot, "scripts"), { mode: 0o700 });
+    await writeFile(join(runtimeRoot, "scripts", "task-run-supervisor-main.mjs"), "process.exit(1);\n", { mode: 0o600 });
+    const supervisors = createTaskRunSupervisorStore({ agentDir });
+    await createTaskRunner({ agentDir, root: runtimeRoot, supervisorStore: supervisors, uuid: () => oldRunId }).run({ once: true });
+    const first = (await store.load()).tasks[0];
+    assert.equal(first.status, "queued"); assert.equal(first.activeRunId, null); assert.equal((await supervisors.inspect({ taskId: task.id, runId: oldRunId })).phase, "abandoned");
+    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async (claimed) => { assert.equal(claimed.activeRunId, newRunId); return { code: 0, output: "" }; }, uuid: () => newRunId }).run({ once: true });
+    assert.equal((await store.load()).tasks[0].status, "completed");
+  } finally { await rm(agentDir, { recursive: true, force: true }); await rm(runtimeRoot, { recursive: true, force: true }); }
 });
 
 test("runner restart replays a terminal outbox intent idempotently", async () => {

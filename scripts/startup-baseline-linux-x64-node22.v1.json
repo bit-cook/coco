@@ -1,0 +1,304 @@
+{
+  "profile": {
+    "schemaVersion": 1,
+    "profileVersion": "coco-startup-linux-v1",
+    "definitions": {
+      "cold": "first invocation with a new private agent directory",
+      "warm": "subsequent invocation reusing verified local integrity state",
+      "full": "subsequent invocation with complete integrity hashing required",
+      "percentiles": "nearest-rank percentile over elapsed wall-clock milliseconds"
+    },
+    "hostProfile": {
+      "architecture": "x64",
+      "node": ">=22.19.0",
+      "platform": "linux",
+      "runtime": "coco-bootstrap-integrity-v1"
+    },
+    "integrity": {
+      "fullEnvironment": "COCO_INTEGRITY_FULL=1",
+      "mayDisableVerification": false
+    },
+    "matrix": [
+      {
+        "id": "version",
+        "args": [
+          "--version"
+        ],
+        "expectedCode": 0
+      },
+      {
+        "id": "help",
+        "args": [
+          "--help"
+        ],
+        "expectedCode": 0
+      },
+      {
+        "id": "task-list",
+        "args": [
+          "task",
+          "list",
+          "--json"
+        ],
+        "expectedCode": 0
+      },
+      {
+        "id": "control-status",
+        "args": [
+          "control",
+          "status"
+        ],
+        "expectedCode": 0
+      },
+      {
+        "id": "list-models-lightweight",
+        "args": [
+          "--list-models",
+          "agnes"
+        ],
+        "expectedCode": 0
+      },
+      {
+        "id": "list-models-full",
+        "args": [
+          "--list-models",
+          "agnes",
+          "extra"
+        ],
+        "expectedCode": 0
+      }
+    ],
+    "policy": {
+      "minimumSamples": 5,
+      "noiseAllowanceRatio": 0.15,
+      "maximumRegressionRatio": 0.25
+    }
+  },
+  "host": {
+    "architecture": "x64",
+    "cpu": "AMD EPYC 7713 64-Core Processor",
+    "logicalCpus": 4,
+    "osRelease": "7.0.0-29-generic",
+    "platform": "linux"
+  },
+  "runtime": {
+    "execPath": "/root/coco-tmp/coco-ci-runner/_work/_tool/node/22.19.0/x64/bin/node",
+    "node": "v22.19.0",
+    "versions": {
+      "modules": "127",
+      "v8": "12.4.254.21-node.29"
+    }
+  },
+  "cold": {
+    "maxMs": 2569.97,
+    "meanMs": 2532.07,
+    "minMs": 2479.68,
+    "p50Ms": 2537.17,
+    "p95Ms": 2569.97,
+    "samples": 5
+  },
+  "full": {
+    "maxMs": 2432.39,
+    "meanMs": 2388.82,
+    "minMs": 2338.19,
+    "p50Ms": 2400.18,
+    "p95Ms": 2432.39,
+    "samples": 5
+  },
+  "matrix": {
+    "version": {
+      "args": [
+        "--version"
+      ],
+      "cold": {
+        "maxMs": 2569.97,
+        "meanMs": 2532.07,
+        "minMs": 2479.68,
+        "p50Ms": 2537.17,
+        "p95Ms": 2569.97,
+        "samples": 5
+      },
+      "expectedCode": 0,
+      "full": {
+        "maxMs": 2432.39,
+        "meanMs": 2388.82,
+        "minMs": 2338.19,
+        "p50Ms": 2400.18,
+        "p95Ms": 2432.39,
+        "samples": 5
+      },
+      "warm": {
+        "maxMs": 703.92,
+        "meanMs": 694.42,
+        "minMs": 663.66,
+        "p50Ms": 702.33,
+        "p95Ms": 703.92,
+        "samples": 5
+      }
+    },
+    "help": {
+      "args": [
+        "--help"
+      ],
+      "cold": {
+        "maxMs": 12023.28,
+        "meanMs": 9737.84,
+        "minMs": 7753.79,
+        "p50Ms": 9063.01,
+        "p95Ms": 12023.28,
+        "samples": 5
+      },
+      "expectedCode": 0,
+      "full": {
+        "maxMs": 2944.52,
+        "meanMs": 2892.12,
+        "minMs": 2797.16,
+        "p50Ms": 2899.99,
+        "p95Ms": 2944.52,
+        "samples": 5
+      },
+      "warm": {
+        "maxMs": 1347.02,
+        "meanMs": 1229.8,
+        "minMs": 1182.49,
+        "p50Ms": 1207.53,
+        "p95Ms": 1347.02,
+        "samples": 5
+      }
+    },
+    "task-list": {
+      "args": [
+        "task",
+        "list",
+        "--json"
+      ],
+      "cold": {
+        "maxMs": 12776.47,
+        "meanMs": 11687.89,
+        "minMs": 10116.94,
+        "p50Ms": 12022.76,
+        "p95Ms": 12776.47,
+        "samples": 5
+      },
+      "expectedCode": 0,
+      "full": {
+        "maxMs": 3125.6,
+        "meanMs": 3053.5,
+        "minMs": 2970.21,
+        "p50Ms": 3078.26,
+        "p95Ms": 3125.6,
+        "samples": 5
+      },
+      "warm": {
+        "maxMs": 1306.62,
+        "meanMs": 1265.59,
+        "minMs": 1220.57,
+        "p50Ms": 1270,
+        "p95Ms": 1306.62,
+        "samples": 5
+      }
+    },
+    "control-status": {
+      "args": [
+        "control",
+        "status"
+      ],
+      "cold": {
+        "maxMs": 12611.59,
+        "meanMs": 11914.32,
+        "minMs": 11179.56,
+        "p50Ms": 11795.24,
+        "p95Ms": 12611.59,
+        "samples": 5
+      },
+      "expectedCode": 0,
+      "full": {
+        "maxMs": 3381.13,
+        "meanMs": 3323.63,
+        "minMs": 3253.77,
+        "p50Ms": 3330.78,
+        "p95Ms": 3381.13,
+        "samples": 5
+      },
+      "warm": {
+        "maxMs": 1516.13,
+        "meanMs": 1433.46,
+        "minMs": 1385.51,
+        "p50Ms": 1408.06,
+        "p95Ms": 1516.13,
+        "samples": 5
+      }
+    },
+    "list-models-lightweight": {
+      "args": [
+        "--list-models",
+        "agnes"
+      ],
+      "cold": {
+        "maxMs": 12910.87,
+        "meanMs": 12307.45,
+        "minMs": 11404.5,
+        "p50Ms": 12449.99,
+        "p95Ms": 12910.87,
+        "samples": 5
+      },
+      "expectedCode": 0,
+      "full": {
+        "maxMs": 3450.1,
+        "meanMs": 3368.76,
+        "minMs": 3304.54,
+        "p50Ms": 3375.34,
+        "p95Ms": 3450.1,
+        "samples": 5
+      },
+      "warm": {
+        "maxMs": 1644.59,
+        "meanMs": 1625.92,
+        "minMs": 1599.1,
+        "p50Ms": 1634.07,
+        "p95Ms": 1644.59,
+        "samples": 5
+      }
+    },
+    "list-models-full": {
+      "args": [
+        "--list-models",
+        "agnes",
+        "extra"
+      ],
+      "cold": {
+        "maxMs": 14250.23,
+        "meanMs": 12884.58,
+        "minMs": 10646.52,
+        "p50Ms": 12961.62,
+        "p95Ms": 14250.23,
+        "samples": 5
+      },
+      "expectedCode": 0,
+      "full": {
+        "maxMs": 4531.79,
+        "meanMs": 4384.45,
+        "minMs": 4011.8,
+        "p50Ms": 4465.1,
+        "p95Ms": 4531.79,
+        "samples": 5
+      },
+      "warm": {
+        "maxMs": 2764.99,
+        "meanMs": 2586,
+        "minMs": 2471.82,
+        "p50Ms": 2555.76,
+        "p95Ms": 2764.99,
+        "samples": 5
+      }
+    }
+  },
+  "warm": {
+    "maxMs": 703.92,
+    "meanMs": 694.42,
+    "minMs": 663.66,
+    "p50Ms": 702.33,
+    "p95Ms": 703.92,
+    "samples": 5
+  }
+}

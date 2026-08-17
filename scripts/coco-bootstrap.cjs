@@ -165,14 +165,12 @@ function directorySnapshots(runtimeRoots, base = root) {
 }
 
 function directorySnapshotsMatch(directories, runtimeRoots, base = root) {
-  if (Object.keys(directories).length === 0) return false;
-  const allowedRoots = new Set(runtimeRoots);
+  if (!directories || Object.keys(directories).length === 0) return false;
   try {
-    return Object.entries(directories).every(([path, cachedSnapshot]) => {
-      if (!snapshotValid(cachedSnapshot) || ![...allowedRoots].some((directory) => path === directory || path.startsWith(`${directory}/`))) return false;
-      const info = lstatSync(join(base, path));
-      return expectedType(info, "directory") && sameSnapshot(snapshot(info), cachedSnapshot);
-    });
+    const current = directorySnapshots(runtimeRoots, base);
+    if (!current || Object.keys(current).length !== Object.keys(directories).length) return false;
+    return Object.entries(directories).every(([path, cachedSnapshot]) => snapshotValid(cachedSnapshot)
+      && Object.hasOwn(current, path) && sameSnapshot(current[path], cachedSnapshot));
   } catch { return false; }
 }
 
@@ -461,7 +459,7 @@ async function createRuntimeSnapshot(manifest, manifestBytes, sidecarBytes, sour
         createStaging();
       }
     } catch (error) { if (error?.code !== "ENOENT") throw error; createStaging(); }
-    fchmodSync(rootDescriptor, 0o700);
+    if ((fstatSync(rootDescriptor).mode & 0o7777) !== 0o700) fchmodSync(rootDescriptor, 0o700);
     if (stagingRoot) {
       await writeSnapshotEntries(stagingRoot, manifest.entries, verifiedBytes);
       writeSnapshotFile(stagingRoot, MANIFEST_ENTRY, manifestBytes, 0o644);
@@ -474,6 +472,7 @@ async function createRuntimeSnapshot(manifest, manifestBytes, sidecarBytes, sour
     }
     if (!validated && !snapshotValidForManifest(snapshotRoot, manifest, manifestBytes, sidecarBytes, runtimeRoots, expected, policy, key, verifiedState)) throw new Error("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
     if (!cacheHit) cacheRuntimeSnapshot(manifestBytes, verifiedState);
+    process.env.COCO_RUNTIME_CAS_INTEGRITY_MODE = cacheHit ? "fast" : "full";
     closeSync(rootDescriptor); rootDescriptor = undefined;
     mkdirSync(leaseStore, { recursive: true, mode: 0o700 });
     writeFileSync(leasePath, JSON.stringify({ key, pid: process.pid, processIdentity: processIdentitySync(process.pid), startedAt: new Date().toISOString(), schemaVersion: 1 }) + "\n", { mode: 0o600 });
