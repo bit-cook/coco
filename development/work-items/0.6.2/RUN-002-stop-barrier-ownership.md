@@ -27,7 +27,10 @@ Run two `stopRunner()` calls concurrently. The second treats the first live barr
 ## Scope
 
 - `scripts/task-runner.mjs`
-- stop/start/cancel race tests
+- `scripts/task-state.mjs`
+- `scripts/task-commands.mjs`
+- `scripts/control-service.mjs`
+- stop/start/create/dispatch/cancel race tests
 
 ## Out of Scope
 

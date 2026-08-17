@@ -5,7 +5,7 @@ Status: ready
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
-Depends on: none for ledger; RUN-001 for runner ownership integration
+Depends on: none for RUN-003A ledger; RUN-001 and RUN-002 for RUN-003B dispatch consumer
 Blocks: none
 Last updated: 2026-08-16
 ```
@@ -38,7 +38,7 @@ Hold the runner stopping barrier, send a valid delivery, clear the barrier, then
 
 ## Design
 
-Persist `dispatchPending` in the same transaction as acceptance. Clear only after runner ownership is observed. Duplicate path retries startup when the matching task remains queued/pending.
+Split implementation into RUN-003A and RUN-003B. RUN-003A persists delivery, task, and dispatch intent atomically. RUN-003B clears only after a matching runner generation acknowledges scanning or claiming that intent; observing any runner owner is insufficient. Duplicate and Control restart paths recover pending intents.
 
 ## Fault Matrix
 

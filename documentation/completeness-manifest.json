@@ -1,9 +1,11 @@
 {
   "schema": "coco-documentation-completeness-v1",
-  "generated": "2026-08-01",
+  "generated": "2026-08-17",
   "source_root": "..",
   "locales": ["en", "zh-CN"],
-  "translation_status": "complete",
+  "translation_status": "stale-requires-regeneration",
+  "inventory_valid": false,
+  "stale_reason": "The source and locale documentation changed after this historical inventory. Counts, hashes, mirror claims, and broken-link totals below are retained only as the 2026-08-01 snapshot and must not be used as current evidence.",
   "inventory": {
     "source_markdown_count": 39,
     "source_markdown": [

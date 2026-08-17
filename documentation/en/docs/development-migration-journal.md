@@ -6,13 +6,13 @@ This document is the durable handoff for humans and autonomous agents working on
 
 This is the stable migration guide. Live commands, test results, blockers, and the current recovery checkpoint are maintained outside the release package at `.opencode/memory/DEVELOPMENT_JOURNAL.md`. Update the live journal during routine development; change this guide only when architecture or durable policy changes.
 
-## Superseding Architecture Checkpoint
+## Current Handoff (Supersedes Historical Checkpoints Below)
 
-The initial checkpoints below are retained as migration history. The current architecture now includes persistent content-addressed verified runtime roots, durable supervisor authorization/outcomes, bounded output capture, terminal evidence/log seals/receipts, recoverable worktree provisioning, Control summary/detail DTOs, transactional webhook idempotency, exact package closure, and bounded nested publication-archive scanning.
+The dated checkpoints below are retained as migration history and are not current execution instructions. Current execution truth is `AGENTS.md` followed by `DEVELOPMENT_PLAN.md`.
 
-Current candidate evidence on the detached `0.5.3` migration worktree is core `470/470`, integrity `36/36`, real npm pack contract `1/1`, closure `175` manifests, clean publication scanner, and a `20,662`-entry runtime probe. This validates the local dirty candidate only; it is not permission to republish `0.5.3`, commit, tag, or modify remote state. A successor version and local commit/branch remain explicit human decisions.
+Current state at the latest review: released version `0.6.1`; branch `candidate/v0.6.2`; reviewed commit `1db5610`; clean worktree; verified complete backup and restore drill. PERF-001 measured the untagged candidate at approximately 7.14 seconds cold and 1.22 seconds warm p50 for `--list-models`, but complete core/integrity evidence is stale after later packaged documentation changes and must be rerun before release. The immediate route is REL-004 → REL-003 → REL-005 → REL-001 → REL-002 in parallel with RUN-001 recovery work and required CON-002 Linux containment.
 
-## Current Checkpoint
+## Historical Checkpoint: Initial 0.5.3 Migration
 
 Date: 2026-08-15
 

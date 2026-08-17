@@ -5,7 +5,7 @@ Status: pending
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
-Depends on: REL-001
+Depends on: REL-001, REL-005
 Blocks: none
 Last updated: 2026-08-16
 ```
@@ -36,7 +36,7 @@ Fail an upload or lifecycle check after `gh release create`; the public release 
 
 ## Design
 
-Create an empty draft, reject pre-existing assets, upload without clobber, verify exact names/count/sizes/digests, execute online/offline/VSIX lifecycle checks, then publish once. Failed attempts remain draft or are safely removed if they were created by the current operation.
+Create an empty draft in a minimal write stage, reject pre-existing assets, and upload without clobber. A separate read-only stage downloads and executes online/offline/VSIX lifecycle checks. A final minimal write stage rechecks the verification receipt, run/attempt ownership, tag, commit, draft ID, and exact inventory before publishing once.
 
 ## Fault Matrix
 

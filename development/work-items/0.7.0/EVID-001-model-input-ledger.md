@@ -5,7 +5,7 @@ Status: pending
 Priority: P1 research-derived
 Target: 0.7.0
 Owner: unassigned
-Depends on: RUN-001, RUN-005
+Depends on: CFG-001, RUN-001, RUN-005
 Blocks: EVID-002
 Sources: DeepSeek Harness 99f6f02f
 ```
@@ -38,7 +38,7 @@ Inject model-visible context through an extension/runtime hook without a corresp
 
 ## Design
 
-Define one canonical private `ModelRequestProjection` derived only from durable session facts. Immediately before provider invocation, compare it with the actual assembled request and fail closed on unexplained input.
+Define the exact final provider-request seam after context hooks, compatibility transforms, retries, reasoning/tool-choice normalization, provider generation binding, and header/parameter assembly. Derive one canonical private `ModelRequestProjection` from durable facts and compare it with the actual request at that seam.
 
 ## Acceptance Tests
 

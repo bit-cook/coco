@@ -6,13 +6,13 @@
 
 本文是稳定迁移指南。实时命令、测试结果、阻塞和最新恢复检查点保存在不进入发布包的 `.opencode/memory/DEVELOPMENT_JOURNAL.md`。日常推进只更新 live journal；只有架构或长期规则变化时才修改本文。
 
-## 最新架构检查点
+## 当前交接状态（覆盖下方历史检查点）
 
-下方早期检查点继续作为迁移历史保留。当前架构已经包含：持久内容寻址的已验证 runtime root、durable supervisor 授权与 outcome、有界输出 capture、terminal evidence/日志 seal/receipt、可恢复 worktree provisioning、Control summary/detail DTO、事务化 webhook 幂等、精确 package closure，以及有界递归的发布归档扫描。
+下方带日期的早期检查点只作为迁移历史保留，不是当前执行指令。当前执行真相依次是`AGENTS.md`和`DEVELOPMENT_PLAN.md`。
 
-当前 detached `0.5.3` 迁移工作树证据为：core `470/470`、integrity `36/36`、真实 npm pack contract `1/1`、closure `175` 个 manifest、发布 scanner clean、runtime probe `20,662` entries。这只验证本地 dirty candidate，不代表允许重新发布 `0.5.3`，也不代表允许 commit、tag 或修改远程状态。后续版本号和本地 commit/branch 仍必须由人类明确决定。
+最新审查状态：已发布版本`0.6.1`；当前分支`candidate/v0.6.2`；审查提交`1db5610`；工作树clean；完整备份和恢复演练已通过。PERF-001在未打tag候选上测得`--list-models`冷启动约7.14秒、热启动p50约1.22秒，但后续打包文档变更后完整core/integrity证据已stale，发布前必须重跑。当前最优路线是REL-004 → REL-003 → REL-005 → REL-001 → REL-002，同时推进RUN-001恢复和必做的CON-002 Linux containment。
 
-## 当前恢复检查点
+## 历史检查点：最初的0.5.3迁移
 
 日期：2026-08-15
 

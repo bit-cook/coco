@@ -14,7 +14,7 @@ test("current plan, strategy, and historical research remain public, distinct, r
     readFile(new URL("site/landscape.html", root), "utf8"),
   ]);
 
-  for (const [page, links] of [[english, ["Current plan", "Strategy 2026", "Legacy roadmap", "Legacy research"]], [chinese, ["当前计划", "长期战略", "旧版路线图", "旧竞品研究"]]]) {
+  for (const [page, links] of [[english, ["Current plan", "Historical strategy", "Legacy roadmap", "Legacy research"]], [chinese, ["当前计划", "历史战略", "旧版路线图", "旧竞品研究"]]]) {
     assert.match(page, /href="plan\.html"/);
     assert.match(page, /href="roadmap\.html"/);
     assert.match(page, /href="roadmap-legacy\.html"/);
@@ -24,10 +24,10 @@ test("current plan, strategy, and historical research remain public, distinct, r
 
   assert.match(plan, /rel="canonical" href="https:\/\/bit-cook\.github\.io\/coco\/plan\.html"/);
   assert.match(plan, /CoCo v0\.6\.1/);
-  assert.match(plan, /commit b88190b/);
+  assert.match(plan, /v0\.6\.1 \/ plan baseline: 1db5610/);
   for (const release of ["v0.6.2", "v0.7.0", "v0.8.0"]) assert.match(plan, new RegExp(release));
-  for (const concept of ["发布安全与任务恢复", "恢复证据与长期运行", "平台交付闭包", "Release Safety", "Launch Recovery", "Queue Integrity", "Containment Decision"]) assert.match(plan, new RegExp(concept));
-  for (const evidence of ["1.22s", "7.14", "2.18s", "37/37", "472/472", "175"]) assert.match(plan, new RegExp(evidence.replace("/", "\\/")));
+  for (const concept of ["发布安全与任务恢复", "恢复证据与长期运行", "平台交付闭包", "Four-Stage Release", "Launch Recovery", "Linux Containment", "Integrity &amp; Performance"]) assert.match(plan, new RegExp(concept));
+  for (const evidence of ["1.22s", "7.14", "37/37", "472/472", "175"]) assert.match(plan, new RegExp(evidence.replace("/", "\\/")));
   assert.match(plan, /#f7fbff/i);
   assert.match(plan, /@media\(max-width:/);
   assert.match(plan, /prefers-reduced-motion/);
@@ -36,6 +36,8 @@ test("current plan, strategy, and historical research remain public, distinct, r
 
   assert.match(roadmap, /rel="canonical" href="https:\/\/bit-cook\.github\.io\/coco\/roadmap\.html"/);
   assert.match(roadmap, /CoCo v0\.5\.2/);
+  assert.match(roadmap, /Superseded historical snapshot/);
+  assert.match(roadmap, /href="plan\.html"/);
   assert.match(roadmap, /Xiaomi MiMo-Code/);
   assert.match(roadmap, /源码产品层 \+ 选择性上游 Fork \+ 持续缩小兼容 Patch/);
   for (const milestone of ["M0", "M1", "M2", "M3", "M4", "M5", "M6"]) assert.match(roadmap, new RegExp(`>${milestone}<`));

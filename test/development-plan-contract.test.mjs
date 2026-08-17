@@ -27,11 +27,17 @@ test("active development plan exposes complete, agent-ready 0.6.2 work packets",
   const expected = [
     "CON-001-linux-containment.md",
     "CON-002-linux-containment-implementation.md",
+    "DOC-001-documentation-completeness.md",
+    "INT-001-launcher-canonical-root.md",
+    "INT-002-runtime-topology-fallback.md",
     "PERF-001-startup-runtime-performance.md",
+    "PERF-002-model-list-equivalence.md",
+    "PERF-003-startup-release-budget.md",
     "REL-001-release-permission-isolation.md",
     "REL-002-draft-immutable-release.md",
     "REL-003-offline-tarball-binding.md",
     "REL-004-package-offline-closure.md",
+    "REL-005-exact-release-artifact-contract.md",
     "RUN-001-supervisor-launch-fsm.md",
     "RUN-002-stop-barrier-ownership.md",
     "RUN-003-webhook-dispatch-outbox.md",
@@ -50,6 +56,13 @@ test("active development plan exposes complete, agent-ready 0.6.2 work packets",
     assert.match(plan, new RegExp(`\\| ${id} \\|`), `${id} appears in active plan`);
   }
   assert.equal(new Set(ids).size, ids.length, "work item IDs are unique");
+  const byName = Object.fromEntries(await Promise.all(files.map(async (file) => [file, await readFile(join(workItems, file), "utf8")])));
+  assert.match(byName["REL-001-release-permission-isolation.md"], /Depends on: REL-005/);
+  assert.match(byName["REL-002-draft-immutable-release.md"], /Depends on: REL-001, REL-005/);
+  assert.match(byName["REL-003-offline-tarball-binding.md"], /Depends on: REL-004/);
+  assert.match(byName["CON-001-linux-containment.md"], /Status: completed/);
+  assert.match(byName["CON-002-linux-containment-implementation.md"], /Depends on: RUN-001, RUN-002, CON-001/);
+  assert.equal((plan.match(/The coordinator owns/g) ?? []).length, 1);
 
   for (const preserved of [
     "documentation/en/docs/development-migration-journal.md",
@@ -72,15 +85,25 @@ test("architecture decisions preserve runtime, supervision, release, and platfor
     const value = await readFile(join(directory, file), "utf8");
     for (const section of ["Context", "Security Consequences", "Operational Consequences", "Alternatives Rejected", "Tests"]) assert.match(value, new RegExp(`^## ${section}$`, "m"), `${file}: ${section}`);
   }
+  const release = await readFile(join(directory, "ADR-003-release-isolation.md"), "utf8");
+  assert.match(release, /REL-004, REL-005/);
+  assert.match(release, /four-stage model/);
 });
 
 test("research-derived recovery backlog remains explicit and blocked", async () => {
   const directory = join(root, "development", "work-items", "0.6.3");
-  const files = await readdir(directory);
-  assert.deepEqual(files, ["REC-001-command-recovery-journal.md"]);
-  const value = await readFile(join(directory, files[0]), "utf8");
+  const files = (await readdir(directory)).toSorted();
+  assert.deepEqual(files, ["BKP-001-offsite-authenticated-backup.md", "CFG-000-mcp-atomic-publication.md", "REC-001-command-recovery-journal.md"]);
+  const value = await readFile(join(directory, "REC-001-command-recovery-journal.md"), "utf8");
   assert.match(value, /Status: pending/);
   assert.match(value, /Depends on: RUN-001, RUN-003/);
   assert.match(value, /uncertain/);
   assert.match(value, /no external code copied/i);
+});
+
+test("stale documentation inventory cannot claim current completeness", async () => {
+  const manifest = JSON.parse(await readFile(join(root, "documentation", "completeness-manifest.json"), "utf8"));
+  assert.equal(manifest.inventory_valid, false);
+  assert.equal(manifest.translation_status, "stale-requires-regeneration");
+  assert.match(manifest.stale_reason, /historical inventory/i);
 });

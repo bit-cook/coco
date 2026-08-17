@@ -5,8 +5,8 @@ Status: ready
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
-Depends on: none
-Blocks: none
+Depends on: REL-004
+Blocks: REL-005, REL-002
 Last updated: 2026-08-16
 ```
 

@@ -5,7 +5,7 @@ Status: pending
 Priority: P1 prototype
 Target: 0.7.0
 Owner: unassigned
-Depends on: RUN-001, RUN-003, CON-001
+Depends on: RUN-001, RUN-002, RUN-003, CON-002, REC-001, EVID-002
 Blocks: none
 Sources: Prime Agent 849c9211
 ```
@@ -42,7 +42,7 @@ Combine a running goal, scheduled continuation, user follow-up, and child work. 
 
 ## Design
 
-Define steering, follow-up, scheduled, recovery, and child-result messages in one durable inbox. Add a supervisor-owned append-only lineage ledger under transactional locking. Continuation policy consumes inbox and budget state at explicit boundaries.
+Implement as staged sub-items rather than one simultaneous launch: durable inbox and priority rules; supervisor-owned lineage ledger; bounded continuation policy; only then child spawning with shared authorization, containment, effect evidence, and aggregate budgets.
 
 ## Acceptance Tests
 

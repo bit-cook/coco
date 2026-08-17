@@ -62,6 +62,7 @@
     "!scripts/verify-plan-evidence.mjs",
     "!scripts/verify-protected-baseline.mjs",
     "DESIGN.md",
+    "BACKUP_AND_RESTORE.md",
     "CHANGELOG.md",
     "LICENSE",
     "NOTICE",

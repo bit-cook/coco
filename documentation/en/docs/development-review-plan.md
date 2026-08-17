@@ -27,6 +27,19 @@ The untagged `candidate/v0.6.2` PERF-001 batch later measured approximately 7.14
 
 The next cycle should not begin with new end-user features. The highest-value path is a security and reliability patch release, followed by long-running scalability and then an explicit platform-support decision.
 
+## 2026-08-17 Comprehensive Review Correction
+
+The latest source review strengthens the plan:
+
+- Release work is a four-stage flow: read-only build, minimal-write draft upload, read-only remote lifecycle verification, and minimal-write publish.
+- `REL-004 -> REL-003 -> REL-005 -> REL-001 -> REL-002` is the authoritative release chain.
+- Linux cgroup v2 (`CON-002`) is required in `0.6.2` before claiming complete descendant termination.
+- `RUN-001` must arbitrate authorization, revocation, and outcome in one durable FSM before RUN-002/004/005 and RUN-003B integrate.
+- `PERF-002/003` and `INT-001/002` are release gates for model-list equivalence, executable performance budgets, canonical-root verification, and topology fallback.
+- `DOC-001` regenerates the stale documentation inventory and checks links inside the actual npm tarball.
+
+The published `0.6.1` release remains the stable user baseline. Candidate performance measurements are historical evidence from PERF-001, not current release certification.
+
 The corrected target sequence is:
 
 ```text
@@ -195,15 +208,15 @@ The following work should not displace the P0 batches:
 
 ## Execution Order
 
-1. Freeze the `0.6.2` scope to release safety and deterministic task recovery.
-2. Implement release credential isolation and draft-first publication.
-3. Implement supervisor launch recovery, stopping-barrier correction, webhook dispatch outbox, invalid-task isolation, and UTF-8 recovery.
-4. Complete CON-001 policy decision; implement CON-002 only if approved.
-5. Run focused crash and supply-chain tests.
-6. Regenerate governed assets once.
-7. Run complete core, integrity, package, offline, VSIX, and lifecycle gates.
-8. If command-level recovery is not explicitly pulled into 0.6.2, schedule REC-001 for 0.6.3 before EVID-002.
-9. Publish only from committed bytes and only after the draft asset lifecycle passes.
+1. Implement REL-004 package/offline closure and RUN-001 supervisor arbitration in parallel; run PERF-002/003 and INT-001/002 as independent release gates.
+2. Build the immutable package through REL-003 and bind the exact nine-asset contract in REL-005.
+3. Implement the four release stages in REL-001/002: read-only build, minimal-write draft upload, read-only remote lifecycle verification, and minimal-write publish.
+4. Complete RUN-002/003/004/005 after RUN-001 and implement required CON-002 Linux containment.
+5. Freeze documentation and complete DOC-001 packed-link/completeness verification.
+6. Run focused crash, containment, performance, integrity, and supply-chain tests.
+7. Regenerate governed assets once and run complete core, integrity, package, offline, VSIX, and lifecycle gates.
+8. Schedule REC-001 and CFG-000 for 0.6.3 before generalized EVID/CFG/TOOL/ORCH work.
+9. Publish only from committed bytes after read-only draft lifecycle verification passes.
 
 ## Release Exit Criteria
 
@@ -211,13 +224,18 @@ The following work should not displace the P0 batches:
 
 ```text
 release build runs without write credentials
+release follows four isolated stages
 failed publication cannot expose a partial release
 release assets cannot be overwritten
 offline and public tarballs are digest-identical
+remote assets exactly match tag, commit, names, sizes, and digests
 every pre-authorization crash state converges
 no single invalid task can poison the queue
 duplicate webhooks recover pending dispatch
 concurrent stop operations elect one owner
 invalid UTF-8 cannot prevent terminal evidence
+Linux cgroup containment is empty before full termination succeeds
+model-list differential, canonical-root, topology, and startup-budget gates pass
+documentation completeness and packed links are current
 complete core, integrity, package, and lifecycle gates pass
 ```

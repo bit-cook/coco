@@ -120,6 +120,8 @@ The research adds five candidate work packets under `development/work-items/0.7.
 
 They are deliberately `pending` and blocked by the `0.6.2` P0 recovery/release work. No external runtime, dependency, project-local skill, or plugin is authorized by this report.
 
+The dependency closure is now explicit: `RUN-001 + RUN-003 -> REC-001`; `REC-001 -> CFG-000`; `CFG-000 -> CFG-001`; `CFG-001 + RUN-005 -> EVID-001`; `REC-001 + EVID-001 -> EVID-002`; `EVID-002 + CON-002 -> TOOL-001`; and ORCH-001 waits for RUN-001/002/003, CON-002, REC-001, and EVID-002.
+
 ## Adoption Gates
 
 Any external mechanism or code proposal must provide:

@@ -2,11 +2,13 @@
 
 CoCo Agent is a general AI assistant with strong coding and terminal capabilities, built as a downstream distribution of [Pi Coding Agent](https://github.com/earendil-works/pi) with `agnes/agnes-2.5-flash` at `max` thinking as the default model. CoCo includes no provider credentials in source.
 
-[English](https://github.com/bit-cook/coco/blob/main/README.md) | [简体中文](https://github.com/bit-cook/coco/blob/main/documentation/zh-CN/README.md) | [Documentation](https://github.com/bit-cook/coco/tree/main/documentation)
+[English](../../README.md) | [简体中文](../zh-CN/README.md) | [Documentation](../)
 
 Complete user manual: [English](docs/manual.md) | [简体中文](../zh-CN/docs/manual.md)
 
 Operational reference: [CoCo CLI](docs/coco-cli.md) | [CoCo security](docs/coco-security.md). CoCo-specific documentation takes precedence over inherited Pi documentation when they differ.
+
+Recovery: [complete project backup and restore](docs/backup-and-restore.md).
 
 ## Persistent goals
 

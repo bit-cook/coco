@@ -5,7 +5,7 @@ Status: pending
 Priority: P1 prototype
 Target: 0.7.0
 Owner: unassigned
-Depends on: EVID-002, CON-001
+Depends on: EVID-002, CON-002
 Blocks: none
 Sources: DeepSeek Harness 99f6f02f
 ```
@@ -41,7 +41,7 @@ Issue multiple independent read/search calls mixed with a write or shell call. C
 
 ## Design
 
-Add explicit capability metadata. Schedule contiguous safe calls into a bounded pool, stop at exclusive barriers, collect out of order internally, and append terminal results in request order after durability fences.
+First measure the proportion and latency benefit of safely parallelizable calls. Define one trusted capability authority; model output, tool names, and unvalidated MCP metadata cannot self-declare safety. Then schedule contiguous safe calls into a bounded pool, stop at exclusive barriers, collect out of order internally, and append terminal results in request order after durability fences.
 
 ## Acceptance Tests
 

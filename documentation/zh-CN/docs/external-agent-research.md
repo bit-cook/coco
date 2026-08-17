@@ -120,6 +120,8 @@ CoCo已有必须保持权威的生产基础：
 
 这些工作包均为`pending`，并受`0.6.2` P0发布/恢复工作阻塞。本文不授权任何外部runtime、dependency、project-local skill或plugin。
 
+依赖闭包现已明确：`RUN-001 + RUN-003 -> REC-001`；`REC-001 -> CFG-000`；`CFG-000 -> CFG-001`；`CFG-001 + RUN-005 -> EVID-001`；`REC-001 + EVID-001 -> EVID-002`；`EVID-002 + CON-002 -> TOOL-001`；ORCH-001等待RUN-001/002/003、CON-002、REC-001和EVID-002。
+
 ## 采用硬门槛
 
 任何外部机制或源码提案必须提供：

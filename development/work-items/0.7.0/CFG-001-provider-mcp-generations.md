@@ -5,14 +5,14 @@ Status: pending
 Priority: P1 research-derived
 Target: 0.7.0
 Owner: unassigned
-Depends on: REL-004, RUN-001
+Depends on: CFG-000, REL-004, RUN-001
 Blocks: EVID-001
 Sources: DeepSeek Harness 99f6f02f
 ```
 
 ## Problem
 
-Provider/config/MCP reload can expose mixed generations: in-flight requests may observe changed endpoint or credentials, and failed MCP discovery can transiently publish an empty or partial tool set.
+After CFG-000 provides all-or-none MCP publication, provider/config/MCP live reload still needs immutable generation binding so in-flight requests never observe mixed endpoint, credentials, settings, or tools.
 
 ## Reproduction
 

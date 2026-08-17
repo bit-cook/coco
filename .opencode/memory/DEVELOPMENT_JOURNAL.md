@@ -1,6 +1,6 @@
-# CoCo 0.5.3 Live Development Journal
+# CoCo Active Development Journal
 
-This is the canonical append-oriented execution journal. It is intentionally outside the npm package and runtime integrity roots so recording verification results does not invalidate generated release assets.
+This is the canonical append-oriented execution journal. Current execution order and gate status live in `DEVELOPMENT_PLAN.md`; dated entries below are historical facts. The journal is intentionally outside the npm package and runtime integrity roots so recording verification results does not invalidate generated release assets.
 
 Stable architecture and migration rationale live in:
 
@@ -13,11 +13,13 @@ documentation/zh-CN/docs/development-migration-journal.md
 
 ```text
 Canonical worktree: /root/coco-tmp/coco-v053-migration
-Baseline: 6ec5dd3d2105cacbed2e6ea795d74b9eb2155118
-Product version: 0.6.0 candidate (successor to the 0.5.3 baseline)
-Git mode: detached HEAD
+Current branch: candidate/v0.6.2
+Current commit at review: 1db561056cba780c9a35c594895b158782a5429d
+Released product version: 0.6.1
+Current target: 0.6.2
+Git mode: attached development branch
 Migration source: /root/coco at 2970165, package version 0.2.1
-Current phase: frozen implementation validation
+Current phase: P0 release safety, deterministic recovery, and Linux containment
 Remote operations: prohibited unless explicitly authorized
 ```
 
@@ -26,6 +28,7 @@ Resume commands:
 ```bash
 cd /root/coco-tmp/coco-v053-migration
 git status --short --branch
+git rev-parse HEAD
 node -p "require('./package.json').version"
 git diff --check
 ```
@@ -1934,3 +1937,31 @@ release SHA256SUMS and three sidecars: passed
 ```
 
 Canonical instructions: `BACKUP_AND_RESTORE.md`. Locale-paired documentation and `HISTORICAL_DOCUMENTS.md` link the backup. Final commit identity and artifact digests are recorded in the backup's `metadata/final-backup-facts.txt` and `SHA256SUMS`, avoiding a self-referential documentation hash.
+
+## 2026-08-17: Third Comprehensive Review and Plan Hardening
+
+The review at commit `1db5610` confirmed 0.6.2 remains No-Go and strengthened the plan before implementation:
+
+- Release chain is REL-004 -> REL-003 -> REL-005 -> REL-001 -> REL-002.
+- Release architecture is four-stage: read-only build, minimal-write draft upload, read-only remote lifecycle verification, minimal-write publish.
+- Linux cgroup v2 containment is required in 0.6.2 for any full descendant-termination claim.
+- RUN-001 must unify authorization/revocation/outcome arbitration; RUN-002 includes task creation and Control/CLI race semantics; RUN-003 separates ledger from generation-acknowledged consumption.
+- Added PERF-002/003 and INT-001/002 for full model-list equivalence, executable performance budgets, canonical-root verification, and topology fallback.
+- Added DOC-001 for regenerated documentation completeness and packed-link closure, plus REL-005 exact remote artifact/tag/commit/digest binding.
+- Added 0.6.3 CFG-000 MCP atomic publication and BKP-001 authenticated offsite backup; closed the 0.7 dependency DAG.
+
+Documentation truth was corrected: current journal/handoff headers, historical migration markers, containment claims, relative repository links, backup package inclusion, stale completeness manifest, historical roadmap banner, and candidate performance caveats. Review/document/site contracts passed 11/11 before build. Next action: canonical build, package/closure/scanner verification, commit, push, and Pages deployment. No product implementation or release occurs in this batch.
+
+Post-build evidence:
+
+```text
+npm run build: passed
+review/document/site contracts: 11/11 passed
+real package/release contracts: 2/2 passed
+package closure: approved, 175 manifests
+packed backup guide and locale links: present
+publication scanner: clean
+git diff --check: passed
+```
+
+Core and integrity remain explicitly stale because this batch changed packaged documentation and package inventory; they are release gates, not documentation-batch claims.

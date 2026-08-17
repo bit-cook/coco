@@ -3,9 +3,9 @@
 ```text
 Status: pending
 Priority: P0 implementation
-Target: 0.6.2 or immediate 0.6.3 per CON-001
+Target: 0.6.2
 Owner: unassigned
-Depends on: RUN-001, CON-001
+Depends on: RUN-001, RUN-002, CON-001
 Blocks: containment release claim
 Last updated: 2026-08-17
 ```
@@ -34,7 +34,7 @@ Windows Job Objects, macOS implementation, general sandboxing, and network polic
 
 ## Design
 
-If approved by CON-001, create one cgroup per run, attach before authorization, persist its identifier, use `cgroup.kill`, and verify emptiness. If delegated cgroups are unavailable, return a stable unsupported result rather than overclaiming.
+Create one cgroup per run, attach before authorization, persist its identifier and owner generation, use `cgroup.kill`, and verify emptiness. If delegated cgroups are unavailable, return a stable degraded/unsupported result rather than overclaiming.
 
 ## Acceptance Tests
 

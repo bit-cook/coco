@@ -4,7 +4,7 @@
 
 CoCo Agent is a general AI assistant with strong coding and terminal capabilities, built as a downstream distribution of [Pi Coding Agent](https://github.com/earendil-works/pi) with `agnes/agnes-2.5-flash` at `max` thinking as the default model. CoCo includes no provider credentials in source.
 
-[English](https://github.com/bit-cook/coco/blob/main/README.md) | [简体中文](https://github.com/bit-cook/coco/blob/main/documentation/zh-CN/README.md) | [Documentation](https://github.com/bit-cook/coco/tree/main/documentation)
+[English](README.md) | [简体中文](documentation/zh-CN/README.md) | [Documentation](documentation/)
 
 ## Install
 
@@ -46,6 +46,7 @@ coco --list-models
 - Tasks and control: [English](documentation/en/docs/tasks.md) | [简体中文](documentation/zh-CN/docs/tasks.md)
 - Language packs: [English instructions](documentation/en/docs/manual.md#language-switching-and-language-packs) | [中文说明](documentation/zh-CN/docs/manual.md#多语言切换与语言包)
 - Documentation index: [English](documentation/en/README.md) | [简体中文](documentation/zh-CN/README.md)
+- Complete backup and recovery: [operator guide](BACKUP_AND_RESTORE.md)
 
 CoCo-specific documentation takes precedence over inherited Pi documentation when they differ.
 
@@ -55,7 +56,7 @@ Use the built-in interactive `/goal` command to set and track a goal for the cur
 
 Use interactive `/loop` for recurring work in the current saved session. It runs only while that matching CoCo session is open, inherits normal CoCo guard and permission behavior, and never loads project-local loop prompts. See [CoCo CLI](documentation/en/docs/coco-cli.md#scheduled-loops).
 
-Use `coco task create` for durable background and worktree tasks that survive terminal closure. Inspect live Agent PIDs with `coco task active`, and completely terminate all Agent process groups with `coco task stop-all`. See [Tasks, Agents, and Control](documentation/en/docs/tasks.md).
+Use `coco task create` for durable background and worktree tasks that survive terminal closure. Inspect live Agent PIDs with `coco task active`; `coco task stop-all` terminates verified original process groups. The published `0.6.1` release cannot guarantee containment of descendants that detach into another session, so the `0.6.2` plan requires Linux cgroup v2 before claiming complete descendant termination. See [Tasks, Agents, and Control](documentation/en/docs/tasks.md).
 
 CoCo includes English and Simplified Chinese language switching through `/language`. Additional languages can be installed as global JSON language packs.
 

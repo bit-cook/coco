@@ -5,7 +5,7 @@ Status: pending
 Priority: P1 research-derived
 Target: 0.7.0
 Owner: unassigned
-Depends on: EVID-001, RUN-001
+Depends on: REC-001, EVID-001, RUN-001
 Blocks: TOOL-001
 Sources: DeepSeek Harness 99f6f02f; Prime Agent 849c9211
 ```
@@ -38,7 +38,7 @@ Inject storage failure immediately before an external call after in-memory admis
 
 ## Design
 
-Persist a canonical effect intent, flush/commit it, execute, then persist result before response. Duplicate IDs return the durable result. A crash after execution but before result becomes `uncertain` unless the adapter provides a verified idempotency protocol.
+Extend the REC-001 command/effect protocol rather than creating a second state machine. Persist a canonical effect intent, flush/commit it, execute, then persist result before response. Duplicate IDs return the durable result. A crash after execution but before result becomes `uncertain` unless the adapter provides a verified idempotency protocol.
 
 ## Fault Matrix
 

@@ -1,9 +1,9 @@
 # CON-001: Linux Containment Policy Decision
 
 ```text
-Status: pending
+Status: completed
 Priority: P0 decision
-Target: 0.6.2 or immediate 0.6.3
+Target: 0.6.2
 Owner: unassigned
 Depends on: none
 Blocks: CON-002 and the 0.6.2 containment claim
@@ -37,7 +37,7 @@ Spawn a detached child from a task, unref it, then cancel or stop all. The super
 
 ## Design
 
-Decide whether Linux cgroup v2 is required for 0.6.2 or immediately after it. The decision must explicitly state what cancellation can and cannot guarantee on hosts without delegated cgroups. Implementation belongs to CON-002.
+Decision: Linux cgroup v2 is required in 0.6.2 for any claim that cancellation or stop-all completely terminates task descendants. Hosts without delegated cgroups must return a stable degraded/unsupported result and must not claim full termination. Implementation belongs to CON-002.
 
 ## Fault Matrix
 
@@ -62,4 +62,4 @@ Containment state must not strand live tasks. Define safe fallback and cleanup b
 
 ## Evidence
 
-Decision not completed; implementation is explicitly assigned to CON-002.
+Decision completed by the 2026-08-17 comprehensive review. Implementation remains assigned to CON-002.

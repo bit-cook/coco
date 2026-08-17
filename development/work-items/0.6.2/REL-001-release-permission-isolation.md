@@ -5,7 +5,7 @@ Status: ready
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
-Depends on: none
+Depends on: REL-005
 Blocks: REL-002
 Last updated: 2026-08-16
 ```
@@ -38,7 +38,7 @@ Inspect `.github/workflows/release.yml`: one write-enabled job checks out the re
 
 ## Design
 
-Split the workflow into read-only `build-and-verify` and minimal write-enabled `publish`. Set checkout `persist-credentials: false`. Upload one artifact with an explicit digest and exact member inventory; publish downloads and verifies it without checkout or `npm ci`.
+Implement four stages: read-only build/verify, minimal-write draft creation/upload, read-only draft download/lifecycle verification, and minimal-write publish. Set checkout `persist-credentials: false`. Neither write stage may checkout, install dependencies, run repository code, or execute downloaded assets.
 
 ## Fault Matrix
 
@@ -52,7 +52,7 @@ Split the workflow into read-only `build-and-verify` and minimal write-enabled `
 
 - Workflow contract proves build job has only `contents: read`.
 - Workflow contract proves checkout credentials are not persisted.
-- Workflow contract proves publish job has no checkout, npm, Node repository script, build, or test step.
+- Workflow contract proves both write jobs have no checkout, npm, Node repository script, build, test, or downloaded-asset execution step.
 - Workflow contract proves artifact digest and exact inventory validation.
 
 ## Verification

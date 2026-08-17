@@ -27,6 +27,19 @@ npm 发布: 未执行
 
 下一周期不应先增加普通用户功能。收益最高的路线是先发布安全与可靠性修复版，再处理长期运行扩展性，最后明确平台支持策略。
 
+## 2026-08-17全面复审校正
+
+最新源码审查进一步收紧计划：
+
+- 发布改为四阶段：只读build、最小写权限draft upload、只读远端生命周期验证、最小写权限publish。
+- 权威发布链是`REL-004 -> REL-003 -> REL-005 -> REL-001 -> REL-002`。
+- `0.6.2`在宣称完整后代终止前必须完成Linux cgroup v2（CON-002）。
+- RUN-001必须在一个durable FSM中统一仲裁authorization、revocation和outcome，RUN-002/004/005与RUN-003B随后集成。
+- PERF-002/003和INT-001/002成为发布门禁，分别证明模型列表等价、可执行性能预算、canonical-root验证和topology fallback。
+- DOC-001负责重建过期文档清单，并验证真实npm tarball内部链接闭包。
+
+已发布的`0.6.1`仍是稳定用户基线。候选性能数据只是PERF-001的历史证据，不是当前发布认证。
+
 校正后的版本顺序：
 
 ```text
@@ -195,15 +208,15 @@ runner ownership observed -> dispatchPending cleared
 
 ## 执行顺序
 
-1. 将`0.6.2`范围冻结为发布安全和确定性任务恢复。
-2. 实现release凭据隔离和draft-first发布。
-3. 实现supervisor launch recovery、stopping barrier修复、webhook dispatch outbox、无效任务隔离和UTF-8恢复。
-4. 完成CON-001策略决策；仅在批准后实现CON-002。
-5. 运行聚焦crash和supply-chain测试。
-6. 只生成一次governed assets。
-7. 运行完整core、integrity、package、offline、VSIX和lifecycle门禁。
-8. 如果没有明确把command-level recovery拉入0.6.2，则在进入EVID-002前将REC-001排入0.6.3。
-9. 只从committed bytes发布，并且只在draft资产生命周期通过后公开。
+1. 并行实现REL-004 package/offline closure和RUN-001 supervisor仲裁；独立执行PERF-002/003与INT-001/002发布门禁。
+2. 通过REL-003生成不可变package，并由REL-005绑定精确九资产contract。
+3. 在REL-001/002中实现四阶段发布：只读build、最小写draft upload、只读远端生命周期验证、最小写publish。
+4. RUN-001完成后实现RUN-002/003/004/005，并完成必做的CON-002 Linux containment。
+5. 冻结文档并完成DOC-001打包链接与完整性验证。
+6. 运行聚焦crash、containment、性能、integrity和supply-chain测试。
+7. 只生成一次governed assets，并运行完整core、integrity、package、offline、VSIX和lifecycle门禁。
+8. 将REC-001和CFG-000排入0.6.3，再进入泛化EVID/CFG/TOOL/ORCH工作。
+9. 只从committed bytes发布，并且只在只读draft生命周期验证通过后公开。
 
 ## 发布退出标准
 
@@ -211,13 +224,18 @@ runner ownership observed -> dispatchPending cleared
 
 ```text
 release build不持有写凭据
+release遵守四个隔离阶段
 发布失败不能暴露部分release
 release资产不能被覆盖
 offline和公开tarball digest完全一致
+远端资产精确绑定tag、commit、名称、size和digest
 所有pre-authorization crash状态最终收敛
 单个无效任务不能毒化队列
 重复webhook可以恢复pending dispatch
 并发stop只能选出一个owner
 非法UTF-8不能阻止terminal evidence
+只有Linux cgroup为空时才能报告完全终止
+模型列表差分、canonical-root、topology和启动预算门禁通过
+文档完整性和打包链接全部为current
 完整core、integrity、package和lifecycle门禁通过
 ```

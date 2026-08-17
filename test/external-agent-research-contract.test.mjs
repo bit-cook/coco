@@ -32,4 +32,16 @@ test("research-derived work items remain pending and do not authorize external r
     assert.match(value, /Status: pending/); assert.match(value, /Research only|研究/);
     for (const section of ["Problem", "Required Invariants", "Scope", "Out of Scope", "Design", "Acceptance Tests", "Verification", "Rollback", "Evidence"]) assert.match(value, new RegExp(`^## ${section}$`, "m"), name);
   }
+  const [cfg, evid1, evid2, tool, orch] = await Promise.all([
+    readFile(join(directory, "CFG-001-provider-mcp-generations.md"), "utf8"),
+    readFile(join(directory, "EVID-001-model-input-ledger.md"), "utf8"),
+    readFile(join(directory, "EVID-002-durability-fence.md"), "utf8"),
+    readFile(join(directory, "TOOL-001-ordered-tool-pool.md"), "utf8"),
+    readFile(join(directory, "ORCH-001-lineage-and-continuation.md"), "utf8"),
+  ]);
+  assert.match(cfg, /Depends on: CFG-000/);
+  assert.match(evid1, /Depends on: CFG-001/);
+  assert.match(evid2, /Depends on: REC-001/);
+  assert.match(tool, /Depends on: EVID-002, CON-002/);
+  assert.match(orch, /Depends on: RUN-001, RUN-002, RUN-003, CON-002, REC-001, EVID-002/);
 });

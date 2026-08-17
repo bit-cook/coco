@@ -6,7 +6,7 @@ Priority: P0
 Target: 0.6.2
 Owner: unassigned
 Depends on: none
-Blocks: RUN-002, RUN-004, CON-001
+Blocks: RUN-002, RUN-004, RUN-005, CON-002
 Last updated: 2026-08-16
 ```
 
@@ -45,7 +45,7 @@ A crash after supervisor `spec.json` preparation but before registration or auth
 
 ## Design
 
-Persist `prepared`, `registered`, `authorized`, `outcome`, `revoked`, and `abandoned` transitions with phase identity and lease timestamps. Recovery decisions are transactional and idempotent.
+Persist `prepared`, `registered`, `authorized`, `outcome`, `revoked`, and `abandoned` transitions with one mutually exclusive transaction. Define lease owner, process identity, monotonic/clock semantics, stale criteria, takeover CAS, worker generation, and rejection of stale-owner writes. Represent outcome-in-doubt as structured state rather than only `lastError` text.
 
 ## Fault Matrix
 

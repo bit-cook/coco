@@ -27,7 +27,7 @@ This index preserves the location and purpose of older plans, migration records,
 - External Agent research report (Chinese): `documentation/zh-CN/docs/external-agent-research.md`
 - External source snapshot and fixed commits: `development/research/prime-agent-deepseek-harness-snapshot.md`
 - 0.6.3 command recovery candidate: `development/work-items/0.6.3/REC-001-command-recovery-journal.md`
-- Strategy 2026: `site/roadmap.html`
+- Superseded Strategy 2026 snapshot: `site/roadmap.html` (historical; current execution is `DEVELOPMENT_PLAN.md` and `site/plan.html`)
 - Legacy roadmap snapshot: `site/roadmap-legacy.html`
 - Legacy product research: `site/landscape.html`
 - Chinese strategy source: `documentation/zh-CN/docs/strategy-roadmap-2026.md`
