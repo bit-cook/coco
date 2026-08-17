@@ -1875,3 +1875,16 @@ The latest review found plan-level defects and corrected them before implementat
 - Evidence table was corrected: research documentation keeps package/closure/scanner evidence current but core/integrity must be rerun before a product release.
 
 Current review/document/website contracts: 7/7 passed. Next action: build, package/closure/scanner checks, commit and push the corrected plan/documentation/site batch. No product implementation or release is authorized by this review.
+
+Post-build evidence:
+
+```text
+npm run build: passed
+review/document/website contracts: 7/7 passed
+real package and v0.6.1 contracts: 2/2 passed
+package closure: approved, 175 manifests
+publication scanner: clean
+git diff --check: passed
+```
+
+Pages deployment run `32053163738` checked out and uploaded the correct `9c0a154` site artifact, then GitHub's `deploy-pages` API returned HTTP 503. GitHub Status reported `major / Partial System Outage`; workflow dispatch and environment-policy APIs also returned 503 during the incident. The temporary exact `candidate/v0.6.2` deployment policy was eventually deleted successfully, restoring the environment policy to only `main` and `gh-pages`. The website content is committed and pushed but must not be called live until the same commit is redeployed after GitHub recovers.
