@@ -1888,3 +1888,14 @@ git diff --check: passed
 ```
 
 Pages deployment run `32053163738` checked out and uploaded the correct `9c0a154` site artifact, then GitHub's `deploy-pages` API returned HTTP 503. GitHub Status reported `major / Partial System Outage`; workflow dispatch and environment-policy APIs also returned 503 during the incident. The temporary exact `candidate/v0.6.2` deployment policy was eventually deleted successfully, restoring the environment policy to only `main` and `gh-pages`. The website content is committed and pushed but must not be called live until the same commit is redeployed after GitHub recovers.
+
+## 2026-08-17: Pages Deployment Recovery
+
+GitHub recovered from `Partial System Outage`. Pages run `32055174652` deployed commit `115c08d` successfully in 22 seconds. Temporary `candidate/v0.6.2` branch policy deleted; environment restored to `main` + `gh-pages` only.
+
+Live verification (cache-busted):
+- plan.html: shows re-reviewed route, v0.6.3–v0.7.0, CON-001/002 split, REC-001, 1.22s warm, 7.14s cold
+- English homepage: shows "next candidate measures 1.22 seconds", "model setup none required", engineering priorities
+- Chinese homepage: equivalent localized content
+
+All documentation, plans, and website are now current. No product code, release, or npm was changed.
