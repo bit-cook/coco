@@ -31,7 +31,7 @@ const TRUST_ANCHORS = new Set(["bin/coco", "scripts/coco-bootstrap.cjs"]);
 const MANIFEST_ENTRY = "resources/runtime-integrity-manifest.v1.json";
 const SIDECAR_ENTRY = "resources/runtime-integrity-manifest.v1.json.sha256";
 const ASSET_MAP_ENTRY = "scripts/package-asset-map.v1.json";
-const CACHE_SCHEMA_VERSION = 2;
+const CACHE_SCHEMA_VERSION = 3;
 
 function hash(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 function canonical(value) { if (Array.isArray(value)) return value.map(canonical); if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])); return value; }
@@ -88,10 +88,11 @@ function snapshotValid(value) {
 function cacheValid(cached) {
   if (!cached || typeof cached !== "object" || Array.isArray(cached)) return false;
   const fields = Object.keys(cached);
-  return fields.length === 4 && fields.every((field) => ["schemaVersion", "manifestHash", "entries", "directories"].includes(field))
+  return fields.length === 5 && fields.every((field) => ["schemaVersion", "manifestHash", "entries", "directories", "directoryCount"].includes(field))
     && cached.schemaVersion === CACHE_SCHEMA_VERSION && typeof cached.manifestHash === "string" && /^[a-f0-9]{64}$/.test(cached.manifestHash)
     && cached.entries && typeof cached.entries === "object" && !Array.isArray(cached.entries)
-    && cached.directories && typeof cached.directories === "object" && !Array.isArray(cached.directories);
+    && cached.directories && typeof cached.directories === "object" && !Array.isArray(cached.directories)
+    && Number.isSafeInteger(cached.directoryCount) && cached.directoryCount === Object.keys(cached.directories).length;
 }
 
 function readCache(path = cachePath) {
@@ -126,7 +127,7 @@ function writeCache(manifestHash, snapshots, directories, path = cachePath) {
     try { if (lstatSync(path).isSymbolicLink()) return; } catch (error) { if (error.code !== "ENOENT") throw error; }
     temporary = join(directory, `.${randomBytes(16).toString("hex")}.tmp`);
     temporaryDescriptor = openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
-    writeFileSync(temporaryDescriptor, JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, manifestHash, entries: snapshots, directories }), "utf8");
+    writeFileSync(temporaryDescriptor, JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, manifestHash, entries: snapshots, directories, directoryCount: Object.keys(directories).length }), "utf8");
     fchmodSync(temporaryDescriptor, 0o600);
     fsyncSync(temporaryDescriptor);
     closeSync(temporaryDescriptor); temporaryDescriptor = undefined;
@@ -165,12 +166,14 @@ function directorySnapshots(runtimeRoots, base = root) {
 
 function directorySnapshotsMatch(directories, runtimeRoots, base = root) {
   if (Object.keys(directories).length === 0) return false;
-  const current = directorySnapshots(runtimeRoots, base);
-  if (current === null || Object.keys(current).length !== Object.keys(directories).length) return false;
-  return Object.entries(directories).every(([path, cachedSnapshot]) => {
-    if (!snapshotValid(cachedSnapshot)) return false;
-    return Object.hasOwn(current, path) && sameSnapshot(current[path], cachedSnapshot);
-  });
+  const allowedRoots = new Set(runtimeRoots);
+  try {
+    return Object.entries(directories).every(([path, cachedSnapshot]) => {
+      if (!snapshotValid(cachedSnapshot) || ![...allowedRoots].some((directory) => path === directory || path.startsWith(`${directory}/`))) return false;
+      const info = lstatSync(join(base, path));
+      return expectedType(info, "directory") && sameSnapshot(snapshot(info), cachedSnapshot);
+    });
+  } catch { return false; }
 }
 
 function entrySnapshotsMatch(cached, manifest, base) {
@@ -395,7 +398,7 @@ function snapshotValidForManifest(snapshotRoot, manifest, manifestBytes, sidecar
     const storedSidecar = readVerifiedBytes(join(snapshotRoot, SIDECAR_ENTRY), "RUNTIME_INTEGRITY_REVALIDATION_FAILED");
     const manifestInfo = lstatSync(join(snapshotRoot, MANIFEST_ENTRY)), sidecarInfo = lstatSync(join(snapshotRoot, SIDECAR_ENTRY));
     const valid = storedManifest.equals(manifestBytes) && storedSidecar.equals(sidecarBytes) && mode(manifestInfo) === 0o644 && mode(sidecarInfo) === 0o644
-      && directorySnapshotsMatch(directories, runtimeRoots, snapshotRoot);
+      && directorySnapshotsMatch(directories, runtimeRoots, snapshotRoot, manifest.entries);
     if (valid && verifiedState) Object.assign(verifiedState, { directories, entries });
     return valid;
   } catch { return false; }
@@ -535,16 +538,8 @@ async function main() {
       if (cached?.manifestHash === manifestHash && directorySnapshotsMatch(cached.directories, runtimeRoots)) {
         const cachedPaths = Object.keys(cached.entries);
         const fastEntries = manifest.entries.filter((entry) => startupSet.has(entry.path));
-        verified = cachedPaths.length === fastEntries.length && cachedPaths.every((path) => startupSet.has(path)) && fastEntries.every((entry) => {
-          const cachedSnapshot = cached.entries?.[entry.path];
-          if (!snapshotValid(cachedSnapshot)) return false;
-          try {
-            const info = lstatSync(join(root, entry.path));
-            return expectedType(info, "file") && sameSnapshot(snapshot(info), cachedSnapshot) && mode(info) === entry.mode;
-          } catch {
-            return false;
-          }
-        });
+        verified = cachedPaths.length === fastEntries.length && cachedPaths.every((path) => startupSet.has(path))
+          && entrySnapshotsMatch(cached.entries, { entries: fastEntries }, root);
       }
     }
 

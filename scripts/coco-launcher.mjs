@@ -39,15 +39,15 @@ if (integrity.status !== "approved") {
       process.exitCode = 1;
     } else {
       let preflight;
-      const { ProjectResourcePreflightError } = await import("./project-resource-preflight.mjs");
+      const { ProjectResourcePreflightError, preflightProjectResources } = await import("./project-resource-preflight.mjs");
       try {
-        const { preflightProjectResources } = await import("./project-resource-preflight.mjs");
         preflight = await preflightProjectResources({ root: runtime.root });
         const { dispatchCoco } = await import("./coco-dispatcher.mjs");
         const dispatch = await dispatchCoco({ root: runtime.root });
         if (dispatch.kind === "native") process.exitCode = dispatch.exitCode;
         else {
           await import(pathToFileURL(`${runtime.root}/resources/coco-runtime-resource.mjs`).href);
+          await preflight.revalidate();
           await import(pathToFileURL(runtime.piCli).href);
         }
       } catch (error) {

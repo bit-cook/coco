@@ -8,7 +8,7 @@ const SIDECAR = "resources/runtime-integrity-manifest.v1.json.sha256";
 const MAP = "scripts/package-asset-map.v1.json";
 const ROOTS = ["bin", "control", "dist", "docs", "examples", "resources", "scripts", "CHANGELOG.md", "README.md", "package.json"];
 const TRUST_ANCHORS = new Set(["bin/coco", "scripts/coco-bootstrap.cjs"]);
-const CACHE_SCHEMA_VERSION = 2;
+const CACHE_SCHEMA_VERSION = 3;
 const EXCLUDED_COMPONENTS = new Set([".bin", ".package-lock.json", "coverage", "node-gyp-bin", "npm", "src", "test", "tests"]);
 const PACKAGE_EXCLUDED = new Set([
   "scripts/bootstrap-final-verification.mjs", "scripts/bootstrap-npm.mjs", "scripts/dev-provider-sync.mjs", "scripts/egress-node-guard.cjs",
@@ -276,10 +276,11 @@ async function readCache(cachePath) {
     const content = (await readVerifiedFile(cachePath)).bytes.toString("utf8");
     const parsed = JSON.parse(content);
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      && Object.keys(parsed).sort().join(",") === "directories,entries,manifestHash,schemaVersion"
+      && Object.keys(parsed).sort().join(",") === "directories,directoryCount,entries,manifestHash,schemaVersion"
       && parsed.schemaVersion === CACHE_SCHEMA_VERSION && /^[a-f0-9]{64}$/.test(parsed.manifestHash)
       && parsed.entries && typeof parsed.entries === "object" && !Array.isArray(parsed.entries)
-      && parsed.directories && typeof parsed.directories === "object" && !Array.isArray(parsed.directories)) return parsed;
+      && parsed.directories && typeof parsed.directories === "object" && !Array.isArray(parsed.directories)
+      && Number.isSafeInteger(parsed.directoryCount) && parsed.directoryCount === Object.keys(parsed.directories).length) return parsed;
     return undefined;
   } catch {
     return undefined;
@@ -364,7 +365,7 @@ async function writeCache(cachePath, manifestHash, entries, startupSet, root, ru
       if (target.isSymbolicLink()) return;
     } catch (error) { if (error?.code !== "ENOENT") throw error; }
     temporaryHandle = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
-    await temporaryHandle.writeFile(JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, manifestHash, entries: snapshots, directories }), "utf8");
+    await temporaryHandle.writeFile(JSON.stringify({ schemaVersion: CACHE_SCHEMA_VERSION, manifestHash, entries: snapshots, directories, directoryCount: Object.keys(directories).length }), "utf8");
     await temporaryHandle.chmod(0o600);
     await temporaryHandle.sync();
     await temporaryHandle.close();

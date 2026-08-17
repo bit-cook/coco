@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
-import { COCO_VERSION, CORE_VERSION } from "./coco-runtime-identity.mjs";
+import { COCO_VERSION, CORE_NAME, CORE_VERSION } from "./coco-runtime-identity.mjs";
 import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
 
 const MANAGED_PROVIDERS = new Set(MANAGED_PROVIDER_IDS);
@@ -146,6 +147,24 @@ function userExtensions(argv) {
   return existsSync(join(agentDir, "extensions"));
 }
 
+export function canUseLightweightModelList(argv) {
+  return argv[0] === "--list-models"
+    && argv.length <= 2
+    && (argv.length === 1 || !argv[1].startsWith("-") && !argv[1].startsWith("@"))
+    && !userExtensions(argv);
+}
+
+async function listModelsCommand(argv, root) {
+  const piRoot = join(root, "node_modules", ...CORE_NAME.split("/"));
+  const [{ listModels }, { ModelRuntime }] = await Promise.all([
+    import(pathToFileURL(join(piRoot, "dist", "cli", "list-models.js")).href),
+    import(pathToFileURL(join(piRoot, "dist", "core", "model-runtime.js")).href),
+  ]);
+  const runtime = await ModelRuntime.create({ allowModelNetwork: false });
+  await listModels(runtime, argv[1]);
+  return { exitCode: 0, kind: "native" };
+}
+
 function promptWarnings() {
   const agentDir = process.env.COCO_CODING_AGENT_DIR || join(process.env.HOME || homedir(), ".coco", "agent");
   if (existsSync(join(agentDir, "SYSTEM.md"))) return ["UNOWNED_SYSTEM_OVERRIDE"];
@@ -283,6 +302,7 @@ export async function dispatchCoco({ argv = process.argv.slice(2), root }) {
     process.stdout.write(`${COCO_VERSION}\n`);
     return { exitCode: 0, kind: "native" };
   }
+  if (canUseLightweightModelList(argv)) return listModelsCommand(argv, root);
   if (NATIVE_COMMANDS.has(argv[0])) return native(argv, root);
   const language = join(root, "resources", "coco-language.mjs");
   const guard = join(root, "resources", "coco-guard.mjs");

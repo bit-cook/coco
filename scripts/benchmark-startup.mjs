@@ -8,12 +8,13 @@ import process from "node:process";
 const root = resolve(new URL("..", import.meta.url).pathname);
 const bootstrap = join(root, "scripts", "coco-bootstrap.cjs");
 const samples = Number.parseInt(process.env.COCO_BENCHMARK_SAMPLES ?? "5", 10);
+const expectedCommandCode = Number.parseInt(process.env.COCO_BENCHMARK_EXPECTED_CODE ?? "0", 10);
 
-if (!Number.isSafeInteger(samples) || samples < 1 || samples > 100) {
+if (!Number.isSafeInteger(samples) || samples < 1 || samples > 100 || !Number.isInteger(expectedCommandCode) || expectedCommandCode < 0 || expectedCommandCode > 255) {
   throw new Error("COCO_BENCHMARK_SAMPLES must be an integer from 1 to 100");
 }
 
-function run(agentDir, full = false, args = ["--version"]) {
+function run(agentDir, full = false, args = ["--version"], expectedCode = 0) {
   return new Promise((resolveRun, reject) => {
     const started = performance.now();
     const child = spawn(process.execPath, [bootstrap, ...args], {
@@ -25,7 +26,7 @@ function run(agentDir, full = false, args = ["--version"]) {
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.once("error", reject);
     child.once("close", (code) => {
-      if (code !== 0) reject(new Error(stderr.trim() || `CoCo exited with ${code}`));
+      if (code !== expectedCode) reject(new Error(stderr.trim() || `CoCo exited with ${code}, expected ${expectedCode}`));
       else resolveRun(performance.now() - started);
     });
   });
@@ -55,10 +56,10 @@ try {
   let commandResult;
   if (command?.length) {
     const commandAgentDir = join(directory, "command-agent");
-    const commandColdMs = await run(commandAgentDir, false, command);
+    const commandColdMs = await run(commandAgentDir, false, command, expectedCommandCode);
     const commandWarm = [];
-    for (let index = 0; index < samples; index += 1) commandWarm.push(await run(commandAgentDir, false, command));
-    commandResult = { args: command, coldMs: Number(commandColdMs.toFixed(2)), warm: summarize(commandWarm) };
+    for (let index = 0; index < samples; index += 1) commandWarm.push(await run(commandAgentDir, false, command, expectedCommandCode));
+    commandResult = { args: command, coldMs: Number(commandColdMs.toFixed(2)), expectedCode: expectedCommandCode, warm: summarize(commandWarm) };
   }
   process.stdout.write(`${JSON.stringify({ coldMs: Number(coldMs.toFixed(2)), command: commandResult, full: summarize(full), node: process.version, platform: process.platform, warm: summarize(warm) }, null, 2)}\n`);
 } finally {

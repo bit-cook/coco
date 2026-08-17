@@ -138,13 +138,16 @@ export async function preflightProjectResources({ cwd = ".", root, beforeCheckpo
     if (!initial.isDirectory()) failed();
     const expected = identity(initial);
     const snapshot = process.platform === "linux" ? `/proc/self/fd/${handle.fd}` : cwd;
-    for (const checkpoint of ["WALK1_PRE_IMPORT", "WALK2_PRE_TRUST", "WALK3_POST_DISCOVERY", "WALK4_FINAL_PRELAUNCH"]) {
-      await beforeCheckpoint?.(checkpoint);
+    await beforeCheckpoint?.("WALK1_PRE_IMPORT");
+    await sameDirectory(handle, expected);
+    await inspectProjectResources(snapshot);
+    const revalidate = async () => {
+      await beforeCheckpoint?.("WALK4_FINAL_PRELAUNCH");
       await sameDirectory(handle, expected);
       await inspectProjectResources(snapshot);
-    }
+    };
     await afterFinalCheckpoint?.({ cwd: snapshot, identity: expected });
-    return { close: async () => handle.close(), cwd: snapshot, identity: expected, policy: "global-only" };
+    return { close: async () => handle.close(), cwd: snapshot, identity: expected, policy: "global-only", revalidate };
   } catch (error) {
     await handle?.close();
     if (error instanceof ProjectResourcePreflightError) throw error;
