@@ -1969,3 +1969,32 @@ Core and integrity remain explicitly stale because this batch changed packaged d
 The reviewed plan/document/site batch was committed as `30dfa4e67b5ac0bb01d00d4ddc2925484c453bb1`. Package 2/2, closure 175, scanner clean, and review/document/site 11/11 evidence bind to those committed bytes. Pages evidence remains stale until that commit is deployed. Core and integrity remain stale by design.
 
 Pages run `32067272227` deployed site commit `30dfa4e` successfully in 21 seconds. Cache-busted reads verified English/Chinese homepages, current plan, and the historical-strategy banner. The temporary candidate deployment policy was removed; the environment again allows only `main` and `gh-pages`. Pages evidence is current at `30dfa4e`.
+
+## 2026-08-17: First 0.6.2 P0 Implementation Batch
+
+Parallel batches completed at implementation commit `8cbcfc0`:
+
+- REL-004 mandatory lock/direct manifests, exact offline checksum inventory, pre-extraction archive closure, safe internal Node symlinks, and standalone npm token detection.
+- RUN-001 durable launch FSM with mutually exclusive authorization/revocation/outcome, generation/lease/takeover CAS, abandoned pre-auth recovery, structured outcome-in-doubt, legacy migration, and replay-idempotent transitions.
+- PERF-002 full-configuration lightweight/full model-list differential gate.
+- PERF-003 versioned six-command Node 22 startup matrix with primed warm samples, p50/p95, host/runtime binding, and executable CI budget.
+- INT-001 canonical-root direct launcher verification.
+- INT-002 observable source/CAS topology fast/full fallback.
+
+Cross-review found and fixed three blockers before freeze: official Node internal symlinks, empty-operation replay transactions, and version-only performance evaluation. Final current-byte evidence:
+
+```text
+affected integration suite: 104/104 passed
+complete integrity: 39/39 passed
+complete core: 511/511 passed
+real package contracts: 2/2 passed
+package closure: approved, 175 manifests
+runtime integrity probe: approved, 20,674 entries
+publication scanner: clean
+real offline build/install/version/uninstall: passed
+detached runner/control lifecycle: passed
+Node 22 performance matrix budget: passed
+git diff --check: passed
+```
+
+Next parallel pair is REL-003 single immutable tarball and RUN-002 strict stop ownership; RUN-003A ledger may proceed independently. Leases are cleared.

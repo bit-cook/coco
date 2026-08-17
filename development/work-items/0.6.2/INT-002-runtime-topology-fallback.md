@@ -1,7 +1,7 @@
 # INT-002: Runtime Topology Fast/Full Fallback
 
 ```text
-Status: ready
+Status: completed
 Priority: P0 release gate
 Target: 0.6.2
 Owner: unassigned
@@ -49,4 +49,4 @@ Fall back to recursive topology enumeration if optimized validation cannot prove
 
 ## Evidence
 
-Not implemented.
+Implemented at `8cbcfc0`. Source and CAS tests directly observe fast/full mode for empty-directory add, unexpected file, remove, rename, inode replacement, cache-record deletion/rename and directory-count corruption. Unexpected content rejects and no topology mutation remains fast. Complete integrity passed 39/39.

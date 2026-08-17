@@ -1,7 +1,7 @@
 # PERF-002: Full-Configuration Model List Equivalence
 
 ```text
-Status: ready
+Status: completed
 Priority: P0 release gate
 Target: 0.6.2
 Owner: unassigned
@@ -48,4 +48,6 @@ Disable the lightweight path and retain the full Pi path.
 
 ## Evidence
 
-Not implemented.
+Implemented at `8cbcfc0`.
+
+Lightweight and full Pi output, stderr and exit code are byte-compared across custom models, auth file/environment, malformed models and search hit/miss. Settings packages, explicit/global/project extensions and unknown visibility inputs force the full path. Focused differential tests passed.

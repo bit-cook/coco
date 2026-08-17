@@ -15,7 +15,7 @@ Close the confirmed release-safety and deterministic task-recovery P0 findings b
 
 ## Next Executable Action
 
-Claim `REL-004` first because it closes confirmed package/offline vulnerabilities and defines the immutable input required by REL-003/REL-005. In parallel, claim `RUN-001` for the supervisor state machine. `CON-001` is resolved: Linux cgroup v2 containment is required for the 0.6.2 full-termination claim, so CON-002 follows RUN-001/RUN-002.
+Claim `REL-003` and `RUN-002` as the next parallel pair. RUN-003A ledger work may proceed without touching RUN-002 files. After RUN-002, integrate CON-002 and RUN-003B; RUN-004/005 then consume the frozen recovery schema.
 
 ## Work Items
 
@@ -24,9 +24,9 @@ Claim `REL-004` first because it closes confirmed package/offline vulnerabilitie
 | REL-001 | P0 | pending | REL-005 | Implement four-stage release credential isolation |
 | REL-002 | P0 | pending | REL-001, REL-005 | Draft-first immutable publication and lifecycle |
 | REL-003 | P0 | pending | REL-004 | Bind offline bundle to verified public tarball |
-| REL-004 | P0 release gate | ready | none | Tighten package metadata and offline archive closure |
+| REL-004 | P0 release gate | completed | none | Tighten package metadata and offline archive closure |
 | REL-005 | P0 release gate | pending | REL-003, REL-004 | Exact nine-asset contract, tag/commit/digest binding |
-| RUN-001 | P0 | ready | none | Durable supervisor launch FSM and crash recovery |
+| RUN-001 | P0 | completed | none | Durable supervisor launch FSM and crash recovery |
 | RUN-002 | P0 | pending | RUN-001 | Strict stop-barrier ownership |
 | RUN-003 | P0 | ready | RUN-001 for runner integration | Durable webhook dispatch outbox |
 | RUN-004 | P0 | pending | RUN-001 | Invalid cwd and provisioning isolation |
@@ -34,10 +34,10 @@ Claim `REL-004` first because it closes confirmed package/offline vulnerabilitie
 | CON-001 | P0 decision | completed | none | Require Linux cgroup v2 for full-termination claim |
 | CON-002 | P0 implementation | pending | RUN-001, RUN-002, CON-001 | Implement Linux cgroup v2 containment |
 | PERF-001 | P0 user-approved | completed | none | Optimize startup and runtime latency without weakening integrity |
-| PERF-002 | P0 release gate | ready | PERF-001 | Prove lightweight model-list equivalence across all config paths |
-| PERF-003 | P1 release gate | ready | PERF-001 | Versioned startup benchmark profile and regression budgets |
-| INT-001 | P0 release gate | ready | PERF-001 | Fix and execute canonical-root launcher verification |
-| INT-002 | P0 release gate | ready | PERF-001 | Prove runtime topology fast/full fallback behavior |
+| PERF-002 | P0 release gate | completed | PERF-001 | Prove lightweight model-list equivalence across all config paths |
+| PERF-003 | P1 release gate | completed | PERF-001 | Versioned startup benchmark profile and regression budgets |
+| INT-001 | P0 release gate | completed | PERF-001 | Fix and execute canonical-root launcher verification |
+| INT-002 | P0 release gate | completed | PERF-001 | Prove runtime topology fast/full fallback behavior |
 | DOC-001 | P0 release gate | pending | documentation freeze | Regenerate locale completeness and packed-link closure |
 
 Detailed definitions live in `development/work-items/0.6.2/`.
@@ -72,14 +72,14 @@ The coordinator owns `DEVELOPMENT_PLAN.md`, `AGENTS.md`, generated manifests, sh
 
 | Gate | Commit | Status | Last result |
 |---|---|---|---|
-| Core | 6262f75 | stale | 478/478 passed before later packaged docs |
-| Integrity | 6262f75 | stale | 37/37 passed before later packaged docs |
-| Package | 30dfa4e | current | 2/2 passed |
-| Closure | 30dfa4e | current | 175 manifests approved |
-| Scanner | 30dfa4e | current | clean |
+| Core | 8cbcfc0 | current | 511/511 passed |
+| Integrity | 8cbcfc0 | current | 39/39 passed |
+| Package | 8cbcfc0 | current | 2/2 passed |
+| Closure | 8cbcfc0 | current | 175 manifests approved |
+| Scanner | 8cbcfc0 | current | clean |
 | Pages | 30dfa4e | current | deployed and live-verified in run 32067272227 |
 
-PERF-001 is complete at `6262f75`; later governed startup changes make those gates stale. Research-document changes keep package/closure/scanner current but require core/integrity rerun before a product release.
+PERF-001/002/003 and INT-001/002 are complete at `8cbcfc0`; later governed startup changes make their evidence stale. The Node 22/self-hosted benchmark matrix is tracked in `scripts/startup-baseline-linux-x64-node22.v1.json` and enforced by `benchmark:startup:check`.
 
 Any implementation edit must update this table immediately.
 

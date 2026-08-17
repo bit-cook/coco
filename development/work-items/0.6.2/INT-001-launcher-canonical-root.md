@@ -1,7 +1,7 @@
 # INT-001: Canonical-Root Launcher Verification
 
 ```text
-Status: ready
+Status: completed
 Priority: P0 release gate
 Target: 0.6.2
 Owner: unassigned
@@ -48,4 +48,4 @@ Always execute the full verifier on the lexical root if canonical handling canno
 
 ## Evidence
 
-Not implemented.
+Implemented at `8cbcfc0`. The verifier is locally bound and real `--preserve-symlinks` fixtures execute lexical/canonical divergence without `ReferenceError`; stable project-resource attribution is preserved. Complete integrity passed 39/39.

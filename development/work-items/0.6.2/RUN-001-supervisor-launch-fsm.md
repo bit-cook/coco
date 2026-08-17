@@ -1,7 +1,7 @@
 # RUN-001: Durable Supervisor Launch FSM
 
 ```text
-Status: ready
+Status: completed
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
@@ -71,4 +71,11 @@ Persisted schema migration must retain safe interpretation of partial new states
 
 ## Evidence
 
-Not implemented.
+Implemented at `8cbcfc0`.
+
+```text
+focused supervisor/control: 48/48 passed
+complete core: 511/511 passed
+```
+
+The durable schema records prepared/registered/authorized/outcome/revoked/abandoned, owner identity, generation and lease. Authorization, revocation and outcome share transaction arbitration. Stale takeover uses generation CAS and rejects old owners. Pre-authorization dead runs abandon/requeue with a new run ID; authorized/no-outcome becomes structured outcome-in-doubt and never auto-reruns. Every successful transition is replay-idempotent after response loss; legacy split state migrates on guarded transition.

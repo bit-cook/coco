@@ -1,7 +1,7 @@
 # PERF-003: Versioned Startup Release Budget
 
 ```text
-Status: ready
+Status: completed
 Priority: P1 release gate
 Target: 0.6.2
 Owner: unassigned
@@ -48,4 +48,6 @@ Keep measurements informational if the host cannot satisfy the declared noise po
 
 ## Evidence
 
-Not implemented.
+Implemented at `8cbcfc0`.
+
+The tracked `coco-startup-linux-v1` baseline covers six command paths, cold/warm/full modes, five primed samples, p50/p95, host and Node identity, and declared noise/regression. `benchmark:startup:check` runs on the pinned Node 22 self-hosted main job and fails matrix, host, runtime, sample or percentile drift. The current post-build check passed.

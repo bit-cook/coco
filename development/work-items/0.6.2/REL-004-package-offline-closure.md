@@ -1,7 +1,7 @@
 # REL-004: Package and Offline Closure Tightening
 
 ```text
-Status: ready
+Status: completed
 Priority: P0 release gate
 Target: 0.6.2
 Owner: unassigned
@@ -60,4 +60,13 @@ No state migration. Revert strict parsers and fixtures together.
 
 ## Evidence
 
-Not implemented.
+Implemented at `8cbcfc0`.
+
+```text
+focused closure/offline/scanner: 43/43 passed
+real offline bundle install/version/uninstall: passed
+package closure: 175 manifests approved
+publication scanner: clean
+```
+
+Lock and PI/TUI/MCP manifests are mandatory with stable codes. Offline SHA256SUMS is exact and canonical. Package tar rejects all links; Node runtime accepts only relative, in-root, direct regular-file symlinks and rejects absolute, escaping, dangling, chained, hardlink, special, duplicate, prefix-conflict, and budget violations. Standalone and cross-chunk npm tokens reject.
