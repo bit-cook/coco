@@ -1967,3 +1967,5 @@ git diff --check: passed
 Core and integrity remain explicitly stale because this batch changed packaged documentation and package inventory; they are release gates, not documentation-batch claims.
 
 The reviewed plan/document/site batch was committed as `30dfa4e67b5ac0bb01d00d4ddc2925484c453bb1`. Package 2/2, closure 175, scanner clean, and review/document/site 11/11 evidence bind to those committed bytes. Pages evidence remains stale until that commit is deployed. Core and integrity remain stale by design.
+
+Pages run `32067272227` deployed site commit `30dfa4e` successfully in 21 seconds. Cache-busted reads verified English/Chinese homepages, current plan, and the historical-strategy banner. The temporary candidate deployment policy was removed; the environment again allows only `main` and `gh-pages`. Pages evidence is current at `30dfa4e`.

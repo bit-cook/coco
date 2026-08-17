@@ -77,7 +77,7 @@ The coordinator owns `DEVELOPMENT_PLAN.md`, `AGENTS.md`, generated manifests, sh
 | Package | 30dfa4e | current | 2/2 passed |
 | Closure | 30dfa4e | current | 175 manifests approved |
 | Scanner | 30dfa4e | current | clean |
-| Pages | 115c08d | stale | prior plan deployed; 30dfa4e pending deployment |
+| Pages | 30dfa4e | current | deployed and live-verified in run 32067272227 |
 
 PERF-001 is complete at `6262f75`; later governed startup changes make those gates stale. Research-document changes keep package/closure/scanner current but require core/integrity rerun before a product release.
 
