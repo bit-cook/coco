@@ -22,6 +22,9 @@ This index preserves the location and purpose of older plans, migration records,
 ## Preserved Strategy and Research
 
 - Current public engineering plan: `site/plan.html`
+- External Agent research report (English): `documentation/en/docs/external-agent-research.md`
+- External Agent research report (Chinese): `documentation/zh-CN/docs/external-agent-research.md`
+- External source snapshot and fixed commits: `development/research/prime-agent-deepseek-harness-snapshot.md`
 - Strategy 2026: `site/roadmap.html`
 - Legacy roadmap snapshot: `site/roadmap-legacy.html`
 - Legacy product research: `site/landscape.html`

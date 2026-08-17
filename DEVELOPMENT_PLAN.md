@@ -94,9 +94,15 @@ complete core, integrity, package, offline, VSIX, and lifecycle gates pass
 
 ## Deferred Work
 
-- `0.7.0`: task history retention, prune, log/worktree/cache GC, Control pagination and scale.
+- `0.7.0`: task history retention, prune, log/worktree/cache GC, Control pagination and scale. Research-derived candidates are EVID-001/EVID-002, TOOL-001, CFG-001, and ORCH-001 under `development/work-items/0.7.0/`; all remain pending until their `0.6.2` dependencies complete.
 - `0.8.0`: explicit Windows decision, macOS lifecycle evidence, Node/platform matrix.
 - No Dashboard visual redesign, new orchestration features, or speculative providers before P0 closure.
+
+## External Research
+
+Prime Agent commit `849c92114b0b4372fa272281b87cdbe8f7c9ed8d` and DeepSeek Harness commit `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca` were reviewed read-only. The formal bilingual report is `documentation/*/docs/external-agent-research.md`; the reproducible source inventory is `development/research/prime-agent-deepseek-harness-snapshot.md`.
+
+No external runtime or dependency is approved. Whole-framework Cordis migration, persistent Python RLM kernels, unauthenticated LAN control, project-local auto-loaded skills/plugins, and sandbox claims without process/network containment are explicitly rejected or deferred.
 
 ## Historical Context
 

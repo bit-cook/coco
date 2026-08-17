@@ -62,6 +62,7 @@
       "items": [
         { "title": "Development", "path": "development.md" },
         { "title": "Engineering Review and Plan", "path": "development-review-plan.md" },
+        { "title": "External Agent Research", "path": "external-agent-research.md" },
         { "title": "Migration and Recovery Journal", "path": "development-migration-journal.md" }
       ]
     }

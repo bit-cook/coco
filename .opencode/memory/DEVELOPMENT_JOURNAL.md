@@ -1826,3 +1826,38 @@ task list --json warm p50: 0.872 s
 Relative to the 0.6.1 post-release baseline, warm model listing is approximately 47% faster and remains below the 10-second cold-start target. Focused output-equivalence, extension fallback, project-resource rejection, cache topology, source/CAS metadata fallback, tamper, visible-model, and launcher tests passed. Generated assets were refreshed after each governed freeze. Next action: run final focused/typecheck checks, complete integrity/core/package/lifecycle gates, update PERF-001 evidence, clear the lease, and commit the batch.
 
 PERF-001 completed at implementation commit `f67851c` with generated assets at `6262f75`. Final current-byte gates are integrity 37/37, core 478/478, package 2/2, closure 175 approved, runtime probe 20,668 approved, scanner clean, detached lifecycle passed, and both typecheck suites passed. Final measured `--list-models` cold was 7.14 seconds and warm p50 1.224 seconds; `--version` warm p50 was 0.500 seconds. The lease is cleared. Subsequent governed startup edits must mark this evidence stale.
+
+## 2026-08-17: External Research Batch Post-Build Evidence
+
+```text
+research/plan/work-item contract suite: 5/5 passed
+npm run build: passed
+real package and v0.6.1 contracts: 2/2 passed
+package closure: approved, 175 manifests
+publication scanner: clean
+```
+
+Generated package and runtime assets now include the bilingual research report and fixed source inventory metadata. The five 0.7.0 research work items remain pending; the 0.6.2 P0 release/recovery order is unchanged. No external source code or dependency was added.
+
+## 2026-08-17: Prime Agent and DeepSeek Harness Research
+
+Read-only source research was performed against fixed commits and local snapshots outside the CoCo repository:
+
+```text
+Prime Agent: 849c92114b0b4372fa272281b87cdbe8f7c9ed8d, MIT
+DeepSeek Harness: 99f6f02fecdb7dff40c3fbc9470f5907c29f74ca, MIT, developer preview
+```
+
+Reports and source inventory:
+
+```text
+documentation/en/docs/external-agent-research.md
+```
+
+Adoptable patterns were identified, not copied: Prime command recovery journal, steering/follow-up queues, worker generation fencing, session leases, authoritative lineage and host continuation; DeepSeek model-input ledger, pre-effect durability fence, closed tool calls, ordered bounded safe-tool pool, provider generations, MCP atomic reload, last-good revision CAS, transactional publication and invariant registry.
+
+Explicitly rejected or deferred: wholesale Cordis migration, persistent Python RLM before containment and secret isolation, unauthenticated LAN control, project-local auto-loaded agents/skills/plugins, and treating file-effect sandboxing as full process/network containment.
+
+Five pending research-derived work items were added under `development/work-items/0.7.0/`: EVID-001, EVID-002, TOOL-001, CFG-001, and ORCH-001. They are blocked by the 0.6.2 P0 release/recovery work and do not authorize external runtime or dependency adoption.
+
+Research contract suite and plan structure checks are required before this batch can be committed; no external code or dependency was added.
