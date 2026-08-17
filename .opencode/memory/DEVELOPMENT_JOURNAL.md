@@ -1899,3 +1899,38 @@ Live verification (cache-busted):
 - Chinese homepage: equivalent localized content
 
 All documentation, plans, and website are now current. No product code, release, or npm was changed.
+
+## 2026-08-17: Complete Project Backup
+
+Created a timestamped, non-destructive backup set outside the worktree:
+
+```text
+/root/coco-tmp/coco-backups/coco-full-20260817T190344Z
+```
+
+Included layers:
+
+- complete Git bundle with all local branches, remote-tracking refs, tags, history, and worktree HEAD refs;
+- committed source tarball;
+- physical `node_modules` dependency archive;
+- all nine verified GitHub Release `v0.6.1` assets;
+- repository, Actions, workflow, release, Pages, environment, secret-name, variable, ref, worktree, local-config, object-count, and fsck metadata;
+- one SHA-256 manifest over every regular backup file;
+- isolated restore-drill evidence.
+
+Sensitive `/root/.coco` and `/root/.config/opencode` content was intentionally excluded from the unencrypted project set because it can contain credentials, prompts, task logs, and local provider configuration. The recovery guide requires separate encrypted storage and credential rotation.
+
+Restore drill result:
+
+```text
+bundle clone: passed
+HEAD identity: passed
+git fsck: passed (known gh-pages dangling commit only)
+dependency extraction: passed
+package closure: approved, 175 manifests
+backup/plan/research contracts: 6/6 passed
+source archive byte comparison: 1,319/1,319 passed
+release SHA256SUMS and three sidecars: passed
+```
+
+Canonical instructions: `BACKUP_AND_RESTORE.md`. Locale-paired documentation and `HISTORICAL_DOCUMENTS.md` link the backup. Final commit identity and artifact digests are recorded in the backup's `metadata/final-backup-facts.txt` and `SHA256SUMS`, avoiding a self-referential documentation hash.
