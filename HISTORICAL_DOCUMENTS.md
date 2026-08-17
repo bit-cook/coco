@@ -10,6 +10,7 @@ This index preserves the location and purpose of older plans, migration records,
 - Formal Chinese review: `documentation/zh-CN/docs/development-review-plan.md`
 - Public current plan: `site/plan.html`
 - Live chronological journal: `.opencode/memory/DEVELOPMENT_JOURNAL.md`
+- Complete backup and recovery guide: `BACKUP_AND_RESTORE.md`
 
 ## Preserved Migration History
 
@@ -65,6 +66,17 @@ git clone /root/coco-tmp/coco-backups/coco-pre-v0.6.2-20260816.bundle coco-resto
 ```
 
 Never restore by resetting or overwriting the active worktree.
+
+## Full Project Backup During 0.6.2 Planning
+
+```text
+backup ID: coco-full-20260817T190344Z
+directory: /root/coco-tmp/coco-backups/coco-full-20260817T190344Z
+local branch: backup/full-20260817T190344Z
+canonical guide: BACKUP_AND_RESTORE.md
+```
+
+This set includes all Git refs and history, a source archive, physical dependencies, the complete published `v0.6.1` asset set, GitHub/Pages metadata, checksums, and restore-drill evidence. Sensitive user and OpenCode state is excluded from the unencrypted set and requires separate encrypted backup.
 
 ## Interpretation Rule
 

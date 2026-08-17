@@ -1,0 +1,24 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import test from "node:test";
+
+const root = new URL("..", import.meta.url).pathname;
+
+test("backup documentation records complete layers, verification, restore, and secret exclusions", async () => {
+  const [guide, english, chinese, history] = await Promise.all([
+    readFile(join(root, "BACKUP_AND_RESTORE.md"), "utf8"),
+    readFile(join(root, "documentation/en/docs/backup-and-restore.md"), "utf8"),
+    readFile(join(root, "documentation/zh-CN/docs/backup-and-restore.md"), "utf8"),
+    readFile(join(root, "HISTORICAL_DOCUMENTS.md"), "utf8"),
+  ]);
+  for (const value of [guide, english, chinese, history]) assert.match(value, /coco-full-20260817T190344Z/);
+  for (const value of [guide, english, chinese]) {
+    assert.match(value, /coco-all-refs\.bundle/);
+    assert.match(value, /sha256sum --check SHA256SUMS/);
+    assert.match(value, /git bundle verify/);
+  }
+  for (const required of ["coco-node_modules", "release-v0.6.1", "metadata", "restore", "/root/.coco", "/root/.config/opencode", "encrypted", "verify:closure"]) assert.match(guide, new RegExp(required.replace("/", "\\/"), "i"), required);
+  assert.match(guide, /git[^\n]*fsck --full/);
+  assert.match(guide, /Never reset or overwrite|Never reset|Do not run `git reset --hard`/i);
+});
