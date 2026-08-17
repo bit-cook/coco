@@ -4,7 +4,7 @@
 Released version: 0.6.1
 Current target: 0.6.2
 Development branch: candidate/v0.6.2
-Base commit: 1db561056cba780c9a35c594895b158782a5429d
+Base commit: 30dfa4e67b5ac0bb01d00d4ddc2925484c453bb1
 Plan status: active
 Last updated: 2026-08-17
 ```
@@ -74,10 +74,10 @@ The coordinator owns `DEVELOPMENT_PLAN.md`, `AGENTS.md`, generated manifests, sh
 |---|---|---|---|
 | Core | 6262f75 | stale | 478/478 passed before later packaged docs |
 | Integrity | 6262f75 | stale | 37/37 passed before later packaged docs |
-| Package | 6a0e47c | current | 2/2 passed |
-| Closure | 6a0e47c | current | 175 manifests approved |
-| Scanner | 1db5610 | current | clean |
-| Pages | 115c08d | current | deployed and live-verified |
+| Package | 30dfa4e | current | 2/2 passed |
+| Closure | 30dfa4e | current | 175 manifests approved |
+| Scanner | 30dfa4e | current | clean |
+| Pages | 115c08d | stale | prior plan deployed; 30dfa4e pending deployment |
 
 PERF-001 is complete at `6262f75`; later governed startup changes make those gates stale. Research-document changes keep package/closure/scanner current but require core/integrity rerun before a product release.
 

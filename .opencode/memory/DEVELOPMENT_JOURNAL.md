@@ -1965,3 +1965,5 @@ git diff --check: passed
 ```
 
 Core and integrity remain explicitly stale because this batch changed packaged documentation and package inventory; they are release gates, not documentation-batch claims.
+
+The reviewed plan/document/site batch was committed as `30dfa4e67b5ac0bb01d00d4ddc2925484c453bb1`. Package 2/2, closure 175, scanner clean, and review/document/site 11/11 evidence bind to those committed bytes. Pages evidence remains stale until that commit is deployed. Core and integrity remain stale by design.
