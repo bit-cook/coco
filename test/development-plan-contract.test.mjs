@@ -26,6 +26,7 @@ test("active development plan exposes complete, agent-ready 0.6.2 work packets",
 
   const expected = [
     "CON-001-linux-containment.md",
+    "CON-002-linux-containment-implementation.md",
     "PERF-001-startup-runtime-performance.md",
     "REL-001-release-permission-isolation.md",
     "REL-002-draft-immutable-release.md",
@@ -71,4 +72,15 @@ test("architecture decisions preserve runtime, supervision, release, and platfor
     const value = await readFile(join(directory, file), "utf8");
     for (const section of ["Context", "Security Consequences", "Operational Consequences", "Alternatives Rejected", "Tests"]) assert.match(value, new RegExp(`^## ${section}$`, "m"), `${file}: ${section}`);
   }
+});
+
+test("research-derived recovery backlog remains explicit and blocked", async () => {
+  const directory = join(root, "development", "work-items", "0.6.3");
+  const files = await readdir(directory);
+  assert.deepEqual(files, ["REC-001-command-recovery-journal.md"]);
+  const value = await readFile(join(directory, files[0]), "utf8");
+  assert.match(value, /Status: pending/);
+  assert.match(value, /Depends on: RUN-001, RUN-003/);
+  assert.match(value, /uncertain/);
+  assert.match(value, /no external code copied/i);
 });

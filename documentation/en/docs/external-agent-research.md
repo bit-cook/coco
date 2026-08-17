@@ -93,7 +93,7 @@ The major gaps are deterministic pre-authorization recovery, truthful process co
 
 | Mechanism | Decision | Earliest phase |
 |---|---|---|
-| Command recovery journal and explicit uncertain result | adopt through CoCo state transactions | after RUN-001, `0.6.x` |
+| Command recovery journal and explicit uncertain result | `REC-001`; keep separate from launch FSM | `0.6.3` unless pulled into `0.6.2` after RUN-001/RUN-003 |
 | Model-visible-means-logged invariant | prototype in CoCo session/task evidence | `0.7.0` |
 | Durability fence before model/Bash/MCP effects | adopt | `0.7.0` |
 | Ordered bounded safe-tool parallelism | prototype with explicit capability metadata | `0.7.0` |

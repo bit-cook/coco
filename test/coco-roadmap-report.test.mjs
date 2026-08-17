@@ -26,8 +26,8 @@ test("current plan, strategy, and historical research remain public, distinct, r
   assert.match(plan, /CoCo v0\.6\.1/);
   assert.match(plan, /commit b88190b/);
   for (const release of ["v0.6.2", "v0.7.0", "v0.8.0"]) assert.match(plan, new RegExp(release));
-  for (const concept of ["发布安全与任务恢复", "长期运行能力", "平台交付闭包", "Release Safety", "Launch Recovery", "Queue Integrity", "Termination Truth"]) assert.match(plan, new RegExp(concept));
-  for (const evidence of ["2.18s", "9.37", "37/37", "472/472", "175"]) assert.match(plan, new RegExp(evidence.replace("/", "\\/")));
+  for (const concept of ["发布安全与任务恢复", "恢复证据与长期运行", "平台交付闭包", "Release Safety", "Launch Recovery", "Queue Integrity", "Containment Decision"]) assert.match(plan, new RegExp(concept));
+  for (const evidence of ["1.22s", "7.14", "2.18s", "37/37", "472/472", "175"]) assert.match(plan, new RegExp(evidence.replace("/", "\\/")));
   assert.match(plan, /#f7fbff/i);
   assert.match(plan, /@media\(max-width:/);
   assert.match(plan, /prefers-reduced-motion/);

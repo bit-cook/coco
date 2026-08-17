@@ -1,11 +1,11 @@
 # RUN-005: Invalid UTF-8 Terminal Recovery
 
 ```text
-Status: ready
+Status: pending
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
-Depends on: none
+Depends on: RUN-001 shared terminal recovery schema
 Blocks: none
 Last updated: 2026-08-16
 ```

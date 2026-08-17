@@ -21,15 +21,18 @@ Release evidence includes complete core `472/472`, integrity `37/37`, package cl
 
 Startup performance on the release-candidate host improved from approximately 15.74 seconds cold and 6.19 seconds warm to 9.37 seconds cold and 2.18 seconds warm for `coco --list-models`.
 
+The untagged `candidate/v0.6.2` PERF-001 batch later measured approximately 7.14 seconds cold and 1.22 seconds warm p50. These are candidate measurements, not a claim about the published `0.6.1` one-click installation.
+
 ## Review Decision
 
 The next cycle should not begin with new end-user features. The highest-value path is a security and reliability patch release, followed by long-running scalability and then an explicit platform-support decision.
 
-The target sequence is:
+The corrected target sequence is:
 
 ```text
-0.6.2  release safety and task recovery
-0.7.0  long-running state, retention, and Control scalability
+0.6.2  release safety, task recovery, and containment policy decision
+0.6.3  command recovery journal if not pulled into 0.6.2
+0.7.0  long-running state, retention, Control scalability, and research prototypes
 0.8.0  platform delivery closure, if broader platform support is selected
 ```
 
@@ -75,6 +78,8 @@ The offline builder must accept the tarball path and expected digest as explicit
 
 ### Tighten package and archive verification
 
+This is a P0 release gate, not a deferred quality task. REL-004 must complete before REL-003's final integration and before REL-002 can publish.
+
 - Require `package-lock.json`; do not treat unrelated `ENOENT` failures as an optional lock.
 - Validate every direct bundled dependency independently.
 - Require an exact offline `SHA256SUMS` member set.
@@ -98,9 +103,13 @@ An unauthorized run whose process is absent must be abandoned and requeued with 
 
 Required fault tests kill the runner or supervisor after every transition and prove eventual convergence without duplicate execution or permanent `running` state.
 
-### Real process containment
+RUN-005 is serial with this item because invalid-UTF-8 terminal recovery shares the launch/recovery schema and runner files. RUN-003 may implement its delivery ledger independently, but its runner-ownership clear/retry integration waits for this FSM.
+
+### Containment policy and implementation
 
 Process groups are not a complete containment boundary because a child can detach or create a new session.
+
+CON-001 first decides the 0.6.2 versus immediate-0.6.3 placement and documents the platform guarantee. CON-002 owns implementation if the decision approves Linux cgroup v2.
 
 Preferred implementation:
 
@@ -189,11 +198,12 @@ The following work should not displace the P0 batches:
 1. Freeze the `0.6.2` scope to release safety and deterministic task recovery.
 2. Implement release credential isolation and draft-first publication.
 3. Implement supervisor launch recovery, stopping-barrier correction, webhook dispatch outbox, invalid-task isolation, and UTF-8 recovery.
-4. Decide whether Linux cgroup containment is required for `0.6.2` or follows immediately in `0.6.3`.
+4. Complete CON-001 policy decision; implement CON-002 only if approved.
 5. Run focused crash and supply-chain tests.
 6. Regenerate governed assets once.
 7. Run complete core, integrity, package, offline, VSIX, and lifecycle gates.
-8. Publish only from committed bytes and only after the draft asset lifecycle passes.
+8. If command-level recovery is not explicitly pulled into 0.6.2, schedule REC-001 for 0.6.3 before EVID-002.
+9. Publish only from committed bytes and only after the draft asset lifecycle passes.
 
 ## Release Exit Criteria
 

@@ -5,7 +5,7 @@ Status: ready
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
-Depends on: none
+Depends on: none for ledger; RUN-001 for runner ownership integration
 Blocks: none
 Last updated: 2026-08-16
 ```

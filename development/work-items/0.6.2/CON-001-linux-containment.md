@@ -1,12 +1,12 @@
-# CON-001: Linux Run Containment
+# CON-001: Linux Containment Policy Decision
 
 ```text
 Status: pending
 Priority: P0 decision
 Target: 0.6.2 or immediate 0.6.3
 Owner: unassigned
-Depends on: RUN-001
-Blocks: containment claim
+Depends on: none
+Blocks: CON-002 and the 0.6.2 containment claim
 Last updated: 2026-08-16
 ```
 
@@ -26,10 +26,9 @@ Spawn a detached child from a task, unref it, then cancel or stop all. The super
 
 ## Scope
 
-- Linux cgroup v2 feasibility and implementation
-- containment state and task-process integration
-- detached/setsid/double-fork fault tests
-- documentation of platform guarantees
+- Linux cgroup v2 feasibility and policy decision
+- documented platform guarantee and release placement
+- acceptance design for detached/setsid/double-fork tests
 
 ## Out of Scope
 
@@ -38,7 +37,7 @@ Spawn a detached child from a task, unref it, then cancel or stop all. The super
 
 ## Design
 
-Prefer one cgroup v2 per run, persist its identifier, attach supervisor before authorization, terminate with `cgroup.kill`, and verify no processes remain. If unprivileged cgroup delegation is unavailable, fail closed for isolation-required modes and document weaker host behavior.
+Decide whether Linux cgroup v2 is required for 0.6.2 or immediately after it. The decision must explicitly state what cancellation can and cannot guarantee on hosts without delegated cgroups. Implementation belongs to CON-002.
 
 ## Fault Matrix
 
@@ -51,11 +50,11 @@ Prefer one cgroup v2 per run, persist its identifier, attach supervisor before a
 
 ## Acceptance Tests
 
-Detached child, `setsid`, double-fork, TERM-ignore/KILL, leader-dead, restart, and unsupported-host tests.
+Policy matrix and feasibility probe covering detached child, `setsid`, double-fork, TERM-ignore/KILL, leader-dead, restart, and unsupported-host behavior.
 
 ## Verification
 
-Linux focused suite, real process tests, core, and platform documentation contracts.
+Feasibility probe, platform policy contract, and plan/documentation consistency. No implementation is claimed by this item.
 
 ## Rollback
 
@@ -63,4 +62,4 @@ Containment state must not strand live tasks. Define safe fallback and cleanup b
 
 ## Evidence
 
-Decision and implementation not completed.
+Decision not completed; implementation is explicitly assigned to CON-002.

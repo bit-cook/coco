@@ -21,15 +21,18 @@ npm 发布: 未执行
 
 在发布候选主机上，`coco --list-models` 的启动性能从冷启动约 15.74 秒、热启动约 6.19 秒，改善到冷启动 9.37 秒、热启动 2.18 秒。
 
+未打tag的`candidate/v0.6.2` PERF-001批次后来测得冷启动约7.14秒、热启动p50约1.22秒。这是候选版本数据，不代表已发布的`0.6.1`一键安装版本已经包含这些优化。
+
 ## 审查决策
 
 下一周期不应先增加普通用户功能。收益最高的路线是先发布安全与可靠性修复版，再处理长期运行扩展性，最后明确平台支持策略。
 
-建议版本顺序：
+校正后的版本顺序：
 
 ```text
-0.6.2  发布安全与任务恢复
-0.7.0  长期状态、保留策略与 Control 扩展性
+0.6.2  发布安全、任务恢复与Containment策略决策
+0.6.3  如果未拉入0.6.2，则交付command recovery journal
+0.7.0  长期运行、保留策略、Control扩展性与研究原型
 0.8.0  平台交付闭包（如果决定扩大平台支持）
 ```
 
@@ -75,6 +78,8 @@ offline builder必须显式接收tarball路径和预期digest。
 
 ### 收紧package和archive验证
 
+这不是可延后的质量任务，而是P0发布门禁。REL-004必须在REL-003最终集成和REL-002发布前完成。
+
 - 强制要求`package-lock.json`，不能把无关`ENOENT`误判为lock可缺失。
 - 分别验证每个直接bundled dependency。
 - 要求离线`SHA256SUMS`具有精确成员闭包。
@@ -98,9 +103,13 @@ prepared/registered -> abandoned
 
 故障测试必须在每个transition后杀死runner或supervisor，并证明最终收敛、不会重复执行、不会永久停留在`running`。
 
-### 真实进程Containment
+RUN-005必须与本项串行，因为它共享launch/recovery schema和runner文件。RUN-003可以先实现delivery ledger，但runner ownership清除和重试集成必须等待本FSM完成。
+
+### Containment策略与实现
 
 进程组不是完整的containment边界，因为child可以detached或创建新session。
+
+CON-001先决定进入0.6.2还是紧随其后的0.6.3，并明确平台保证。若决定采用Linux cgroup v2，则由CON-002负责实现。
 
 建议实现：
 
@@ -189,11 +198,12 @@ runner ownership observed -> dispatchPending cleared
 1. 将`0.6.2`范围冻结为发布安全和确定性任务恢复。
 2. 实现release凭据隔离和draft-first发布。
 3. 实现supervisor launch recovery、stopping barrier修复、webhook dispatch outbox、无效任务隔离和UTF-8恢复。
-4. 决定Linux cgroup containment进入`0.6.2`，还是紧随其后的`0.6.3`。
+4. 完成CON-001策略决策；仅在批准后实现CON-002。
 5. 运行聚焦crash和supply-chain测试。
 6. 只生成一次governed assets。
 7. 运行完整core、integrity、package、offline、VSIX和lifecycle门禁。
-8. 只从committed bytes发布，并且只在draft资产生命周期通过后公开。
+8. 如果没有明确把command-level recovery拉入0.6.2，则在进入EVID-002前将REC-001排入0.6.3。
+9. 只从committed bytes发布，并且只在draft资产生命周期通过后公开。
 
 ## 发布退出标准
 

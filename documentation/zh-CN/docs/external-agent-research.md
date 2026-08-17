@@ -93,7 +93,7 @@ CoCo已有必须保持权威的生产基础：
 
 | 机制 | 决策 | 最早阶段 |
 |---|---|---|
-| Command recovery journal与明确uncertain结果 | 通过CoCo state transaction采用 | RUN-001后，`0.6.x` |
+| Command recovery journal与明确uncertain结果 | 由`REC-001`单独负责 | `0.6.3`，除非RUN-001/RUN-003完成后拉入`0.6.2` |
 | Model-visible-means-logged invariant | 在session/task evidence中原型 | `0.7.0` |
 | Model/Bash/MCP前durability fence | 采用 | `0.7.0` |
 | 有序、有界safe-tool并行 | 以显式capability metadata原型 | `0.7.0` |

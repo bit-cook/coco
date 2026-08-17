@@ -2,11 +2,11 @@
 
 ```text
 Status: ready
-Priority: P1
+Priority: P0 release gate
 Target: 0.6.2
 Owner: unassigned
 Depends on: none
-Blocks: none
+Blocks: REL-003 final integration, REL-002 release integration
 Last updated: 2026-08-16
 ```
 

@@ -1861,3 +1861,17 @@ Explicitly rejected or deferred: wholesale Cordis migration, persistent Python R
 Five pending research-derived work items were added under `development/work-items/0.7.0/`: EVID-001, EVID-002, TOOL-001, CFG-001, and ORCH-001. They are blocked by the 0.6.2 P0 release/recovery work and do not authorize external runtime or dependency adoption.
 
 Research contract suite and plan structure checks are required before this batch can be committed; no external code or dependency was added.
+
+## 2026-08-17: Second Comprehensive Plan Review
+
+The latest review found plan-level defects and corrected them before implementation resumes:
+
+- `RUN-001` and `RUN-005` are now serial because they share terminal recovery schema and runner files.
+- `RUN-003` ledger work can start independently, but runner ownership clearing and retry integration depend on `RUN-001`.
+- `REL-004` is now a P0 release gate and blocks final REL-003/REL-002 integration.
+- `REL-002` explicitly waits for REL-001, REL-003, and REL-004.
+- `CON-001` is policy/feasibility only; `CON-002` owns Linux cgroup implementation after the decision.
+- Prime-derived command recovery is now explicit as `REC-001` in `0.6.3` unless intentionally pulled into `0.6.2` after RUN-001/RUN-003.
+- Evidence table was corrected: research documentation keeps package/closure/scanner evidence current but core/integrity must be rerun before a product release.
+
+Current review/document/website contracts: 7/7 passed. Next action: build, package/closure/scanner checks, commit and push the corrected plan/documentation/site batch. No product implementation or release is authorized by this review.
