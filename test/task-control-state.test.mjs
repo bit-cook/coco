@@ -173,7 +173,7 @@ test("runner restart completes persisted terminal evidence without re-executing 
 
 test("runner restart consumes a durable supervisor outcome without re-executing", { timeout: 10_000 }, async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-task-supervisor-outcome-"));
-  const store = createTaskStore({ agentDir }); const supervisors = createTaskRunSupervisorStore({ agentDir }); const events = createTaskEventStore({ agentDir });
+  const store = createTaskStore({ agentDir }); const supervisors = createTaskRunSupervisorStore({ agentDir, containment: { attach: async (descriptor) => ({ ...descriptor, status: "active" }), terminate: async (descriptor) => ({ descriptor: { ...descriptor, cleanedAt: new Date().toISOString(), status: "cleaned" }, reason: null, status: "terminated" }) } }); const events = createTaskEventStore({ agentDir });
   const runId = "018f47a0-7b20-7cc5-8a33-020202020202"; let executions = 0; let holder;
   try {
     const task = await store.create({ cwd: process.cwd(), prompt: "durable supervisor recovery", worktree: false });
@@ -188,7 +188,7 @@ test("runner restart consumes a durable supervisor outcome without re-executing"
     await supervisors.writeOutcome({ endedAt: new Date().toISOString(), exitCode: 0, generation: prepared.generation, ownerId: prepared.ownerId, runId, specSha256: prepared.specSha256, startedAt, taskId: task.id });
     await terminateProcessTree(holder.pid, { graceMs: 50, identity });
     try { process.kill(-holder.pid, "SIGKILL"); } catch {} holder = null;
-    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { executions += 1; return { code: 1, output: "must not execute" }; } }).run({ once: true });
+    await createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => { executions += 1; return { code: 1, output: "must not execute" }; }, supervisorStore: supervisors }).run({ once: true });
     const completed = (await store.load()).tasks[0]; assert.equal(executions, 0); assert.equal(completed.status, "completed"); assert.equal(completed.result, "recovered");
     assert.equal((await createTaskReceiptStore({ agentDir }).read({ taskId: task.id, runId })).verdict, "passed");
   } finally {
