@@ -15,7 +15,7 @@ Close the confirmed release-safety and deterministic task-recovery P0 findings b
 
 ## Next Executable Action
 
-Claim `REL-003` and `RUN-002` as the next parallel pair. RUN-003A ledger work may proceed without touching RUN-002 files. After RUN-002, integrate CON-002 and RUN-003B; RUN-004/005 then consume the frozen recovery schema.
+Claim `REL-005` and `RUN-003A` as the next parallel pair. CON-002 may now start because RUN-001/RUN-002/CON-001 are complete. After REL-005, implement the four-stage REL-001/REL-002 workflow; after RUN-003A and CON-002, integrate RUN-003B and then RUN-004/005.
 
 ## Work Items
 
@@ -23,11 +23,11 @@ Claim `REL-003` and `RUN-002` as the next parallel pair. RUN-003A ledger work ma
 |---|---|---|---|---|
 | REL-001 | P0 | pending | REL-005 | Implement four-stage release credential isolation |
 | REL-002 | P0 | pending | REL-001, REL-005 | Draft-first immutable publication and lifecycle |
-| REL-003 | P0 | pending | REL-004 | Bind offline bundle to verified public tarball |
+| REL-003 | P0 | completed | REL-004 | Bind offline bundle to verified public tarball |
 | REL-004 | P0 release gate | completed | none | Tighten package metadata and offline archive closure |
 | REL-005 | P0 release gate | pending | REL-003, REL-004 | Exact nine-asset contract, tag/commit/digest binding |
 | RUN-001 | P0 | completed | none | Durable supervisor launch FSM and crash recovery |
-| RUN-002 | P0 | pending | RUN-001 | Strict stop-barrier ownership |
+| RUN-002 | P0 | completed | RUN-001 | Strict stop-barrier ownership |
 | RUN-003 | P0 | ready | RUN-001 for runner integration | Durable webhook dispatch outbox |
 | RUN-004 | P0 | pending | RUN-001 | Invalid cwd and provisioning isolation |
 | RUN-005 | P0 | pending | RUN-001 shared terminal recovery schema | Invalid UTF-8 terminal recovery |
@@ -38,7 +38,7 @@ Claim `REL-003` and `RUN-002` as the next parallel pair. RUN-003A ledger work ma
 | PERF-003 | P1 release gate | completed | PERF-001 | Versioned startup benchmark profile and regression budgets |
 | INT-001 | P0 release gate | completed | PERF-001 | Fix and execute canonical-root launcher verification |
 | INT-002 | P0 release gate | completed | PERF-001 | Prove runtime topology fast/full fallback behavior |
-| DOC-001 | P0 release gate | pending | documentation freeze | Regenerate locale completeness and packed-link closure |
+| DOC-001 | P0 release gate | completed | documentation freeze | Regenerate locale completeness and packed-link closure |
 
 Detailed definitions live in `development/work-items/0.6.2/`.
 
@@ -72,11 +72,11 @@ The coordinator owns `DEVELOPMENT_PLAN.md`, `AGENTS.md`, generated manifests, sh
 
 | Gate | Commit | Status | Last result |
 |---|---|---|---|
-| Core | 8cbcfc0 | current | 511/511 passed |
-| Integrity | 8cbcfc0 | current | 39/39 passed |
-| Package | 8cbcfc0 | current | 2/2 passed |
-| Closure | 8cbcfc0 | current | 175 manifests approved |
-| Scanner | 8cbcfc0 | current | clean |
+| Core | a5eb3d3 | current | 524/524 passed |
+| Integrity | a5eb3d3 | current | 39/39 passed |
+| Package | a5eb3d3 | current | 2/2 passed |
+| Closure | a5eb3d3 | current | 175 manifests approved |
+| Scanner | a5eb3d3 | current | clean |
 | Pages | 30dfa4e | current | deployed and live-verified in run 32067272227 |
 
 PERF-001/002/003 and INT-001/002 are complete at `8cbcfc0`; later governed startup changes make their evidence stale. The Node 22/self-hosted benchmark matrix is tracked in `scripts/startup-baseline-linux-x64-node22.v1.json` and enforced by `benchmark:startup:check`.

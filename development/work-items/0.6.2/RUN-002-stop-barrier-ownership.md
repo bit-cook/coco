@@ -1,7 +1,7 @@
 # RUN-002: Strict Stop-Barrier Ownership
 
 ```text
-Status: pending
+Status: completed
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
@@ -64,4 +64,6 @@ Reader must safely recognize or reject legacy barrier schema; no blind deletion.
 
 ## Evidence
 
-Not implemented.
+Implemented at `a5eb3d3`.
+
+The canonical barrier uses `operationId`, `ownerPid`, and `ownerIdentity` with transactional liveness, stale takeover evidence, compare-delete, and old-owner rejection. Start, claim, create, approve, and webhook queue paths observe the barrier transactionally. Same-owner retries resume a failed persistent stop; concurrent invocations in one process and different live owners remain excluded. Focused stop/control tests passed 53/53; complete core passed 524/524.

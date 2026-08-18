@@ -1,7 +1,7 @@
 # DOC-001: Documentation Completeness and Packed-Link Closure
 
 ```text
-Status: pending
+Status: completed
 Priority: P0 release gate
 Target: 0.6.2
 Owner: unassigned
@@ -50,4 +50,6 @@ Mark the inventory invalid rather than preserving a false complete claim.
 
 ## Evidence
 
-Not implemented.
+Implemented at `a5eb3d3`.
+
+The deterministic v2 generator records 56 logical pages by explicit category, navigation parity, hashes/bytes/lines, and real npm tarball link closure. Unknown pages fail closed; shortcut references and relative autolinks are parsed; historical links require explicit classification. Current result: 982 packed relative links, 0 unclassified, status complete. Focused documentation/backup tests passed 7/7 and package contracts passed.

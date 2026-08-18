@@ -1,7 +1,7 @@
 # REL-003: Bind Offline and Public Tarballs
 
 ```text
-Status: ready
+Status: completed
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
@@ -63,4 +63,6 @@ No persisted state; revert builder API and workflow caller together.
 
 ## Evidence
 
-Not implemented.
+Implemented at `a5eb3d3`.
+
+The builder requires an explicit package archive and SHA-256, snapshots it with `O_NOFOLLOW` and path/fd identity checks, rejects replacement/drift/digest mismatch, and never calls `npm pack`. The release caller passes metadata through a file to avoid argv-size limits. Real bundle verification proved ZIP `coco-package.tgz` byte-identical to the public tarball and completed isolated install/version/uninstall. Focused tests passed 10/10; complete core/integrity/package gates passed.

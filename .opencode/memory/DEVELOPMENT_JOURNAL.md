@@ -1998,3 +1998,23 @@ git diff --check: passed
 ```
 
 Next parallel pair is REL-003 single immutable tarball and RUN-002 strict stop ownership; RUN-003A ledger may proceed independently. Leases are cleared.
+
+## 2026-08-17: Second 0.6.2 P0 Implementation Batch
+
+REL-003, RUN-002, and DOC-001 were implemented in parallel and cross-reviewed. Four blockers were found and fixed before freeze: the release workflow now passes the explicit package archive/digest without an argv-size hazard; same-owner stop failures can resume while concurrent owners remain excluded; unknown documentation pages fail closed instead of auto-downgrading to historical; shortcut reference and relative autolink targets are included in packed-link closure.
+
+Current focused evidence:
+
+```text
+REL-003 explicit package snapshot tests: 10/10 passed
+RUN-002 stop/control/barrier tests: 53/53 passed
+DOC-001 completeness/backup tests: 7/7 passed
+documentation manifest: 56 pages, 982 packed relative links, 0 unclassified
+real offline build/install/version/tarball-byte-equality/uninstall: passed
+release directory scanner: clean
+git diff --check: passed
+```
+
+Next action: final build and complete performance/integrity/core/package/lifecycle gates on the merged bytes; then commit implementation, update plan evidence, clear leases, and continue REL-005 plus RUN-003A.
+
+Second batch completed at `a5eb3d3` after final cross-review fixes. Current-byte evidence is performance matrix pass, integrity 39/39, core 524/524, package 2/2, closure 175 approved, documentation complete with 982 packed links and zero unclassified, runtime probe 20,675, scanner clean, real offline tar equality/install/version/uninstall passed, detached lifecycle passed, and both typecheck suites passed. Leases are cleared. Next: REL-005, RUN-003A, and CON-002.
