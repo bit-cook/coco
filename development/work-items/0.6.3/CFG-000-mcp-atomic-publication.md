@@ -1,7 +1,7 @@
 # CFG-000: MCP Atomic Publication
 
 ```text
-Status: ready
+Status: in_progress
 Priority: P1 recovery foundation
 Target: 0.6.3
 Owner: ai-agent-wave-a
@@ -45,4 +45,4 @@ Disable reload and retain the last known good startup generation.
 
 ## Evidence
 
-Not implemented. No external code copied.
+Initial publisher and last-good generation implementation is present with focused pagination, collision, fault, migration, and restart tests. Runtime registry integration remains for the next integration batch.

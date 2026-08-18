@@ -2115,3 +2115,13 @@ The authorized isolated GitHub exercise created and then removed temporary tag `
 The later authorized release completed `v0.6.2` at `964df56`, and the research pages were deployed in Pages run `32188532292`. The old pre-release plan is preserved at `development/history/DEVELOPMENT_PLAN-0.6.2-pre-release.md`; the exact earlier text remains available with `git show 0b9f857:DEVELOPMENT_PLAN.md`.
 
 The active plan is now deliberately short: `REC-001`, `CFG-000`, and `BKP-001` are ready for parallel AI Agents. Each Agent owns one work item and exact files, runs focused tests, and hands back a concise result. Full gates run only after integration or before a release. The onboarding rules are in `development/AGENT_BRIEF.md` and the short cadence is in `development/AI_AGENT_EXECUTION_PLAN.md`.
+
+## 2026-08-18: First 0.6.3 AI Agent Wave
+
+Three Agents worked in parallel on non-overlapping file scopes from `candidate/v0.6.3` at `881d0ac`:
+
+- REC-001 added a command recovery journal with durable receipt/result, idempotent command IDs, digest conflict rejection, and uncertain recovery.
+- CFG-000 added MCP candidate publication with validation, collision checks, generation/revision state, last-good retention, and legacy migration.
+- BKP-001 added authenticated manifest rotation, encrypted operational state, retention, tamper detection, and restore drill helpers.
+
+Focused results: `13/13` combined tests passed, syntax checks passed, and diff check passed. These are initial modules, not yet wired into Control/provider/MCP runtime or a real off-host storage adapter. Leases were cleared after the focused handoff; coordinator integration is the next small batch.

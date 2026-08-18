@@ -1,7 +1,7 @@
 # BKP-001: Offsite Authenticated Backup
 
 ```text
-Status: ready
+Status: in_progress
 Priority: P1 operations
 Target: 0.6.3
 Owner: ai-agent-wave-a
@@ -45,4 +45,4 @@ Never delete the last verified local set while migrating storage.
 
 ## Evidence
 
-Not implemented.
+Initial authenticated rotation, encrypted state, retention, tamper, wrong-key, and restore-drill implementation is present with focused tests. A real off-host adapter and credential rotation runbook remain for integration.

@@ -19,9 +19,9 @@ These items are ready and can be developed in parallel by separate Agents:
 
 | Item | Goal | Depends on |
 |---|---|---|
-| `REC-001` | Make command effects recoverable; mark unknown effects `uncertain` | `RUN-001`, `RUN-003` |
-| `CFG-000` | Publish complete MCP/config generations or keep last-good | `REC-001` |
-| `BKP-001` | Rotate an authenticated off-host backup and prove one restore | `v0.6.2` |
+| `REC-001` | Make command effects recoverable; mark unknown effects `uncertain` | implementation started |
+| `CFG-000` | Publish complete MCP/config generations or keep last-good | implementation started |
+| `BKP-001` | Rotate an authenticated off-host backup and prove one restore | implementation started |
 
 After these three items are integrated, select the smallest next feature from the `0.7.0` research-derived work items. Do not start all of them at once.
 

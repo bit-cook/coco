@@ -1,7 +1,7 @@
 # REC-001: Command Recovery Journal
 
 ```text
-Status: ready
+Status: in_progress
 Priority: P1 research-derived
 Target: 0.6.3
 Owner: ai-agent-wave-a
@@ -47,4 +47,4 @@ Unknown records remain uncertain; downgrade must never turn them into retryable 
 
 ## Evidence
 
-Not implemented. Research-derived from Prime Agent command recovery journal; no external code copied.
+Initial journal implementation is present with focused crash and idempotency tests. Control/provider/Bash/MCP integration remains for the next integration batch. No external code was copied.

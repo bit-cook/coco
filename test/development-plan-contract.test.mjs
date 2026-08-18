@@ -39,9 +39,9 @@ test("active development plan exposes the small, agent-ready 0.6.3 wave", async 
   }
   assert.equal(new Set(ids).size, ids.length, "work item IDs are unique");
   const byName = Object.fromEntries(await Promise.all(files.map(async (file) => [file, await readFile(join(workItems, file), "utf8")])));
-  assert.match(byName["REC-001-command-recovery-journal.md"], /Status: ready/);
-  assert.match(byName["CFG-000-mcp-atomic-publication.md"], /Status: ready/);
-  assert.match(byName["BKP-001-offsite-authenticated-backup.md"], /Status: ready/);
+  assert.match(byName["REC-001-command-recovery-journal.md"], /Status: in_progress/);
+  assert.match(byName["CFG-000-mcp-atomic-publication.md"], /Status: in_progress/);
+  assert.match(byName["BKP-001-offsite-authenticated-backup.md"], /Status: in_progress/);
 
   for (const preserved of [
     "documentation/en/docs/development-migration-journal.md",
@@ -74,10 +74,10 @@ test("research-derived recovery backlog remains explicit and blocked", async () 
   const files = (await readdir(directory)).toSorted();
   assert.deepEqual(files, ["BKP-001-offsite-authenticated-backup.md", "CFG-000-mcp-atomic-publication.md", "REC-001-command-recovery-journal.md"]);
   const value = await readFile(join(directory, "REC-001-command-recovery-journal.md"), "utf8");
-  assert.match(value, /Status: ready/);
+  assert.match(value, /Status: in_progress/);
   assert.match(value, /Depends on: RUN-001, RUN-003/);
   assert.match(value, /uncertain/);
-  assert.match(value, /no external code copied/i);
+  assert.match(value, /no external code was copied/i);
 });
 
 test("generated documentation inventory proves current completeness", async () => {
