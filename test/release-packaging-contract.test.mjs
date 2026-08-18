@@ -132,11 +132,19 @@ test("Given release workflows, when npm packs release assets, then the destinati
   for (const workflowName of ["ci.yml", "release.yml"]) {
     const workflow = await readFile(join(root, ".github", "workflows", workflowName), "utf8");
     const createDirectory = workflow.indexOf("- run: mkdir release");
-    const pack = workflow.indexOf("- run: node node_modules/npm/bin/npm-cli.js pack --json --pack-destination release");
+    const pack = workflow.indexOf("node node_modules/npm/bin/npm-cli.js pack --json --pack-destination release");
     assert.notEqual(createDirectory, -1);
     assert.notEqual(pack, -1);
     assert.ok(createDirectory < pack);
   }
+});
+
+test("Given an offline bundle build, when its package input is selected, then it consumes an explicit verified public tarball without repacking", async () => {
+  const source = await readFile(join(root, "scripts", "build-offline-bundle.mjs"), "utf8");
+  assert.doesNotMatch(source, /npm-cli\.js|["']pack["']|--pack-destination/);
+  assert.match(source, /packageArchive: process\.env\.COCO_PACKAGE_ARCHIVE/);
+  assert.match(source, /packageSha256: process\.env\.COCO_PACKAGE_SHA256/);
+  assert.match(source, /snapshotPackageArchive\(\{ destination: join\(bundle, "coco-package\.tgz"\), packageArchive, packageSha256 \}\)/);
 });
 
 test("Given release workflows, when GitHub Actions and execution controls are configured, then pins are current, CI is cancellable, and jobs are bounded", async () => {
@@ -228,5 +236,7 @@ test("Given the v0.6.1 release contract, when public release surfaces are inspec
   assert.match(releaseWorkflow, /releases\/download\/\$GITHUB_REF_NAME/);
   assert.match(releaseWorkflow, /sha256sum install\.sh uninstall\.sh coco-\*\.tgz coco-\*\.tgz\.sha256 coco-\*-offline-\*\.zip coco-\*-offline-\*\.zip\.sha256 coco-agent-\*\.vsix coco-agent-\*\.vsix\.sha256 > SHA256SUMS/);
   assert.match(releaseWorkflow, /npm run build:offline/);
+  assert.match(releaseWorkflow, /COCO_PACKAGE_ARCHIVE: \$\{\{ steps\.package\.outputs\.archive \}\}/);
+  assert.match(releaseWorkflow, /COCO_PACKAGE_SHA256: \$\{\{ steps\.package\.outputs\.sha256 \}\}/);
   assert.match(releaseWorkflow, /release\/SHA256SUMS/);
 });

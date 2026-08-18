@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { createWriteStream } from "node:fs";
-import { chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { constants, createWriteStream } from "node:fs";
+import { chmod, copyFile, lstat, mkdir, mkdtemp, open, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -14,6 +14,10 @@ const architectureMap = { arm64: "arm64", x64: "x64" };
 
 function fail(code) { const error = new Error(code); error.code = code; throw error; }
 function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
+function sameSnapshot(left, right) {
+  return left.dev === right.dev && left.ino === right.ino && left.size === right.size && left.mode === right.mode
+    && left.mtimeNs === right.mtimeNs && left.ctimeNs === right.ctimeNs;
+}
 function execute(command, args, options = {}) {
   return new Promise((resolvePromise, reject) => execFile(command, args, { maxBuffer: 32 * 1024 * 1024, ...options }, (error, stdout) => error ? reject(error) : resolvePromise(stdout)));
 }
@@ -32,6 +36,56 @@ async function regularFiles(directory, prefix = "") {
     else fail("OFFLINE_BUNDLE_UNSAFE_ENTRY");
   }
   return output;
+}
+
+export async function snapshotPackageArchive({ destination, observe, packageArchive, packageSha256 }) {
+  if (typeof packageArchive !== "string" || packageArchive === "") fail("OFFLINE_BUNDLE_PACKAGE_ARCHIVE_REQUIRED");
+  if (!/^[a-f0-9]{64}$/.test(packageSha256 ?? "")) fail("OFFLINE_BUNDLE_PACKAGE_SHA256_REQUIRED");
+  if (typeof constants.O_NOFOLLOW !== "number") fail("OFFLINE_BUNDLE_PACKAGE_NOFOLLOW_UNAVAILABLE");
+  const sourcePath = resolve(packageArchive);
+  let before;
+  try { before = await lstat(sourcePath, { bigint: true }); }
+  catch (error) { fail(error?.code === "ENOENT" ? "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_MISSING" : "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_INVALID"); }
+  if (!before.isFile()) fail(before.isSymbolicLink() ? "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_SYMLINK" : "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_INVALID");
+  await observe?.("after-lstat");
+  let source, target;
+  try {
+    try { source = await open(sourcePath, constants.O_RDONLY | constants.O_NOFOLLOW); }
+    catch (error) {
+      if (error?.code === "ELOOP") fail("OFFLINE_BUNDLE_PACKAGE_ARCHIVE_SYMLINK");
+      fail(error?.code === "ENOENT" ? "OFFLINE_BUNDLE_PACKAGE_IDENTITY_CHANGED" : "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_INVALID");
+    }
+    const opened = await source.stat({ bigint: true });
+    if (!opened.isFile() || !sameSnapshot(before, opened)) fail("OFFLINE_BUNDLE_PACKAGE_IDENTITY_CHANGED");
+    await observe?.("after-open");
+    target = await open(destination, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+    const hash = createHash("sha256"), buffer = Buffer.alloc(64 * 1024);
+    while (true) {
+      const { bytesRead } = await source.read(buffer, 0, buffer.length);
+      if (bytesRead === 0) break;
+      hash.update(buffer.subarray(0, bytesRead));
+      let offset = 0;
+      while (offset < bytesRead) {
+        const { bytesWritten } = await target.write(buffer, offset, bytesRead - offset);
+        if (bytesWritten <= 0) fail("OFFLINE_BUNDLE_PACKAGE_SNAPSHOT_FAILED");
+        offset += bytesWritten;
+      }
+    }
+    await target.sync();
+    const after = await source.stat({ bigint: true });
+    let current;
+    try { current = await lstat(sourcePath, { bigint: true }); } catch { fail("OFFLINE_BUNDLE_PACKAGE_RACE"); }
+    if (!current.isFile() || current.isSymbolicLink() || !sameSnapshot(opened, after) || !sameSnapshot(opened, current)) fail("OFFLINE_BUNDLE_PACKAGE_RACE");
+    const digest = hash.digest("hex");
+    if (digest !== packageSha256) fail("OFFLINE_BUNDLE_PACKAGE_CHECKSUM_MISMATCH");
+    return { path: destination, sha256: digest };
+  } catch (error) {
+    await rm(destination, { force: true }).catch(() => {});
+    throw error;
+  } finally {
+    await source?.close().catch(() => {});
+    await target?.close().catch(() => {});
+  }
 }
 
 const crcTable = Array.from({ length: 256 }, (_, value) => {
@@ -62,7 +116,7 @@ export async function writeZip(directory, output, bundleRoot = "") {
   await writeFile(output, Buffer.concat([...chunks, centralBytes, end]), { flag: "wx", mode: 0o644 });
 }
 
-export async function buildOfflineBundle({ nodeArchive, outputDirectory = join(root, "release") } = {}) {
+export async function buildOfflineBundle({ nodeArchive, outputDirectory = join(root, "release"), packageArchive, packageSha256 } = {}) {
   const platform = platformMap[process.platform], architecture = architectureMap[process.arch];
   if (!platform || !architecture) fail("OFFLINE_BUNDLE_PLATFORM_UNSUPPORTED");
   const target = `${platform}-${architecture}`;
@@ -72,9 +126,7 @@ export async function buildOfflineBundle({ nodeArchive, outputDirectory = join(r
   try {
     await mkdir(bundle, { recursive: true });
     await mkdir(outputDirectory, { recursive: true });
-    await execute(process.execPath, [join(root, "node_modules/npm/bin/npm-cli.js"), "pack", "--pack-destination", workspace], { cwd: root });
-    const packageSource = join(workspace, `coco-${version}.tgz`);
-    await copyFile(packageSource, join(bundle, "coco-package.tgz"));
+    await snapshotPackageArchive({ destination: join(bundle, "coco-package.tgz"), packageArchive, packageSha256 });
 
     const nodeFilename = `node-v${NODE_VERSION}-${target}.tar.gz`;
     const nodePath = join(workspace, nodeFilename);
@@ -121,6 +173,11 @@ export async function buildOfflineBundle({ nodeArchive, outputDirectory = join(r
 }
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {
-  const result = await buildOfflineBundle({ nodeArchive: process.env.COCO_NODE_ARCHIVE, outputDirectory: process.argv[2] });
+  const result = await buildOfflineBundle({
+    nodeArchive: process.env.COCO_NODE_ARCHIVE,
+    outputDirectory: process.argv[2],
+    packageArchive: process.env.COCO_PACKAGE_ARCHIVE,
+    packageSha256: process.env.COCO_PACKAGE_SHA256,
+  });
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }

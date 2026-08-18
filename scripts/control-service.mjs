@@ -9,7 +9,7 @@ import { canonicalJson } from "./canonical-json.mjs";
 import { StateError } from "./state-schema.mjs";
 import { agentDirectory, ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { acquireStateLock, atomicReplace } from "./state-transaction.mjs";
-import { createTaskStore } from "./task-state.mjs";
+import { createTaskStore, readRunnerStoppingState } from "./task-state.mjs";
 import { createTaskEventStore } from "./task-events.mjs";
 import { createTaskLogStore } from "./task-logs.mjs";
 import { createTaskReceiptStore } from "./task-receipts.mjs";
@@ -193,7 +193,7 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
       }
       const approve = /^\/v1\/tasks\/([a-z0-9_-]{12})\/approve$/.exec(url.pathname);
       if (request.method === "POST" && approve) {
-        await store.update((value) => { const task = value.tasks.find(({ id }) => id === approve[1]); if (!task || task.status !== "blocked" || task.trigger !== "manual") fail("TASK_NOT_APPROVABLE"); task.status = "queued"; task.updatedAt = new Date().toISOString(); return value; });
+        await store.update(async (value) => { if (await readRunnerStoppingState(agentDir)) fail("RUNNER_STOPPING"); const task = value.tasks.find(({ id }) => id === approve[1]); if (!task || task.status !== "blocked" || task.trigger !== "manual") fail("TASK_NOT_APPROVABLE"); task.status = "queued"; task.updatedAt = new Date().toISOString(); return value; });
         await startDetachedRunner({ agentDir, root }); return json(response, 202, { approved: true });
       }
       const cancel = /^\/v1\/tasks\/([a-z0-9_-]{12})\/cancel$/.exec(url.pathname);

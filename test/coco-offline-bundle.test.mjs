@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -9,6 +9,7 @@ import test from "node:test";
 import { gzipSync } from "node:zlib";
 
 import { configureIntranetModel } from "../scripts/configure-intranet-model.mjs";
+import { buildOfflineBundle, snapshotPackageArchive } from "../scripts/build-offline-bundle.mjs";
 
 const exec = promisify(execFile);
 const installerSource = new URL("../offline-install.sh", import.meta.url);
@@ -25,6 +26,18 @@ function tarArchive(entries) {
     blocks.push(header); if (content.length > 0) blocks.push(content, Buffer.alloc((512 - content.length % 512) % 512));
   }
   return gzipSync(Buffer.concat([...blocks, Buffer.alloc(1024)]));
+}
+
+function storedZipMember(zip, expectedName) {
+  let offset = 0;
+  while (zip.readUInt32LE(offset) === 0x04034b50) {
+    const compressedSize = zip.readUInt32LE(offset + 18), nameLength = zip.readUInt16LE(offset + 26), extraLength = zip.readUInt16LE(offset + 28);
+    const nameStart = offset + 30, dataStart = nameStart + nameLength + extraLength;
+    const name = zip.toString("utf8", nameStart, nameStart + nameLength);
+    if (name === expectedName) return zip.subarray(dataStart, dataStart + compressedSize);
+    offset = dataStart + compressedSize;
+  }
+  throw new Error("ZIP_MEMBER_MISSING");
 }
 
 async function offlineBundle(root, packageArchive, checksumLines, nodeArchive = tarArchive([{ body: "node\n", name: "bin/node" }])) {
@@ -187,4 +200,54 @@ test("offline installer accepts only safe direct internal Node runtime symlinks"
 test("offline installer source enforces compressed, member, cumulative, and member-count archive budgets", async () => {
   const source = await readFile(installerSource, "utf8");
   for (const limit of ["536870912", "50000", "268435456", "1073741824"]) assert.match(source, new RegExp(limit));
+});
+
+test("offline package snapshot rejects missing, symlinked, identity-drifted, raced, and mismatched inputs", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coco-offline-package-input-"));
+  const archive = join(root, "coco.tgz"), destination = join(root, "snapshot.tgz");
+  const bytes = Buffer.from("verified public package bytes\n"), digest = sha256(bytes);
+  try {
+    await assert.rejects(buildOfflineBundle({ outputDirectory: join(root, "release") }), { message: "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_REQUIRED" });
+    await assert.rejects(snapshotPackageArchive({ destination, packageSha256: digest }), { message: "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_REQUIRED" });
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: join(root, "missing.tgz"), packageSha256: digest }), { message: "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_MISSING" });
+    await writeFile(archive, bytes);
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: archive }), { message: "OFFLINE_BUNDLE_PACKAGE_SHA256_REQUIRED" });
+    await symlink(archive, join(root, "linked.tgz"));
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: join(root, "linked.tgz"), packageSha256: digest }), { message: "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_SYMLINK" });
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: archive, packageSha256: "0".repeat(64) }), { message: "OFFLINE_BUNDLE_PACKAGE_CHECKSUM_MISMATCH" });
+
+    await writeFile(archive, bytes);
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: archive, packageSha256: digest, observe: async (phase) => {
+      if (phase === "after-lstat") { await rename(archive, join(root, "identity-original.tgz")); await writeFile(archive, bytes); }
+    } }), { message: "OFFLINE_BUNDLE_PACKAGE_IDENTITY_CHANGED" });
+
+    await rm(archive, { force: true }); await writeFile(archive, bytes);
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: archive, packageSha256: digest, observe: async (phase) => {
+      if (phase === "after-open") { await rename(archive, join(root, "race-original.tgz")); await writeFile(archive, bytes); }
+    } }), { message: "OFFLINE_BUNDLE_PACKAGE_RACE" });
+
+    await rm(archive, { force: true }); await writeFile(archive, bytes, { mode: 0o600 });
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: archive, packageSha256: digest, observe: async (phase) => {
+      if (phase === "after-open") await chmod(archive, 0o644);
+    } }), { message: "OFFLINE_BUNDLE_PACKAGE_RACE" });
+  } finally { await rm(root, { force: true, recursive: true }); }
+});
+
+test("offline builder embeds the exact verified public package bytes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coco-offline-package-binding-"));
+  const output = join(root, "release"), packageArchive = join(root, "coco.tgz"), nodeArchive = join(root, "node.tar.gz");
+  const packageBytes = Buffer.from("one immutable public package\n"), nodeBytes = tarArchive([{ body: "node\n", name: "bin/node" }]);
+  const previousNodeDigest = process.env.COCO_NODE_ARCHIVE_SHA256;
+  try {
+    await writeFile(packageArchive, packageBytes); await writeFile(nodeArchive, nodeBytes);
+    process.env.COCO_NODE_ARCHIVE_SHA256 = sha256(nodeBytes);
+    const result = await buildOfflineBundle({ nodeArchive, outputDirectory: output, packageArchive, packageSha256: sha256(packageBytes) });
+    const embedded = storedZipMember(await readFile(result.path), `${result.path.split("/").at(-1).replace(/\.zip$/, "")}/coco-package.tgz`);
+    assert.equal(sha256(embedded), sha256(await readFile(packageArchive)));
+    assert.deepEqual(embedded, packageBytes);
+    assert.equal((await stat(packageArchive)).isFile(), true);
+  } finally {
+    if (previousNodeDigest === undefined) delete process.env.COCO_NODE_ARCHIVE_SHA256; else process.env.COCO_NODE_ARCHIVE_SHA256 = previousNodeDigest;
+    await rm(root, { force: true, recursive: true });
+  }
 });

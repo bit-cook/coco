@@ -123,6 +123,27 @@ test("control webhook does not accept or consume a delivery while its task is ru
   } finally { controller.abort(); await rm(agentDir, { recursive: true, force: true }); }
 });
 
+test("control queue mutations reject while runner stopping without accepted stalled work", { timeout: 10_000 }, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-control-stopping-")); const controller = new AbortController();
+  try {
+    const store = createTaskStore({ agentDir }); const secret = "d".repeat(64);
+    const hook = await store.create({ cwd: process.cwd(), initialStatus: "blocked", prompt: "hook", trigger: "webhook", webhookSecret: secret, worktree: false });
+    const manual = await store.create({ cwd: process.cwd(), initialStatus: "blocked", prompt: "manual", worktree: false });
+    const running = runControlServer({ agentDir, host: "127.0.0.1", port: 0, root, signal: controller.signal });
+    let control; for (let attempt = 0; attempt < 100; attempt += 1) { try { control = JSON.parse(await readFile(statePaths(agentDir).control)); break; } catch { await new Promise((done) => setTimeout(done, 10)); } }
+    await writeFile(`${statePaths(agentDir).runner}.stopping`, JSON.stringify({ operationId: "018f47a0-7b20-7cc5-8a33-080808080808", ownerIdentity: await processIdentity(process.pid), ownerPid: process.pid, phase: "stopping", predecessor: null, schemaVersion: 1, stopping: true, stoppingAt: new Date().toISOString() }) + "\n", { mode: 0o600 });
+    const base = `http://127.0.0.1:${control.port}`;
+    const delivery = await fetch(`${base}/v1/hooks/${hook.id}`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "idempotency-key": "stopping-delivery" }, body: "{}" });
+    assert.deepEqual(await delivery.json(), { accepted: false, reason: "runner-stopping", taskId: hook.id });
+    const auth = { authorization: `Bearer ${control.token}` };
+    assert.equal((await fetch(`${base}/v1/tasks`, { method: "POST", headers: { ...auth, "content-type": "application/json" }, body: JSON.stringify({ cwd: process.cwd(), prompt: "create race" }) })).status, 503);
+    assert.equal((await fetch(`${base}/v1/tasks/${manual.id}/approve`, { method: "POST", headers: auth })).status, 503);
+    assert.deepEqual((await store.load()).tasks.map(({ status }) => status), ["blocked", "blocked"]);
+    assert.deepEqual(JSON.parse(await readFile(statePaths(agentDir).webhookDeliveries, "utf8")).deliveries, []);
+    controller.abort(); await running;
+  } finally { controller.abort(); await rm(agentDir, { recursive: true, force: true }); }
+});
+
 test("legacy control state without identity fails closed", async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-control-legacy-"));
   try {

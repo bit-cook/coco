@@ -29,6 +29,16 @@ test("task state persists validated worktree tasks transactionally", async () =>
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });
 
+test("task creation rejects atomically while the runner stopping barrier is live", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-create-stop-"));
+  try {
+    await writeFile(`${statePaths(agentDir).runner}.stopping`, JSON.stringify({ operationId: "018f47a0-7b20-7cc5-8a33-070707070707", ownerIdentity: await processIdentity(process.pid), ownerPid: process.pid, phase: "stopping", predecessor: null, schemaVersion: 1, stopping: true, stoppingAt: new Date().toISOString() }) + "\n", { mode: 0o600 });
+    const store = createTaskStore({ agentDir });
+    await assert.rejects(store.create({ cwd: process.cwd(), prompt: "must not queue", worktree: false }), /RUNNER_STOPPING/);
+    assert.deepEqual((await store.load()).tasks, []);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
 test("legacy runner state remains visible and blocks duplicate task recovery", async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-task-legacy-"));
   const legacyRunner = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { stdio: "ignore" });

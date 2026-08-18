@@ -13,7 +13,7 @@ import { createTaskLogStore } from "./task-logs.mjs";
 import { createTaskReceiptStore } from "./task-receipts.mjs";
 import { processAlive, processIdentity, processMatches, terminateProcessTree } from "./task-process.mjs";
 import { createTaskRunSupervisorStore } from "./task-run-supervisor.mjs";
-import { createTaskStore, selectRunnableTask } from "./task-state.mjs";
+import { createTaskStore, readRunnerStoppingState, readTaskState, selectRunnableTask } from "./task-state.mjs";
 import { ensureTaskWorktree, isUnrecoverableWorktreeError, planTaskWorktree, repositoryRoot } from "./worktree-tasks.mjs";
 import { resolveRuntimeRoot } from "./runtime-root.mjs";
 
@@ -57,28 +57,33 @@ async function publishRunnerState({ agentDir, ownerId, path, state }) {
 function stoppingPath(agentDir) { return `${statePaths(agentDir).runner}.stopping`; }
 
 async function stoppingState(agentDir) {
-  const path = stoppingPath(agentDir);
-  if (await inspectRegular(path) === null) return null;
-  try { return JSON.parse(await readFile(path, "utf8")); } catch (error) { if (error?.code === "ENOENT") return null; fail("RUNNER_STATE_INVALID"); }
+  return readRunnerStoppingState(agentDir);
 }
 
 async function setRunnerStopping(agentDir, stopping) {
   const path = stoppingPath(agentDir);
-  if (!stopping) { await rm(path, { force: true }); return; }
-  let previous;
+  if (!stopping) fail("RUNNER_STOPPING_OWNER_REQUIRED");
+  let previous, barrier;
+  const requesterIdentity = await processIdentity(process.pid);
+  if (!requesterIdentity) fail("RUNNER_STOPPING_OWNER_INVALID");
   for (let attempt = 0; attempt < 100; attempt += 1) {
     try {
       await applyStateTransaction({ agentDir, operations: async () => {
         const existing = await stoppingState(agentDir);
         if (existing) {
-          const ownerAlive = existing.pid && existing.processIdentity && await processMatches(existing.pid, existing.processIdentity);
-          if (ownerAlive) fail("RUNNER_STOPPING");
-          await rm(path, { force: true });
+          const ownerAlive = await processMatches(existing.ownerPid, existing.ownerIdentity);
+          if (ownerAlive) {
+            if (existing.ownerPid !== process.pid || existing.ownerIdentity !== requesterIdentity) fail("RUNNER_STOPPING");
+            previous = await runnerState(statePaths(agentDir).runner);
+            barrier = existing;
+            return [{ bytes: canonicalJson(existing), path }];
+          }
         }
         previous = await runnerState(statePaths(agentDir).runner);
-        return [{ bytes: canonicalJson({ operationId: randomUUID(), ownerPid: process.pid, ownerIdentity: await processIdentity(process.pid), phase: "stopping", schemaVersion: 1, stopping: true, stoppingAt: new Date().toISOString() }), path }];
+        barrier = { operationId: randomUUID(), ownerPid: process.pid, ownerIdentity: requesterIdentity, phase: "stopping", predecessor: existing ? { operationId: existing.operationId, ownerPid: existing.ownerPid, ownerIdentity: existing.ownerIdentity } : null, schemaVersion: 1, stopping: true, stoppingAt: new Date().toISOString() };
+        return [{ bytes: canonicalJson(barrier), path }];
       } });
-      return previous;
+      return { barrier, runner: previous };
     } catch (error) {
       if (error?.code !== "STATE_LOCKED" || attempt === 99) throw error;
       await delay(10);
@@ -86,9 +91,27 @@ async function setRunnerStopping(agentDir, stopping) {
   }
 }
 
-async function clearRunnerStopping(agentDir) {
-  await setRunnerStopping(agentDir, false);
+export async function clearRunnerStopping(agentDir, owner) {
+  const path = stoppingPath(agentDir);
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      let cleared = false;
+      await applyStateTransaction({ agentDir, operations: async () => {
+        const existing = await stoppingState(agentDir);
+        if (!existing || existing.operationId !== owner?.operationId || existing.ownerPid !== owner?.ownerPid || existing.ownerIdentity !== owner?.ownerIdentity) return [{ bytes: canonicalJson(await readTaskStateForBarrier(agentDir)), path: statePaths(agentDir).tasks }];
+        await rm(path, { force: true });
+        cleared = true;
+        return [{ bytes: canonicalJson(await readTaskStateForBarrier(agentDir)), path: statePaths(agentDir).tasks }];
+      } });
+      return cleared;
+    } catch (error) {
+      if (error?.code !== "STATE_LOCKED" || attempt === 99) throw error;
+      await delay(10);
+    }
+  }
 }
+
+async function readTaskStateForBarrier(agentDir) { return readTaskState(statePaths(agentDir).tasks); }
 
 async function awaitLaunch(store, id) {
   for (let attempt = 0; attempt < 200; attempt += 1) {
@@ -192,9 +215,20 @@ export async function startDetachedRunner({ agentDir, root }) {
   fail("RUNNER_START_FAILED");
 }
 
+const activeStopOperations = new Set();
+
 export async function stopRunner(agentDir) {
+  const key = resolve(agentDir);
+  if (activeStopOperations.has(key)) fail("RUNNER_STOPPING");
+  activeStopOperations.add(key);
+  try { return await stopRunnerOwned(agentDir); }
+  finally { activeStopOperations.delete(key); }
+}
+
+async function stopRunnerOwned(agentDir) {
   const store = createTaskStore({ agentDir });
-  const runner = await setRunnerStopping(agentDir, true);
+  const ownership = await setRunnerStopping(agentDir, true);
+  const runner = ownership.runner;
   const ids = new Set();
   const failures = [];
   let status = "stopped";
@@ -216,7 +250,7 @@ export async function stopRunner(agentDir) {
   }
   const remaining = (await store.load()).tasks.filter(({ launchPending, pid, status: taskStatus }) => launchPending || pid || taskStatus === "running");
   if (remaining.length > 0 && failures.length === 0) failures.push(new StateError("TASK_PROCESS_STILL_ALIVE"));
-  if (status === "stopped" && failures.length === 0 && remaining.length === 0) await clearRunnerStopping(agentDir);
+  if (status === "stopped" && failures.length === 0 && remaining.length === 0) await clearRunnerStopping(agentDir, ownership.barrier);
   if (failures.length > 0) throw failures[0];
   return { status, ...(ids.size > 0 ? { stopped: ids.size } : {}) };
 }

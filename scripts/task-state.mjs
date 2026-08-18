@@ -13,6 +13,7 @@ const EVENT_TYPES = new Set(["run.started", "run.finished", "run.abandoned"]);
 const OUTCOMES = new Set([null, "completed", "failed", "abandoned"]);
 const STATUSES = new Set(["queued", "provisioning", "running", "blocked", "completed", "failed", "cancelled"]);
 const TRIGGERS = new Set(["manual", "schedule", "webhook", "github"]);
+const STOP_BARRIER = Symbol("stopBarrier");
 const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
 const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const text = (value, maximum) => typeof value === "string" && value.trim().length > 0 && Buffer.byteLength(value) <= maximum && !/[\0\x01-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(value);
@@ -20,6 +21,28 @@ const text = (value, maximum) => typeof value === "string" && value.trim().lengt
 function fail(code) { throw new StateError(code); }
 export function taskId(random = randomBytes) { return random(9).toString("base64url").toLowerCase(); }
 export function emptyTaskState() { return { revision: 0, schemaVersion: 1, tasks: [] }; }
+
+function validBarrierOwner(value, exact = false) {
+  return object(value) && UUID.test(value.operationId) && Number.isSafeInteger(value.ownerPid) && value.ownerPid > 0
+    && text(value.ownerIdentity, 200)
+    && (!exact || Object.keys(value).sort().join(",") === "operationId,ownerIdentity,ownerPid");
+}
+
+export function validRunnerStoppingState(value) {
+  return object(value) && value.schemaVersion === 1 && value.stopping === true && value.phase === "stopping"
+    && iso(value.stoppingAt) && validBarrierOwner(value)
+    && (value.predecessor === null || validBarrierOwner(value.predecessor, true))
+    && Object.keys(value).sort().join(",") === "operationId,ownerIdentity,ownerPid,phase,predecessor,schemaVersion,stopping,stoppingAt";
+}
+
+export async function readRunnerStoppingState(agentDir) {
+  const path = `${statePaths(agentDir).runner}.stopping`;
+  if (await inspectRegular(path) === null) return null;
+  let value;
+  try { value = JSON.parse(await readFile(path, "utf8")); } catch { fail("RUNNER_STATE_INVALID"); }
+  if (!validRunnerStoppingState(value)) fail("RUNNER_STATE_INVALID");
+  return value;
+}
 
 export function validTask(task) {
   if (!object(task) || !ID.test(task.id) || !text(task.prompt, 100000) || !text(task.cwd, 4096) || !STATUSES.has(task.status) || !TRIGGERS.has(task.trigger)) return false;
@@ -84,10 +107,12 @@ export async function readTaskState(path) {
   try { value = JSON.parse(await readFile(path, "utf8")); } catch { fail("TASK_STATE_INVALID"); }
   if (object(value) && value.schemaVersion === 1 && Array.isArray(value.tasks)) for (const task of value.tasks) if (object(task)) { if (!("activeRunId" in task)) task.activeRunId = null; if (!("baseCommit" in task)) task.baseCommit = null; if (!("cancelPending" in task)) task.cancelPending = false; if (!("heartbeatAt" in task)) task.heartbeatAt = null; if (!("logsTruncated" in task)) task.logsTruncated = false; if (!("outcomeInDoubt" in task)) task.outcomeInDoubt = task.lastError === "EXECUTION_OUTCOME_IN_DOUBT" && task.activeRunId ? { at: task.updatedAt, generation: 1, reason: "authorized-without-outcome", runId: task.activeRunId } : null; if (!("pendingRunEvent" in task)) task.pendingRunEvent = null; if (!("processIdentity" in task)) task.processIdentity = null; if (!("launchPending" in task)) task.launchPending = false; if (!("terminalEvidence" in task)) task.terminalEvidence = null; if (!("provisioning" in task)) task.provisioning = null; }
   if (!validTaskState(value)) fail("TASK_STATE_INVALID");
+  Object.defineProperty(value, STOP_BARRIER, { value: await readRunnerStoppingState(resolve(path, "..")) });
   return value;
 }
 
 export function queueTaskTrigger(state, taskId, at = new Date().toISOString()) {
+  if (state[STOP_BARRIER]) return { accepted: false, reason: "runner-stopping" };
   const task = state.tasks.find(({ id }) => id === taskId);
   if (!task) return { accepted: false, reason: "task-not-found" };
   if (!["blocked", "completed", "failed"].includes(task.status)) return { accepted: false, reason: task.status };
@@ -135,7 +160,7 @@ export function createTaskStore({ agentDir, now = () => new Date(), random = ran
       webhookSecret: input.webhookSecret ?? null, worktree: input.worktree !== false, worktreePath: null,
     };
     if (!validTask(task)) fail("TASK_INVALID");
-    await update((state) => { state.tasks.push(task); return state; });
+    await update(async (state) => { if (await readRunnerStoppingState(directory)) fail("RUNNER_STOPPING"); state.tasks.push(task); return state; });
     return structuredClone(task);
   }
   return {

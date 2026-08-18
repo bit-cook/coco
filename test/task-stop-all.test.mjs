@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { createTaskRunner, stopRunner } from "../scripts/task-runner.mjs";
+import { clearRunnerStopping, createTaskRunner, startDetachedRunner, stopRunner } from "../scripts/task-runner.mjs";
 import { processAlive, processIdentity } from "../scripts/task-process.mjs";
 import { statePaths } from "../scripts/state-paths.mjs";
 import { createTaskStore } from "../scripts/task-state.mjs";
@@ -41,6 +41,10 @@ test("stop-all stops a verified runner while retaining an unverifiable task PID"
     assert.equal(await processAlive(runnerProcess.pid), false);
     const retained = (await store.load()).tasks.find(({ id }) => id === task.id);
     assert.equal(retained.pid, taskProcess.pid); assert.equal(retained.processIdentity, "wrong-identity");
+    await store.update(async (state) => { state.tasks[0].processIdentity = await processIdentity(taskProcess.pid); return state; });
+    assert.deepEqual(await stopRunner(agentDir), { status: "stopped", stopped: 1 });
+    assert.equal(await processAlive(taskProcess.pid), false);
+    await assert.rejects(stat(`${statePaths(agentDir).runner}.stopping`));
   } finally {
     for (const child of [taskProcess, runnerProcess]) try { process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGKILL"); } catch {}
     await rm(agentDir, { recursive: true, force: true });
@@ -53,7 +57,7 @@ test("stop-all barrier prevents a concurrent runner claim", async () => {
   try {
     await store.create({ cwd: process.cwd(), prompt: "must remain queued", worktree: false });
     const stopping = `${statePaths(agentDir).runner}.stopping`;
-    await writeFile(stopping, `${JSON.stringify({ schemaVersion: 1, stopping: true, stoppingAt: new Date().toISOString() })}\n`, { mode: 0o600 });
+    await writeFile(stopping, `${JSON.stringify({ operationId: "018f47a0-7b20-7cc5-8a33-010101010101", ownerIdentity: await processIdentity(process.pid), ownerPid: process.pid, phase: "stopping", predecessor: null, schemaVersion: 1, stopping: true, stoppingAt: new Date().toISOString() })}\n`, { mode: 0o600 });
     const runner = createTaskRunner({ agentDir, root: new URL("..", import.meta.url).pathname, spawnTask: async () => ({ code: 0, output: "" }) });
     await assert.rejects(runner.run({ once: true }), /RUNNER_STOPPING/);
     assert.equal((await store.load()).tasks[0].status, "queued");
@@ -66,8 +70,53 @@ test("stop-all takes over a stale stopping barrier after its owner dies", async 
   try {
     const path = statePaths(agentDir).runner + ".stopping";
     await mkdir(agentDir, { recursive: true, mode: 0o700 });
-    await writeFile(path, JSON.stringify({ operationId: "018f47a0-7b20-7cc5-8a33-aaaaaaaaaaaa", ownerIdentity: "linux:stale", ownerPid: 999999, phase: "stopping", schemaVersion: 1, stopping: true, stoppingAt: "2026-08-16T00:00:00.000Z" }) + "\n", { mode: 0o600 });
+    await writeFile(path, JSON.stringify({ operationId: "018f47a0-7b20-7cc5-8a33-aaaaaaaaaaaa", ownerIdentity: "linux:stale", ownerPid: 999999, phase: "stopping", predecessor: null, schemaVersion: 1, stopping: true, stoppingAt: "2026-08-16T00:00:00.000Z" }) + "\n", { mode: 0o600 });
     const result = await stopRunner(agentDir); assert.equal(result.status, "stopped");
     await assert.rejects(stat(path));
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("a live stop owner excludes a second stop and runner start", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-stop-owner-"));
+  const ownerProcess = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { detached: process.platform !== "win32", stdio: "ignore" });
+  try {
+    const path = `${statePaths(agentDir).runner}.stopping`;
+    const owner = { operationId: "018f47a0-7b20-7cc5-8a33-020202020202", ownerIdentity: await processIdentity(ownerProcess.pid), ownerPid: ownerProcess.pid };
+    await writeFile(path, JSON.stringify({ ...owner, phase: "stopping", predecessor: null, schemaVersion: 1, stopping: true, stoppingAt: new Date().toISOString() }) + "\n", { mode: 0o600 });
+    await assert.rejects(stopRunner(agentDir), /RUNNER_STOPPING/);
+    await assert.rejects(startDetachedRunner({ agentDir, root: new URL("..", import.meta.url).pathname }), /RUNNER_STOPPING/);
+    assert.equal((await clearRunnerStopping(agentDir, owner)), true);
+  } finally {
+    try { process.kill(process.platform === "win32" ? ownerProcess.pid : -ownerProcess.pid, "SIGKILL"); } catch {}
+    await rm(agentDir, { recursive: true, force: true });
+  }
+});
+
+test("concurrent stop operations elect exactly one live barrier owner", { skip: process.platform === "win32" }, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-stop-concurrent-"));
+  const runnerProcess = spawn(process.execPath, ["-e", "process.on('SIGTERM',()=>{});process.stdout.write('ready');setInterval(()=>{},1000)"], { detached: true, stdio: ["ignore", "pipe", "ignore"] });
+  try {
+    await new Promise((done) => runnerProcess.stdout.once("data", done));
+    await writeFile(statePaths(agentDir).runner, JSON.stringify({ pid: runnerProcess.pid, processIdentity: await processIdentity(runnerProcess.pid), schemaVersion: 1, startedAt: new Date().toISOString() }) + "\n", { mode: 0o600 });
+    const results = await Promise.allSettled([stopRunner(agentDir), stopRunner(agentDir)]);
+    assert.equal(results.filter(({ status }) => status === "fulfilled").length, 1);
+    assert.equal(results.filter(({ reason, status }) => status === "rejected" && reason?.code === "RUNNER_STOPPING").length, 1);
+    assert.equal(await processAlive(runnerProcess.pid), false);
+  } finally {
+    if (await processAlive(runnerProcess.pid)) try { process.kill(-runnerProcess.pid, "SIGKILL"); } catch {}
+    await rm(agentDir, { recursive: true, force: true });
+  }
+});
+
+test("an old stop owner cannot clear a replacement barrier", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-stop-old-clear-"));
+  try {
+    const path = `${statePaths(agentDir).runner}.stopping`;
+    const oldOwner = { operationId: "018f47a0-7b20-7cc5-8a33-030303030303", ownerIdentity: "linux:dead", ownerPid: 999999 };
+    const owner = { operationId: "018f47a0-7b20-7cc5-8a33-040404040404", ownerIdentity: await processIdentity(process.pid), ownerPid: process.pid };
+    await writeFile(path, JSON.stringify({ ...owner, phase: "stopping", predecessor: oldOwner, schemaVersion: 1, stopping: true, stoppingAt: new Date().toISOString() }) + "\n", { mode: 0o600 });
+    assert.equal(await clearRunnerStopping(agentDir, oldOwner), false);
+    assert.equal(JSON.parse(await readFile(path, "utf8")).operationId, owner.operationId);
+    assert.equal(await clearRunnerStopping(agentDir, owner), true);
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });

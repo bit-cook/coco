@@ -37,3 +37,12 @@ test("current recovery headers supersede the historical migration checkpoints", 
   assert.match(english, /Current Handoff \(Supersedes Historical Checkpoints Below\)/);
   assert.match(chinese, /当前交接状态（覆盖下方历史检查点）/);
 });
+
+test("backup and migration documentation have generated completeness classifications", async () => {
+  const manifest = JSON.parse(await readFile(join(root, "documentation/completeness-manifest.json"), "utf8"));
+  const categories = new Map(manifest.inventory.map(({ path, category }) => [path, category]));
+  assert.equal(categories.get("docs/backup-and-restore.md"), "current-product-translated");
+  assert.equal(categories.get("docs/development-migration-journal.md"), "historical-inherited");
+  assert.equal(manifest.complete, true);
+  assert.deepEqual(manifest.links.unclassified, []);
+});

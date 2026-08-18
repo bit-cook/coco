@@ -101,9 +101,10 @@ test("research-derived recovery backlog remains explicit and blocked", async () 
   assert.match(value, /no external code copied/i);
 });
 
-test("stale documentation inventory cannot claim current completeness", async () => {
+test("generated documentation inventory proves current completeness", async () => {
   const manifest = JSON.parse(await readFile(join(root, "documentation", "completeness-manifest.json"), "utf8"));
-  assert.equal(manifest.inventory_valid, false);
-  assert.equal(manifest.translation_status, "stale-requires-regeneration");
-  assert.match(manifest.stale_reason, /historical inventory/i);
+  assert.equal(manifest.schema, "coco-documentation-completeness-v2");
+  assert.equal(manifest.complete, true);
+  assert.equal(manifest.status, "complete");
+  assert.deepEqual(manifest.links.unclassified, []);
 });

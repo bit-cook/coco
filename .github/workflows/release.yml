@@ -32,11 +32,22 @@ jobs:
       - run: mkdir release
       - run: cp install.sh release/install.sh
       - run: cp uninstall.sh release/uninstall.sh
-      - run: node node_modules/npm/bin/npm-cli.js pack --json --pack-destination release
+      - id: package
+        run: |
+          node node_modules/npm/bin/npm-cli.js pack --json --pack-destination release > release/pack-metadata.json
+          name="$(node -e 'const fs=require("node:fs");const [item]=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(!item?.filename)process.exit(2);process.stdout.write(item.filename)' release/pack-metadata.json)"
+          rm release/pack-metadata.json
+          archive="$PWD/release/$name"
+          test -f "$archive"
+          printf 'archive=%s\n' "$archive" >> "$GITHUB_OUTPUT"
+          printf 'sha256=%s\n' "$(sha256sum "$archive" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
       - run: node scripts/publication-secret-scanner.mjs release
       - run: node -e "import('./scripts/verify-package-closure.mjs').then(async ({verifyTarballClosure}) => { const {readdir}=await import('node:fs/promises'); const tarball=(await readdir('release')).find((entry)=>entry.endsWith('.tgz')); const result=await verifyTarballClosure({root:process.cwd(),tarball:'release/'+tarball}); console.log(JSON.stringify(result)); process.exit(result.status==='approved'?0:1); })"
       - run: tar -tzf release/coco-*.tgz | (! grep -E '(^package/(\.coco-tools|documentation/[^/]+/logs|test/)|/\.omo/)')
       - run: npm run build:offline
+        env:
+          COCO_PACKAGE_ARCHIVE: ${{ steps.package.outputs.archive }}
+          COCO_PACKAGE_SHA256: ${{ steps.package.outputs.sha256 }}
       - run: npm run build:vscode
       - working-directory: release
         run: sha256sum coco-*.tgz > coco-$(node -p "require('../package.json').version").tgz.sha256
