@@ -551,6 +551,15 @@ test("blocked tasks do not prevent selection of following queued work", async ()
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });
 
+for (const errorCode of ["WORKTREE_GIT_LOCKED", "WORKTREE_GIT_RETRYABLE"]) test(`${errorCode} backoff skips the poisoned task without starving the queue`, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-lock-backoff-"));
+  try {
+    const store = createTaskStore({ agentDir }); const locked = await store.create({ cwd: process.cwd(), prompt: "locked", worktree: false }); const following = await store.create({ cwd: process.cwd(), prompt: "following", worktree: false });
+    await store.update((state) => { const task = state.tasks.find(({ id }) => id === locked.id); task.lastError = errorCode; task.updatedAt = new Date().toISOString(); return state; });
+    assert.equal(selectRunnableTask(await store.load()).id, following.id);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
 test("task state rejects outbox events associated with a different run", async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-task-event-invariant-"));
   const store = createTaskStore({ agentDir });

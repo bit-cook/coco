@@ -1,21 +1,31 @@
-import { mkdir, realpath } from "node:fs/promises";
+import { lstat, mkdir, realpath } from "node:fs/promises";
 import { basename, join, resolve, sep } from "node:path";
 
 import { execCommand } from "../dist/core/exec.js";
 import { StateError } from "./state-schema.mjs";
 
 function fail(code) { throw new StateError(code); }
-export function isUnrecoverableWorktreeError(error) { return error?.code === "WORKTREE_CONFLICT"; }
+export function isUnrecoverableWorktreeError(error) { return ["GIT_WORKTREE_FAILED", "TASK_CWD_INVALID", "WORKTREE_CONFLICT", "WORKTREE_REPOSITORY_INVALID"].includes(error?.code); }
+export function isRetryableWorktreeError(error) { return ["WORKTREE_GIT_LOCKED", "WORKTREE_GIT_RETRYABLE"].includes(error?.code); }
 async function git(args, cwd) {
-  const result = await execCommand("git", args, cwd, { timeout: 30000 });
-  if (result.code !== 0) fail("GIT_WORKTREE_FAILED");
+  let result; try { result = await execCommand("git", args, cwd, { timeout: 30000 }); } catch { fail("WORKTREE_GIT_RETRYABLE"); }
+  if (result.code !== 0) fail(/(?:index\.lock|locked by another process|Unable to create .*\.lock)/i.test(result.stderr) ? "WORKTREE_GIT_LOCKED" : "WORKTREE_GIT_RETRYABLE");
   return result.stdout.trim();
 }
-async function gitOptional(args, cwd) { const result = await execCommand("git", args, cwd, { timeout: 30000 }); return result.code === 0 ? result.stdout.trim() : null; }
+async function gitOptional(args, cwd) {
+  let result; try { result = await execCommand("git", args, cwd, { timeout: 30000 }); } catch { fail("WORKTREE_GIT_RETRYABLE"); }
+  if (result.code === 0) return result.stdout.trim();
+  if (/(?:unknown revision|Needed a single revision|not a valid object name|ambiguous argument)/i.test(result.stderr)) return null;
+  fail(/(?:index\.lock|locked by another process|Unable to create .*\.lock)/i.test(result.stderr) ? "WORKTREE_GIT_LOCKED" : "WORKTREE_GIT_RETRYABLE");
+}
 
 export async function repositoryRoot(cwd) {
-  const root = await git(["rev-parse", "--show-toplevel"], cwd);
-  return realpath(root);
+  let info; try { info = await lstat(cwd); } catch { fail("TASK_CWD_INVALID"); }
+  if (!info.isDirectory() || info.isSymbolicLink()) fail("TASK_CWD_INVALID");
+  let result; try { result = await execCommand("git", ["rev-parse", "--show-toplevel"], cwd, { timeout: 30000 }); }
+  catch { fail("WORKTREE_GIT_RETRYABLE"); }
+  if (result.code !== 0) fail(/(?:index\.lock|locked by another process|Unable to create .*\.lock)/i.test(result.stderr) ? "WORKTREE_GIT_LOCKED" : "WORKTREE_REPOSITORY_INVALID");
+  return realpath(result.stdout.trim());
 }
 
 export function taskBranch(id) { return `coco/task-${id}`; }

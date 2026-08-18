@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.2] - 2026-08-18
+
+### Security
+
+- Split release construction, private-draft upload, no-token lifecycle verification, and private-draft finalization into permission-isolated stages with an exact nine-asset contract.
+- Added Linux cgroup v2 containment with attach-before-authorization, durable cleanup recovery, and real detached setsid/double-fork termination evidence.
+
+### Reliability
+
+- Added durable webhook dispatch claim/ack recovery, invalid task and worktree provisioning isolation, bounded Git retry backoff, and invalid UTF-8 terminal materialization.
+- Preserved terminal evidence, receipt, log seal, cancellation, and restart invariants across runner and Control failures.
+
 ## [0.6.1] - 2026-08-16
 
 ### Performance

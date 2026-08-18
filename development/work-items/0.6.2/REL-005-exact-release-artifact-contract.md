@@ -1,13 +1,13 @@
 # REL-005: Exact Release Artifact Contract
 
 ```text
-Status: pending
+Status: completed
 Priority: P0 release gate
 Target: 0.6.2
 Owner: unassigned
 Depends on: REL-003, REL-004
 Blocks: REL-001, REL-002
-Last updated: 2026-08-17
+Last updated: 2026-08-18
 ```
 
 ## Problem
@@ -50,4 +50,4 @@ Delete only an unpublished draft owned by the same run/attempt; never replace pu
 
 ## Evidence
 
-Not implemented.
+Implemented and dry-run verified in uncommitted candidate bytes. Exact nine-asset manifest, local/remote inventory contracts, tag/commit/digest binding, same-run rerun takeover, partial-upload recovery, published-release protection, immutable private-draft snapshot verification, and post-write inventory revalidation are covered by focused and live API evidence.

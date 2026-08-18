@@ -18,11 +18,11 @@ let state;
 for (let attempt = 0; attempt < 2400; attempt += 1) {
   state = await store.inspect({ taskId, runId });
   if (state.outcome) process.exitCode = normalizedExitCode(state.outcome.exitCode);
-  if (state.outcome || state.authorization) break;
+  if (state.outcome || state.authorization || state.revocation || state.phase === "abandoned" || state.containment?.status === "cleaned") break;
   await new Promise((done) => setTimeout(done, 25));
 }
-if (!state?.authorization && !state?.outcome) throw new Error("TASK_RUN_AUTHORIZATION_TIMEOUT");
-if (!state.outcome) {
+if (!state?.authorization && !state?.outcome && !state?.revocation && state?.phase !== "abandoned" && state?.containment?.status !== "cleaned") throw new Error("TASK_RUN_AUTHORIZATION_TIMEOUT");
+if (state?.authorization && !state.outcome) {
   class ControlledExit extends Error { constructor(code) { super("TASK_RUN_CONTROLLED_EXIT"); this.code = code; } }
   const startedAt = new Date().toISOString();
   let exitCode = 1;
@@ -73,4 +73,11 @@ if (!state.outcome) {
   process.exit = originalExit;
   await store.writeOutcome({ endedAt: new Date().toISOString(), exitCode, generation, ownerId, pid: process.pid, processIdentity: registered.processIdentity, runId, specSha256: state.specSha256, startedAt, stderrTruncated, stdoutTruncated, taskId });
   process.exitCode = exitCode;
+  // Keep the process-group leader alive until the runner performs the durable
+  // containment handoff. This makes the unsupported process-group fallback real.
+  for (;;) {
+    const completed = await store.inspect({ taskId, runId });
+    if (completed.containment?.status === "cleaned" || (completed.outcome && completed.containment?.status === "unsupported") || completed.revocation) break;
+    await new Promise((done) => setTimeout(done, 25));
+  }
 }

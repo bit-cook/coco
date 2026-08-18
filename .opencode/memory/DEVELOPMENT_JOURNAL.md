@@ -2018,3 +2018,94 @@ git diff --check: passed
 Next action: final build and complete performance/integrity/core/package/lifecycle gates on the merged bytes; then commit implementation, update plan evidence, clear leases, and continue REL-005 plus RUN-003A.
 
 Second batch completed at `a5eb3d3` after final cross-review fixes. Current-byte evidence is performance matrix pass, integrity 39/39, core 524/524, package 2/2, closure 175 approved, documentation complete with 982 packed links and zero unclassified, runtime probe 20,675, scanner clean, real offline tar equality/install/version/uninstall passed, detached lifecycle passed, and both typecheck suites passed. Leases are cleared. Next: REL-005, RUN-003A, and CON-002.
+
+## 2026-08-18: Third 0.6.2 P0 Candidate Batch
+
+REL-005, REL-001, REL-002, RUN-003A, and CON-002 implementation is complete in the uncommitted candidate worktree and was cross-reviewed. The batch closed exact nine-asset release inventory and same-run rerun recovery, four-stage permission isolation, final publish ETag CAS, lifecycle token scrubbing, durable dispatch ledger v2, Linux cgroup v2 descriptors and attach-before-authorization, outcome handoff, unsupported process-group fallback, cleanup-pending retry, and cancellation race recovery.
+
+Current-byte verification:
+
+```text
+focused release artifact contract: 9/9 passed
+focused release workflow contracts: 8/8 passed
+focused containment/supervisor/stop suites: 69 passed, 1 real delegated-cgroup test skipped by host capability
+complete integrity: 39/39 passed
+complete core: 553/553 passed, 1 delegated-cgroup test skipped by host capability
+real package contracts: 2/2 passed
+package closure: approved, 175 manifests
+publication scanner: clean (COCO_SCANNER_TMPDIR=/root/coco-tmp; /tmp was full)
+runtime integrity probe: approved, 20,677 entries
+Node 22.19 startup benchmark: passed
+real offline tar byte equality/install/version/uninstall: passed
+real detached runner/control lifecycle: passed
+typechecks and git diff --check: passed
+```
+
+The host has no writable delegated cgroup v2, so the real detached setsid/double-fork descendant proof remains skipped and must run on a capable Linux runner. A disposable GitHub draft/tag end-to-end dry run also remains outstanding. RUN-003B pending-dispatch consumption is not implemented and was not claimed by this batch. No commit, push, tag, GitHub Release, or npm publish was performed.
+
+## 2026-08-18: RUN-003B Durable Dispatch Consumer
+
+RUN-003B is implemented in uncommitted candidate bytes. The runner consumes pending webhook intents only after durable task claim and production supervisor preparation, binds claim/ack to runner owner and generation, retries state-lock contention, and preserves intents across crash windows. Control runs a service-lifetime recovery loop driven by pending dispatch, launch-pending, pending run event, and terminal evidence anchors. Legacy v1 queued deliveries synthesize only the latest pending intent per task. Queued webhook cancellation and attempt-limit disposition update task and ledger in one transaction.
+
+Current-byte evidence: focused RUN-003/control/runner integration 92/92 passed; complete integrity 39/39; complete core 559 passed, zero failed, one delegated-cgroup capability skip; package 2/2; closure 175 approved; scanner clean; runtime probe 20,677 approved; feature typecheck and diff check passed. RUN-003 is complete. No commit, push, tag, release, or npm publish was performed.
+
+## 2026-08-18: RUN-004 Invalid Task Isolation
+
+RUN-004 is implemented in uncommitted candidate bytes. Permanent cwd and repository errors, worktree conflicts, and unknown task-local provisioning failures affect only their task. Provisioning resume revalidates cwd and repository identity. Git lock and generic transient failures use one-second per-task backoff with a five-attempt observable exhaustion state, while RUNNER_STOPPING and STATE_LOCKED preserve durable provisioning for the next runner. Missing, non-Git, file, symlink, conflict, retry recovery, exhaustion, unknown-failure, and control-signal fault injections pass. No remote or release action was performed.
+
+## 2026-08-18: RUN-005 Invalid UTF-8 Recovery
+
+RUN-005 is implemented in uncommitted candidate bytes. Supervisor output materialization deterministically replaces invalid UTF-8, preserves valid split sequences, records durable `encodingLoss` independently from `logsTruncated`, and truncates final JSONL at the encoded evidence budget so replacement expansion cannot permanently block terminal recovery. Legacy task and terminal-evidence records default the new optional field to false; new records are strict. Focused log, receipt, runner recovery, CLI, and Control DTO tests pass 65/65, including raw-cap replacement expansion. No remote or release action was performed.
+
+## 2026-08-18: Final Local 0.6.2 P0 Gate
+
+All locally executable P0 implementation is frozen in the uncommitted candidate worktree. Final current-byte evidence:
+
+```text
+build and both typecheck suites: passed
+complete integrity: 39/39 passed
+complete core: 573/573 passed, 1 real delegated-cgroup test skipped by host capability
+real package contracts: 2/2 passed
+package closure: 175 manifests approved
+publication scanner: clean
+runtime integrity probe: 20,677 entries approved
+Node 22.19.0 six-command startup benchmark: passed
+real offline npm tar byte equality/install/version/uninstall: passed
+detached runner/control parent-exit lifecycle: passed
+git diff --check: passed
+```
+
+The remaining release blockers require external capabilities unavailable on this host: a disposable GitHub draft/tag end-to-end dry run and a writable delegated cgroup v2 runner for the real detached setsid/double-fork containment proof. No commit, push, tag, GitHub Release, npm publish, or remote state mutation was performed.
+
+## 2026-08-18: Real Delegated Cgroup Proof
+
+The current session's delegated cgroup v2 subtree is writable. The previously skipped real test had four test-infrastructure defects: cgroup cleanup used `rm` instead of `rmdir`, the fixed probe directory could remain after a failed probe, SIGUSR1 could arrive before handler readiness, and the nested double-fork script had unsafe manual quoting. After fixing those test-only defects and waiting for kill/reap propagation, the real detached setsid/double-fork test executes and passes `1/1`. CON-002 is complete. The only remaining external proof is the disposable GitHub four-stage release dry run, which requires explicit authorization for remote refs and Release mutation.
+
+## 2026-08-18: Disposable Private-Draft Release Proof
+
+The user explicitly authorized one isolated remote dry run and cleanup. Temporary version/tag `v0.6.21818`, branch `dry-run/release-v0.6.21818`, and private draft Releases were used; no temporary release was published. Actions runs `32150414330`, `32154928592`, and `32158549630` successively proved the read-only build and exact nine-asset upload while exposing three real workflow/platform issues: minimal-write jobs cannot use `gh release upload` without a checkout, GitHub read-scoped tokens cannot read private drafts, and Release PATCH rejects `If-Match` conditional writes. The workflow now uploads assets directly through `upload_url`, snapshots the private draft into a one-day immutable Actions artifact while write credentials are present, and executes repository/lifecycle validation in a separate read-only job with no GitHub token.
+
+GitHub's Release PATCH endpoint returned `400 Conditional request headers are not allowed in unsafe requests unless supported by the endpoint`. The final design therefore does not claim endpoint CAS. It uses tag-scoped workflow serialization, immediate pre-write owner/tag/commit/receipt/exact-inventory revalidation, a complete binding PATCH payload, PATCH-response binding validation, and post-write exact-inventory revalidation.
+
+Run `32164115317` completed the immutable read-only build before its queued write stage was cancelled to avoid extended GitHub-hosted queue time. The same run's immutable build artifact was used for the authorized manual-equivalent remaining stages. Private draft `372551710` passed exact nine-asset API upload/download byte verification, no-token online install/version/uninstall, no-token offline install/version/uninstall, VSIX extraction/version/entry checks, approved receipt generation, complete binding PATCH, and post-write exact inventory validation. The private draft, temporary tag, and temporary remote branch were then deleted; `v0.6.1` remained the unchanged latest public release.
+
+`/tmp` was also repaired operationally. The 6 GiB tmpfs was full from interrupted CoCo scanner/tar/package/runtime fixtures. Only unreferenced CoCo-named test artifacts were removed, releasing approximately 4 GiB (`100% -> 34%` used). `/tmp/opencode`, browser, systemd, and unknown paths were preserved. `/root/coco-tmp/tmp` was created with mode `0700`; subsequent CoCo test commands should use it through `TMPDIR` and `COCO_SCANNER_TMPDIR` rather than increasing the memory-backed tmpfs.
+
+## 2026-08-18: Final 0.6.2 Candidate Gates
+
+The candidate version surface is now `0.6.2` in the uncommitted worktree. Generated product identity, documentation completeness, package asset map, and runtime integrity manifest were regenerated. Current-byte evidence:
+
+```text
+focused version/release/documentation gates: 31/31 passed
+complete integrity: 39/39 passed
+complete core: 574/574 passed
+real delegated cgroup detached setsid/double-fork: 1/1 passed
+real package contracts: 2/2 passed
+package closure: 175 approved
+publication scanner: clean
+runtime integrity probe: 20,677 approved
+Node 22.19.0 startup matrix: passed
+real 0.6.2 offline tar byte equality/install/version/uninstall: passed
+```
+
+The authorized isolated GitHub exercise created and then removed temporary tag `v0.6.21818`, branch `dry-run/release-v0.6.21818`, and private drafts. It proved exact upload, private snapshot verification, no-token online/offline/VSIX lifecycle, receipt generation, and post-write inventory. GitHub Release PATCH rejected `If-Match`; automatic workflow was therefore changed to stop at a fully verified private draft rather than risk an unconditionally public partial release. Existing public `v0.6.1` remains unchanged. No commit, push, formal tag, public Release, or npm publish was performed for 0.6.2.

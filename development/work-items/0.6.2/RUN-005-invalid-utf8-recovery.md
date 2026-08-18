@@ -1,13 +1,13 @@
 # RUN-005: Invalid UTF-8 Terminal Recovery
 
 ```text
-Status: pending
+Status: completed
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
 Depends on: RUN-001 shared terminal recovery schema
 Blocks: none
-Last updated: 2026-08-16
+Last updated: 2026-08-18
 ```
 
 ## Problem
@@ -64,4 +64,4 @@ Schema addition must be optional for legacy records and strict for new evidence.
 
 ## Evidence
 
-Not implemented.
+Implemented in uncommitted candidate bytes. Supervisor raw output is decoded with deterministic U+FFFD replacement, valid split UTF-8 remains intact, and final JSONL materialization truncates at its encoded evidence budget rather than failing recovery. `encodingLoss` is persisted independently from `logsTruncated`, legacy records default it to false, DTOs expose it, and durable outcome/terminal evidence recovery does not re-execute the task. Focused log/receipt/runner/DTO tests pass 65/65, including replacement expansion at the raw output cap.

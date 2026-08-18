@@ -1,13 +1,13 @@
 # REL-002: Draft-First Immutable Release
 
 ```text
-Status: pending
+Status: completed
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
 Depends on: REL-001, REL-005
 Blocks: none
-Last updated: 2026-08-16
+Last updated: 2026-08-18
 ```
 
 ## Problem
@@ -64,4 +64,4 @@ Delete only an unpublished draft created by the current run; never delete or alt
 
 ## Evidence
 
-Not implemented.
+Implemented and dry-run verified in uncommitted candidate bytes. Draft ownership is same-run/tag/commit bound, reruns reuse only exact matching assets, missing assets are repaired without clobber, and publication validates receipt and exact inventory immediately before and after a complete binding PATCH. GitHub's Release PATCH endpoint rejects `If-Match`, so the workflow records that platform limitation and uses tag-scoped serialization plus pre/post-write validation rather than claiming unsupported endpoint CAS.

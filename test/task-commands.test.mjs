@@ -42,7 +42,7 @@ test("CLI task DTOs expose only allowlisted fields", async () => {
   try {
     await taskCommand(["show", setup.first.id], root);
     const task = JSON.parse(stdout);
-    assert.deepEqual(Object.keys(task).sort(), ["activeRunId", "attempts", "branch", "createdAt", "finishedAt", "github", "heartbeatAt", "id", "logsTruncated", "schedule", "startedAt", "status", "trigger", "updatedAt", "worktree"].sort());
+    assert.deepEqual(Object.keys(task).sort(), ["activeRunId", "attempts", "branch", "createdAt", "encodingLoss", "finishedAt", "github", "heartbeatAt", "id", "logsTruncated", "schedule", "startedAt", "status", "trigger", "updatedAt", "worktree"].sort());
     for (const field of ["cwd", "lastError", "ownerId", "pid", "processIdentity", "prompt", "result", "terminalEvidence"]) assert.equal(field in task, false);
     stdout = ""; await taskCommand(["active"], root);
     const active = JSON.parse(stdout); assert.deepEqual(active.runner, { status: "stopped" });

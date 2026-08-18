@@ -12,6 +12,7 @@ test("process-tree termination kills a TERM-ignoring agent and its descendants",
   assert.equal(await processAlive(child.pid), true);
   const result = await terminateProcessTree(child.pid, { graceMs: 100, identity });
   assert.equal(result.status, "terminated");
+  assert.equal(result.fullTermination, false); assert.equal(result.semantics, "process-group");
   assert.equal(await processAlive(child.pid), false);
 });
 

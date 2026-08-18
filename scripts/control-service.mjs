@@ -26,8 +26,8 @@ function fail(code) { throw new StateError(code); }
 function requireLoopback(host) { if (host !== "127.0.0.1" && host !== "::1") fail("CONTROL_LOOPBACK_REQUIRED"); }
 function controlUrl(host, port) { return `http://${host === "::1" ? `[${host}]` : host}:${port}`; }
 function taskDto(task) {
-  const { activeRunId, attempts, branch, createdAt, finishedAt, github, heartbeatAt, id, logsTruncated, schedule, startedAt, status, trigger, updatedAt, worktree } = task;
-  return { activeRunId, attempts, branch, createdAt, finishedAt, github, heartbeatAt, id, logsTruncated, schedule, startedAt, status, trigger, updatedAt, worktree };
+  const { activeRunId, attempts, branch, createdAt, encodingLoss, finishedAt, github, heartbeatAt, id, logsTruncated, schedule, startedAt, status, trigger, updatedAt, worktree } = task;
+  return { activeRunId, attempts, branch, createdAt, encodingLoss, finishedAt, github, heartbeatAt, id, logsTruncated, schedule, startedAt, status, trigger, updatedAt, worktree };
 }
 function taskDetailDto(task) { return { ...taskDto(task), cwd: task.cwd, lastError: task.lastError, prompt: task.prompt, result: task.result }; }
 function agentDto(task, alive, observedAt) {
@@ -101,6 +101,23 @@ export async function startDetachedControl({ agentDir, host = "127.0.0.1", port 
   for (let attempt = 0; attempt < 100; attempt += 1) { await new Promise((done) => setTimeout(done, 20)); const next = await controlStatus(agentDir); if (next.status === "running") return next; }
   fail("CONTROL_START_FAILED");
 }
+async function recoverPendingDispatches({ agentDir, root, signal }) {
+  while (!signal?.aborted) {
+    try {
+      const pending = await createWebhookDeliveryStore({ agentDir }).listPending();
+      const tasks = await createTaskStore({ agentDir }).load();
+      const cancelled = new Set(pending.filter(({ taskId }) => tasks.tasks.some((task) => task.id === taskId && task.status === "cancelled" && task.activeRunId === null)).map(({ taskId }) => taskId));
+      for (const taskId of cancelled) await createWebhookDeliveryStore({ agentDir }).disposeCancelled({ taskId });
+      const capped = new Set(pending.filter(({ taskId }) => tasks.tasks.some((task) => task.id === taskId && ["queued", "provisioning"].includes(task.status) && task.attempts >= 1000 && task.activeRunId === null)).map(({ taskId }) => taskId));
+      for (const taskId of capped) await createWebhookDeliveryStore({ agentDir }).disposeAttemptLimited({ taskId });
+      const pendingTasks = new Set(pending.map(({ taskId }) => taskId));
+      const needsRunner = tasks.tasks.some((task) => task.terminalEvidence !== null || task.pendingRunEvent !== null || task.launchPending || (pendingTasks.has(task.id) && ["queued", "provisioning", "running"].includes(task.status)));
+      if (needsRunner) await startDetachedRunner({ agentDir, root });
+    }
+    catch {}
+    await new Promise((done) => setTimeout(done, 500));
+  }
+}
 export async function stopControl(agentDir) {
   const current = await state(agentDir); if (!current) return { status: "stopped" };
   if (!current.processIdentity) return { status: "identity-unavailable" };
@@ -136,13 +153,14 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
          const deliveryId = task.github ? request.headers["x-github-delivery"] : request.headers["idempotency-key"];
          const kind = task.github ? "github" : "generic";
          if (typeof deliveryId !== "string" || !/^[A-Za-z0-9._:-]{1,200}$/.test(deliveryId)) return json(response, 400, { error: task.github ? "WEBHOOK_DELIVERY_INVALID" : "IDEMPOTENCY_KEY_REQUIRED" });
-          const delivery = await deliveries.accept({ deliveryId, kind, taskId: task.id });
-          if (!delivery.accepted) return json(response, 202, { accepted: false, reason: delivery.duplicate ? "duplicate" : delivery.reason, taskId: task.id });
-         await startDetachedRunner({ agentDir, root }); return json(response, 202, { accepted: true, taskId: task.id });
-      }
+           const delivery = await deliveries.accept({ deliveryId, kind, taskId: task.id });
+            if (!delivery.accepted) return json(response, 202, { accepted: false, dispatch: delivery.intent ?? null, reason: delivery.duplicate ? "duplicate" : delivery.reason, taskId: task.id });
+           try { await startDetachedRunner({ agentDir, root }); } catch {} return json(response, 202, { accepted: true, dispatch: delivery.intent, taskId: task.id });
+       }
       if (!authorized(request, token)) return json(response, 401, { error: "UNAUTHORIZED" });
       if (request.method === "GET" && url.pathname === "/v1/health") return json(response, 200, { schemaVersion: 1, status: "ok" });
-      if (request.method === "GET" && url.pathname === "/v1/tasks") return json(response, 200, { tasks: (await store.load()).tasks.map(taskDto) });
+       if (request.method === "GET" && url.pathname === "/v1/tasks") return json(response, 200, { tasks: (await store.load()).tasks.map(taskDto) });
+       if (request.method === "GET" && url.pathname === "/v1/dispatch-pending") return json(response, 200, { dispatchPending: await deliveries.listPending() });
       const detail = /^\/v1\/tasks\/([a-z0-9_-]{12})$/.exec(url.pathname);
       if (request.method === "GET" && detail) { const task = (await store.load()).tasks.find(({ id }) => id === detail[1]); return task ? json(response, 200, { task: taskDetailDto(task) }) : json(response, 404, { error: "NOT_FOUND" }); }
       const diagnosis = /^\/v1\/tasks\/([a-z0-9_-]{12})\/diagnosis$/.exec(url.pathname);
@@ -222,9 +240,11 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
     if (server.listening) await new Promise((done) => server.close(done));
     throw error;
   } finally { await ownership.release(); }
-  const close = () => { server.close(); server.closeIdleConnections?.(); server.closeAllConnections?.(); }; process.once("SIGINT", close); process.once("SIGTERM", close); signal?.addEventListener("abort", close, { once: true });
+  const recovery = new AbortController();
+  const recoveryLoop = recoverPendingDispatches({ agentDir, root, signal: recovery.signal });
+  const close = () => { recovery.abort(); server.close(); server.closeIdleConnections?.(); server.closeAllConnections?.(); }; process.once("SIGINT", close); process.once("SIGTERM", close); signal?.addEventListener("abort", close, { once: true });
   const closed = new Promise((done) => server.once("close", done)); if (signal?.aborted) close();
-  await closed;
+  await closed; recovery.abort(); await recoveryLoop;
   process.removeListener("SIGINT", close); process.removeListener("SIGTERM", close); signal?.removeEventListener("abort", close);
   const current = await state(agentDir); if (current?.ownerId === ownership.ownerId) await rm(statePaths(agentDir).control, { force: true });
 }

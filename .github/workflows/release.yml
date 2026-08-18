@@ -7,15 +7,23 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
-  release:
+  build-readonly:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      artifact-name: ${{ steps.artifact.outputs.name }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: 22.19.0
@@ -56,27 +64,289 @@ jobs:
       - working-directory: release
         run: sha256sum install.sh uninstall.sh coco-*.tgz coco-*.tgz.sha256 coco-*-offline-*.zip coco-*-offline-*.zip.sha256 coco-agent-*.vsix coco-agent-*.vsix.sha256 > SHA256SUMS
       - run: node scripts/publication-secret-scanner.mjs release
-      - run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - run: gh release upload "$GITHUB_REF_NAME" --clobber release/install.sh release/uninstall.sh release/coco-*.tgz release/coco-*.tgz.sha256 release/coco-*-offline-*.zip release/coco-*-offline-*.zip.sha256 release/coco-agent-*.vsix release/coco-agent-*.vsix.sha256 release/SHA256SUMS
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - name: Verify released assets and package lifecycle
+      - name: Generate and verify immutable release manifest
         run: |
-          release_dir="$(mktemp -d)"
-           sandbox="$(mktemp -d)"
           version="$(node -p "require('./package.json').version")"
-          base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/$GITHUB_REF_NAME"
-           trap 'rm -rf "$release_dir" "$sandbox"' EXIT
-          for asset in install.sh uninstall.sh "coco-$version.tgz" "coco-$version.tgz.sha256" "coco-$version-offline-linux-x64.zip" "coco-$version-offline-linux-x64.zip.sha256" "coco-agent-$version.vsix" "coco-agent-$version.vsix.sha256" SHA256SUMS; do
-            curl -fsSL --retry 5 --retry-delay 2 "$base_url/$asset" -o "$release_dir/$asset"
+          node scripts/release-artifact-contract.mjs generate --directory release --output release-manifest.json --version "$version" --tag "$GITHUB_REF_NAME" --source-commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+          node scripts/release-artifact-contract.mjs verify-local --directory release --manifest release-manifest.json --version "$version" --tag "$GITHUB_REF_NAME" --source-commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+      - id: artifact
+        run: printf 'name=release-%s-%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: |
+            release/
+            release-manifest.json
+          if-no-files-found: error
+          retention-days: 1
+
+  draft-upload-minimal-write:
+    needs: build-readonly
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: write
+    outputs:
+      draft-id: ${{ steps.draft.outputs.draft-id }}
+      remote-artifact-name: ${{ steps.remote-artifact.outputs.name }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ needs.build-readonly.outputs.artifact-name }}
+          path: staged
+      - name: Verify build artifact and create or CAS-take over this run's private draft
+        id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          artifact_attempt="$(jq -er '.assets[0].attempt' staged/release-manifest.json)"
+          test "$artifact_attempt" -le "$GITHUB_RUN_ATTEMPT"
+          jq -e --arg attempt "$artifact_attempt" 'all(.assets[]; .attempt==$attempt)' staged/release-manifest.json >/dev/null
+          jq -cS --arg attempt "$GITHUB_RUN_ATTEMPT" '.assets |= map(.attempt=$attempt)' staged/release-manifest.json > "$RUNNER_TEMP/current-manifest.json"
+          mv "$RUNNER_TEMP/current-manifest.json" staged/release-manifest.json
+          jq -e --arg attempt "$GITHUB_RUN_ATTEMPT" --arg run "$GITHUB_RUN_ID" --arg commit "$GITHUB_SHA" --arg tag "$GITHUB_REF_NAME" --arg version "$version" '.schemaVersion==1 and (.assets|length)==9 and ([.assets[].name]|unique|length)==9 and all(.assets[]; .attempt==$attempt and .runId==$run and .sourceCommit==$commit and .tag==$tag and .version==$version)' staged/release-manifest.json >/dev/null
+          printf '%s\n' install.sh uninstall.sh "coco-$version.tgz" "coco-$version.tgz.sha256" "coco-$version-offline-linux-x64.zip" "coco-$version-offline-linux-x64.zip.sha256" "coco-agent-$version.vsix" "coco-agent-$version.vsix.sha256" SHA256SUMS | sort > "$RUNNER_TEMP/expected-assets"
+          jq -r '.assets[].name' staged/release-manifest.json | sort > "$RUNNER_TEMP/manifest-assets"
+          find staged/release -maxdepth 1 -type f -printf '%f\n' | sort > "$RUNNER_TEMP/actual-assets"
+          cmp -s "$RUNNER_TEMP/expected-assets" "$RUNNER_TEMP/manifest-assets"
+          cmp -s "$RUNNER_TEMP/expected-assets" "$RUNNER_TEMP/actual-assets"
+          jq -r '.assets[] | [.sha256, .name] | @tsv' staged/release-manifest.json | while IFS=$'\t' read -r expected_sha name; do
+            test "$(stat -c '%s' "staged/release/$name")" = "$(jq -r --arg name "$name" '.assets[] | select(.name==$name) | .size' staged/release-manifest.json)"
+            test "$(sha256sum "staged/release/$name" | cut -d' ' -f1)" = "$expected_sha"
           done
-          (cd "$release_dir" && sha256sum --check SHA256SUMS)
-           export HOME="$sandbox/home" COCO_INSTALL_DIR="$sandbox/install" COCO_AGENT_DIR="$sandbox/agent" COCO_CODING_AGENT_DIR="$sandbox/agent" COCO_BIN_DIR="$sandbox/bin" COCO_VERSION="$version"
-           mkdir -p "$HOME" "$COCO_BIN_DIR"
-           bash "$release_dir/install.sh"
-           test "$("$COCO_BIN_DIR/coco" --version)" = "$version"
-           bash "$release_dir/uninstall.sh"
-           test ! -e "$COCO_BIN_DIR/coco"
-           test ! -e "$COCO_INSTALL_DIR"
+          release_json="$RUNNER_TEMP/release.json"
+          release_headers="$RUNNER_TEMP/release.headers"
+          status="$(curl -sS -D "$release_headers" -o "$release_json" -w '%{http_code}' -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME")"
+          owner="<!-- coco-release-owner run=$GITHUB_RUN_ID attempt=$GITHUB_RUN_ATTEMPT commit=$GITHUB_SHA -->"
+          if [ "$status" = 404 ]; then
+            draft_id="$(gh api --method POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="$GITHUB_REF_NAME" -f target_commitish="$GITHUB_SHA" -f name="$GITHUB_REF_NAME" -f body="$owner" -F draft=true -F prerelease=false --jq '.id')"
+          else
+            test "$status" = 200
+            jq -e --arg tag "$GITHUB_REF_NAME" '.tag_name==$tag and .draft==true' "$release_json" >/dev/null || { printf '%s\n' 'Existing release is published or has the wrong tag.' >&2; exit 1; }
+            ownership="$(jq -er '.body | capture("^<!-- coco-release-owner run=(?<run>[1-9][0-9]*) attempt=(?<attempt>[1-9][0-9]*) commit=(?<commit>[a-f0-9]{40}) -->$")' "$release_json")"
+            test "$(jq -r '.run' <<< "$ownership")" = "$GITHUB_RUN_ID"
+            test "$(jq -r '.commit' <<< "$ownership")" = "$GITHUB_SHA"
+            previous_attempt="$(jq -r '.attempt' <<< "$ownership")"
+            test "$previous_attempt" -le "$GITHUB_RUN_ATTEMPT"
+            draft_id="$(jq -r '.id' "$release_json")"
+            if [ "$previous_attempt" != "$GITHUB_RUN_ATTEMPT" ]; then
+              gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$draft_id" -f body="$owner" >/dev/null
+            fi
+          fi
+          test -n "$draft_id"
+          gh api "repos/$GITHUB_REPOSITORY/releases/$draft_id" | jq -er --arg owner "$owner" --arg tag "$GITHUB_REF_NAME" 'select(.draft==true and .tag_name==$tag and .body==$owner) | .id' | grep -qx "$draft_id"
+          printf 'draft-id=%s\n' "$draft_id" >> "$GITHUB_OUTPUT"
+      - name: Reuse exact assets and upload only missing assets without replacement
+        run: |
+          set -euo pipefail
+          draft_id="${{ steps.draft.outputs.draft-id }}"
+          gh api "repos/$GITHUB_REPOSITORY/releases/$draft_id" > "$RUNNER_TEMP/current-release.json"
+          : > "$RUNNER_TEMP/existing-assets"
+          jq -r '.assets[] | [.id, .name, .state, .size, .digest] | @tsv' "$RUNNER_TEMP/current-release.json" | while IFS=$'\t' read -r asset_id name state size digest; do
+            if [ "$state" != uploaded ]; then
+              gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id"
+              continue
+            fi
+            expected="$(jq -cer --arg name "$name" '.assets[] | select(.name==$name)' staged/release-manifest.json)"
+            test "$size" = "$(jq -r '.size' <<< "$expected")"
+            test "$digest" = "sha256:$(jq -r '.sha256' <<< "$expected")"
+            printf '%s\n' "$name" >> "$RUNNER_TEMP/existing-assets"
+          done
+          sort -u "$RUNNER_TEMP/existing-assets" -o "$RUNNER_TEMP/existing-assets"
+          upload_url="$(jq -er '.upload_url | sub("\\{.*$"; "")' "$RUNNER_TEMP/current-release.json")"
+          jq -r '.assets[].name' staged/release-manifest.json | while IFS= read -r name; do
+            if ! grep -Fxq "$name" "$RUNNER_TEMP/existing-assets"; then
+              encoded="$(jq -nr --arg value "$name" '$value|@uri')"
+              status="$(curl -sS -o "$RUNNER_TEMP/uploaded-asset.json" -w '%{http_code}' -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" -H "Content-Type: application/octet-stream" --data-binary @"staged/release/$name" "$upload_url?name=$encoded")"
+              test "$status" = 201
+            fi
+          done
+          gh api "repos/$GITHUB_REPOSITORY/releases/$draft_id" > "$RUNNER_TEMP/uploaded-release.json"
+          jq -e --slurpfile manifest staged/release-manifest.json '(.assets|length)==9 and ([.assets[]|{name,size,digest}]|sort_by(.name)) == ([$manifest[0].assets[]|{name,size,digest:("sha256:"+.sha256)}]|sort_by(.name))' "$RUNNER_TEMP/uploaded-release.json" >/dev/null
+          snapshot="$RUNNER_TEMP/private-draft-snapshot"
+          mkdir -p "$snapshot/assets"
+          cp "$RUNNER_TEMP/uploaded-release.json" "$snapshot/release.json"
+          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_REF_NAME" > "$snapshot/commit.json"
+          jq -r '.assets[] | [.id, .name] | @tsv' "$RUNNER_TEMP/uploaded-release.json" | while IFS=$'\t' read -r asset_id name; do
+            gh api -H 'Accept: application/octet-stream' "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" > "$snapshot/assets/$name"
+            test "$(sha256sum "$snapshot/assets/$name" | cut -d' ' -f1)" = "$(jq -r --arg name "$name" '.assets[] | select(.name==$name) | .sha256' staged/release-manifest.json)"
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - id: remote-artifact
+        run: printf 'name=private-draft-%s-%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: ${{ steps.remote-artifact.outputs.name }}
+          path: ${{ runner.temp }}/private-draft-snapshot
+          if-no-files-found: error
+          retention-days: 1
+
+  draft-verify-readonly:
+    needs: [build-readonly, draft-upload-minimal-write]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      receipt-artifact-name: ${{ steps.receipt-artifact.outputs.name }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 22.19.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ needs.build-readonly.outputs.artifact-name }}
+          path: staged
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ needs.draft-upload-minimal-write.outputs.remote-artifact-name }}
+          path: private-draft
+      - name: Download and verify the private draft through the API
+        env:
+          DRAFT_ID: ${{ needs.draft-upload-minimal-write.outputs.draft-id }}
+        run: |
+          set -euo pipefail
+          verify_root="$(mktemp -d)"
+          chmod 700 "$verify_root"
+          trap 'rm -rf "$verify_root"' EXIT
+          remote="$PWD/private-draft/assets"
+          release_json="$PWD/private-draft/release.json"
+          commit_json="$PWD/private-draft/commit.json"
+          chmod 600 "$release_json" "$commit_json"
+          version="${GITHUB_REF_NAME#v}"
+          artifact_attempt="$(jq -er '.assets[0].attempt' staged/release-manifest.json)"
+          test "$artifact_attempt" -le "$GITHUB_RUN_ATTEMPT"
+          jq -e --arg attempt "$artifact_attempt" 'all(.assets[]; .attempt==$attempt)' staged/release-manifest.json >/dev/null
+          jq -cS --arg attempt "$GITHUB_RUN_ATTEMPT" '.assets |= map(.attempt=$attempt)' staged/release-manifest.json > "$verify_root/current-manifest.json"
+          mv "$verify_root/current-manifest.json" staged/release-manifest.json
+          node scripts/release-artifact-contract.mjs verify-local --directory staged/release --manifest staged/release-manifest.json --version "$version" --tag "$GITHUB_REF_NAME" --source-commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+          node scripts/release-artifact-contract.mjs verify-remote --manifest staged/release-manifest.json --release-json "$release_json" --commit-json "$commit_json" --version "$version" --tag "$GITHUB_REF_NAME" --source-commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" --draft-id "$DRAFT_ID"
+          node scripts/release-artifact-contract.mjs verify-local --directory "$remote" --manifest staged/release-manifest.json --version "$version" --tag "$GITHUB_REF_NAME" --source-commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+          (cd "$remote" && sha256sum --check SHA256SUMS)
+
+          online="$verify_root/online"
+          mkdir -p "$online/home" "$online/bin" "$online/download-bin"
+          real_curl="$(command -v curl)"
+          cat > "$online/download-bin/curl" <<'CURL'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          output=""; url=""
+          for ((index=1; index <= $#; index++)); do
+            value="${!index}"
+            if [ "$value" = -o ]; then index=$((index + 1)); output="${!index}"; fi
+            case "$value" in http*) url="$value" ;; esac
+          done
+          clean="${url%%\?*}"
+          name="${clean##*/}"
+          if [ -f "$COCO_DRAFT_ASSETS/$name" ]; then cp "$COCO_DRAFT_ASSETS/$name" "$output"; else exec "$COCO_REAL_CURL" "$@"; fi
+          CURL
+          chmod 700 "$online/download-bin/curl"
+          env -u GH_TOKEN -u GITHUB_TOKEN HOME="$online/home" COCO_INSTALL_DIR="$online/install" COCO_AGENT_DIR="$online/agent" COCO_CODING_AGENT_DIR="$online/agent" COCO_BIN_DIR="$online/bin" COCO_VERSION="$version" COCO_DRAFT_ASSETS="$remote" COCO_REAL_CURL="$real_curl" PATH="$online/download-bin:$PATH" bash "$remote/install.sh"
+          test "$(HOME="$online/home" "$online/bin/coco" --version)" = "$version"
+          env -u GH_TOKEN -u GITHUB_TOKEN HOME="$online/home" COCO_INSTALL_DIR="$online/install" COCO_AGENT_DIR="$online/agent" COCO_CODING_AGENT_DIR="$online/agent" COCO_BIN_DIR="$online/bin" bash "$remote/uninstall.sh"
+          test ! -e "$online/install"
+
+          offline="$verify_root/offline"
+          mkdir -p "$offline/home" "$offline/bin" "$offline/bundle"
+          unzip -q "$remote/coco-$version-offline-linux-x64.zip" -d "$offline/bundle"
+          offline_installer="$(find "$offline/bundle" -name offline-install.sh -type f -print -quit)"
+          test -n "$offline_installer"
+          bundle_dir="$(dirname "$offline_installer")"
+          env -u GH_TOKEN -u GITHUB_TOKEN HOME="$offline/home" COCO_INSTALL_DIR="$offline/install" COCO_AGENT_DIR="$offline/agent" COCO_CODING_AGENT_DIR="$offline/agent" COCO_BIN_DIR="$offline/bin" bash "$offline_installer"
+          test "$(HOME="$offline/home" "$offline/bin/coco" --version)" = "$version"
+          env -u GH_TOKEN -u GITHUB_TOKEN HOME="$offline/home" COCO_INSTALL_DIR="$offline/install" COCO_AGENT_DIR="$offline/agent" COCO_CODING_AGENT_DIR="$offline/agent" COCO_BIN_DIR="$offline/bin" bash "$bundle_dir/uninstall.sh"
+          test ! -e "$offline/install"
+
+          vsix="$verify_root/vsix"
+          unzip -t "$remote/coco-agent-$version.vsix"
+          unzip -q "$remote/coco-agent-$version.vsix" -d "$vsix"
+          test "$(jq -r '.version' "$vsix/extension/package.json")" = "$version"
+          test -f "$vsix/extension/extension.js"
+          rm -rf "$vsix"
+          test ! -e "$vsix"
+          node scripts/release-artifact-contract.mjs receipt --manifest staged/release-manifest.json --output "$verify_root/verification-receipt.json" --version "$version" --tag "$GITHUB_REF_NAME" --source-commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" --draft-id "$DRAFT_ID"
+          install -m 600 "$verify_root/verification-receipt.json" verification-receipt.json
+      - id: receipt-artifact
+        run: printf 'name=release-verification-%s-%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: ${{ steps.receipt-artifact.outputs.name }}
+          path: verification-receipt.json
+          if-no-files-found: error
+          retention-days: 1
+
+  finalize-draft-minimal-write:
+    needs: [build-readonly, draft-upload-minimal-write, draft-verify-readonly]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      DRAFT_ID: ${{ needs.draft-upload-minimal-write.outputs.draft-id }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ needs.build-readonly.outputs.artifact-name }}
+          path: staged
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ needs.draft-verify-readonly.outputs.receipt-artifact-name }}
+          path: verified
+      - name: Revalidate ownership, receipt, commit, and exact remote inventory
+        id: final
+        run: |
+          set -euo pipefail
+          release_json="$(mktemp)"; release_headers="$(mktemp)"; commit_json="$(mktemp)"; canonical_receipt="$(mktemp)"
+          trap 'rm -f "$release_json" "$release_headers" "$commit_json" "$canonical_receipt"' EXIT
+          status="$(curl -sS -D "$release_headers" -o "$release_json" -w '%{http_code}' -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID")"
+          test "$status" = 200
+          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_REF_NAME" > "$commit_json"
+          owner="<!-- coco-release-owner run=$GITHUB_RUN_ID attempt=$GITHUB_RUN_ATTEMPT commit=$GITHUB_SHA -->"
+          jq -e --arg id "$DRAFT_ID" --arg tag "$GITHUB_REF_NAME" '(.id|tostring)==$id and .tag_name==$tag and .draft==true' "$release_json" >/dev/null
+          ownership="$(jq -er '.body | capture("^<!-- coco-release-owner run=(?<run>[1-9][0-9]*) attempt=(?<attempt>[1-9][0-9]*) commit=(?<commit>[a-f0-9]{40}) -->$")' "$release_json")"
+          test "$(jq -r '.run' <<< "$ownership")" = "$GITHUB_RUN_ID"
+          test "$(jq -r '.commit' <<< "$ownership")" = "$GITHUB_SHA"
+          previous_attempt="$(jq -r '.attempt' <<< "$ownership")"
+          test "$previous_attempt" -le "$GITHUB_RUN_ATTEMPT"
+          if [ "$previous_attempt" != "$GITHUB_RUN_ATTEMPT" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID" -f body="$owner" >/dev/null
+            gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID" > "$release_json"
+          fi
+          jq -e --arg id "$DRAFT_ID" --arg tag "$GITHUB_REF_NAME" --arg owner "$owner" '(.id|tostring)==$id and .tag_name==$tag and .draft==true and .body==$owner' "$release_json" >/dev/null
+          test "$(jq -r '.sha' "$commit_json")" = "$GITHUB_SHA"
+          jq -cS . verified/verification-receipt.json > "$canonical_receipt"
+          cmp -s verified/verification-receipt.json "$canonical_receipt"
+          receipt_attempt="$(jq -er '.attempt' verified/verification-receipt.json)"
+          test "$receipt_attempt" -le "$GITHUB_RUN_ATTEMPT"
+          jq -cS --arg attempt "$receipt_attempt" '.assets |= map(.attempt=$attempt)' staged/release-manifest.json > "$RUNNER_TEMP/receipt-manifest.json"
+          receipt_manifest_sha="$(sha256sum "$RUNNER_TEMP/receipt-manifest.json" | cut -d' ' -f1)"
+          jq -e --arg attempt "$receipt_attempt" --arg draft "$DRAFT_ID" --arg manifest "$receipt_manifest_sha" --arg run "$GITHUB_RUN_ID" --arg commit "$GITHUB_SHA" --arg tag "$GITHUB_REF_NAME" '.attempt==$attempt and .draftId==$draft and .manifestSha256==$manifest and .runId==$run and .sourceCommit==$commit and .tag==$tag and .status=="approved" and .checks=={"offline":"approved","online":"approved","vsix":"approved"}' verified/verification-receipt.json >/dev/null
+          jq -cS --arg attempt "$GITHUB_RUN_ATTEMPT" '.assets |= map(.attempt=$attempt)' staged/release-manifest.json > "$RUNNER_TEMP/current-manifest.json"
+          mv "$RUNNER_TEMP/current-manifest.json" staged/release-manifest.json
+          manifest_sha="$(sha256sum staged/release-manifest.json | cut -d' ' -f1)"
+          jq -cS --arg attempt "$GITHUB_RUN_ATTEMPT" --arg manifest "$manifest_sha" '.attempt=$attempt | .manifestSha256=$manifest' verified/verification-receipt.json > "$RUNNER_TEMP/current-receipt.json"
+          mv "$RUNNER_TEMP/current-receipt.json" verified/verification-receipt.json
+          jq -e --arg attempt "$GITHUB_RUN_ATTEMPT" --arg draft "$DRAFT_ID" --arg manifest "$manifest_sha" --arg run "$GITHUB_RUN_ID" --arg commit "$GITHUB_SHA" --arg tag "$GITHUB_REF_NAME" 'keys==["assets","attempt","checks","draftId","manifestSha256","runId","schemaVersion","sourceCommit","status","tag","version"] and .schemaVersion==1 and .status=="approved" and .assets==9 and .attempt==$attempt and .draftId==$draft and .manifestSha256==$manifest and .runId==$run and .sourceCommit==$commit and .tag==$tag and .checks=={"offline":"approved","online":"approved","vsix":"approved"}' verified/verification-receipt.json >/dev/null
+          jq -e --slurpfile manifest staged/release-manifest.json '(.assets|length)==9 and ([.assets[]|{name,size,digest}]|sort_by(.name)) == ([$manifest[0].assets[]|{name,size,digest:("sha256:"+.sha256)}]|sort_by(.name))' "$release_json" >/dev/null
+          status="$(curl -sS -D "$release_headers" -o "$release_json" -w '%{http_code}' -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID")"
+          test "$status" = 200
+          jq -e --arg owner "$owner" --arg tag "$GITHUB_REF_NAME" --slurpfile manifest staged/release-manifest.json '.draft==true and .tag_name==$tag and .body==$owner and (.assets|length)==9 and ([.assets[]|{name,size,digest}]|sort_by(.name)) == ([$manifest[0].assets[]|{name,size,digest:("sha256:"+.sha256)}]|sort_by(.name))' "$release_json" >/dev/null
+      - name: Finalize the verified private draft
+        run: |
+          owner="<!-- coco-release-owner run=$GITHUB_RUN_ID attempt=$GITHUB_RUN_ATTEMPT commit=$GITHUB_SHA -->"
+          payload="$(jq -nc --arg tag "$GITHUB_REF_NAME" --arg commit "$GITHUB_SHA" --arg name "$GITHUB_REF_NAME" --arg body "$owner" '{draft:true,prerelease:false,make_latest:"false",tag_name:$tag,target_commitish:$commit,name:$name,body:$body}')"
+          status="$(curl -sS -o "$RUNNER_TEMP/published.json" -w '%{http_code}' -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" -H 'Content-Type: application/json' --request PATCH --data "$payload" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID")"
+          test "$status" = 200
+          jq -e --arg tag "$GITHUB_REF_NAME" --arg commit "$GITHUB_SHA" --arg owner "$owner" '.draft==true and .prerelease==false and .tag_name==$tag and .target_commitish==$commit and .body==$owner' "$RUNNER_TEMP/published.json" >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID" > "$RUNNER_TEMP/final-release.json"
+          jq -e --slurpfile manifest staged/release-manifest.json '.draft==true and .prerelease==false and (.assets|length)==9 and ([.assets[]|{name,size,digest}]|sort_by(.name)) == ([$manifest[0].assets[]|{name,size,digest:("sha256:"+.sha256)}]|sort_by(.name))' "$RUNNER_TEMP/final-release.json" >/dev/null

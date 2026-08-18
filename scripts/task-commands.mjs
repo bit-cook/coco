@@ -8,8 +8,8 @@ import { processMatches } from "./task-process.mjs";
 
 function fail(code) { const error = new Error(code); error.code = code; throw error; }
 function visibleTask(task) {
-  const { activeRunId, attempts, branch, createdAt, finishedAt, github, heartbeatAt, id, logsTruncated, schedule, startedAt, status, trigger, updatedAt, worktree } = task;
-  return { activeRunId, attempts, branch, createdAt, finishedAt, github, heartbeatAt, id, logsTruncated, schedule, startedAt, status, trigger, updatedAt, worktree };
+  const { activeRunId, attempts, branch, createdAt, encodingLoss, finishedAt, github, heartbeatAt, id, logsTruncated, schedule, startedAt, status, trigger, updatedAt, worktree } = task;
+  return { activeRunId, attempts, branch, createdAt, encodingLoss, finishedAt, github, heartbeatAt, id, logsTruncated, schedule, startedAt, status, trigger, updatedAt, worktree };
 }
 function visibleRunner(runner) {
   const { status, stopped } = runner;

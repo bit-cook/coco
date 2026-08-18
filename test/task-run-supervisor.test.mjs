@@ -142,8 +142,11 @@ test("authorized supervisor executes the real offline entry and persists outcome
     assert.ok(state.registration);
     if (process.platform === "linux") assert.doesNotMatch(await readFile(`/proc/${child.pid}/cmdline`, "utf8"), /--version/);
     await store.authorize({ generation: prepared.generation, ownerId: prepared.ownerId, taskId, runId, specSha256: prepared.specSha256 });
+    for (let attempt = 0; attempt < 3000; attempt += 1) { state = await store.inspect({ taskId, runId }); if (state.outcome) break; await new Promise((done) => setTimeout(done, 10)); }
+    assert.ok(state.outcome, await readFile(prepared.paths.stderr, "utf8")); assert.ok([0, 1, 2].includes(state.outcome.exitCode));
+    const terminated = await store.terminateContainment({ generation: prepared.generation, ownerId: prepared.ownerId, taskId, runId });
+    if (terminated.status !== "terminated" || terminated.containment?.status !== "cleaned") await terminateProcessTree(child.pid, { graceMs: 50, identity: state.registration.processIdentity });
     await closed;
-    state = await store.inspect({ taskId, runId }); assert.ok(state.outcome, await readFile(prepared.paths.stderr, "utf8")); assert.ok([0, 1, 2].includes(state.outcome.exitCode));
     assert.ok((await readFile(prepared.paths.stdout)).length <= 4_000_000); assert.ok((await readFile(prepared.paths.stderr)).length <= 1_000_000);
   } finally {
     if (child?.pid) { const identity = await processIdentity(child.pid); if (identity) await terminateProcessTree(child.pid, { graceMs: 50, identity }); }

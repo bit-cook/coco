@@ -7,12 +7,14 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { controlStatus, runControlServer, stopControl } from "../scripts/control-service.mjs";
+import { stopRunner } from "../scripts/task-runner.mjs";
 import { statePaths } from "../scripts/state-paths.mjs";
 import { createTaskEventStore } from "../scripts/task-events.mjs";
 import { createTaskLogStore } from "../scripts/task-logs.mjs";
 import { processIdentity } from "../scripts/task-process.mjs";
 import { createTaskReceiptStore } from "../scripts/task-receipts.mjs";
 import { createTaskStore } from "../scripts/task-state.mjs";
+import { createWebhookDeliveryStore } from "../scripts/webhook-deliveries.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 
@@ -57,7 +59,7 @@ test("control task and agent DTOs expose only allowlisted fields", { timeout: 10
     for (let attempt = 0; attempt < 100; attempt += 1) { try { control = JSON.parse(await readFile(statePaths(agentDir).control)); break; } catch { await new Promise((done) => setTimeout(done, 10)); } }
     const headers = { authorization: `Bearer ${control.token}` }; const base = `http://127.0.0.1:${control.port}`;
     const tasks = await (await fetch(`${base}/v1/tasks`, { headers })).json();
-    assert.deepEqual(Object.keys(tasks.tasks[0]).sort(), ["activeRunId", "attempts", "branch", "createdAt", "finishedAt", "github", "heartbeatAt", "id", "logsTruncated", "schedule", "startedAt", "status", "trigger", "updatedAt", "worktree"].sort());
+    assert.deepEqual(Object.keys(tasks.tasks[0]).sort(), ["activeRunId", "attempts", "branch", "createdAt", "encodingLoss", "finishedAt", "github", "heartbeatAt", "id", "logsTruncated", "schedule", "startedAt", "status", "trigger", "updatedAt", "worktree"].sort());
     const agents = await (await fetch(`${base}/v1/agents`, { headers })).json();
     assert.deepEqual(Object.keys(agents.agents[0]).sort(), ["activeRunId", "alive", "heartbeatAt", "id", "observedAt", "startedAt", "status", "trigger", "updatedAt"].sort());
     assert.equal(agents.agents[0].alive, true); assert.ok(!Number.isNaN(Date.parse(agents.agents[0].observedAt)));
@@ -117,7 +119,7 @@ test("control webhook does not accept or consume a delivery while its task is ru
     const running = runControlServer({ agentDir, host: "127.0.0.1", port: 0, root, signal: controller.signal });
     let control; for (let attempt = 0; attempt < 100; attempt += 1) { try { control = JSON.parse(await readFile(statePaths(agentDir).control)); break; } catch { await new Promise((done) => setTimeout(done, 10)); } }
     const response = await fetch(`http://127.0.0.1:${control.port}/v1/hooks/${task.id}`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "idempotency-key": "running-delivery" }, body: "{}" });
-    assert.equal(response.status, 202); assert.deepEqual(await response.json(), { accepted: false, reason: "running", taskId: task.id });
+    assert.equal(response.status, 202); assert.deepEqual(await response.json(), { accepted: false, dispatch: null, reason: "running", taskId: task.id });
     assert.deepEqual(JSON.parse(await readFile(statePaths(agentDir).webhookDeliveries, "utf8")).deliveries, []);
     controller.abort(); await running;
   } finally { controller.abort(); await rm(agentDir, { recursive: true, force: true }); }
@@ -134,7 +136,7 @@ test("control queue mutations reject while runner stopping without accepted stal
     await writeFile(`${statePaths(agentDir).runner}.stopping`, JSON.stringify({ operationId: "018f47a0-7b20-7cc5-8a33-080808080808", ownerIdentity: await processIdentity(process.pid), ownerPid: process.pid, phase: "stopping", predecessor: null, schemaVersion: 1, stopping: true, stoppingAt: new Date().toISOString() }) + "\n", { mode: 0o600 });
     const base = `http://127.0.0.1:${control.port}`;
     const delivery = await fetch(`${base}/v1/hooks/${hook.id}`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "idempotency-key": "stopping-delivery" }, body: "{}" });
-    assert.deepEqual(await delivery.json(), { accepted: false, reason: "runner-stopping", taskId: hook.id });
+    assert.deepEqual(await delivery.json(), { accepted: false, dispatch: null, reason: "runner-stopping", taskId: hook.id });
     const auth = { authorization: `Bearer ${control.token}` };
     assert.equal((await fetch(`${base}/v1/tasks`, { method: "POST", headers: { ...auth, "content-type": "application/json" }, body: JSON.stringify({ cwd: process.cwd(), prompt: "create race" }) })).status, 503);
     assert.equal((await fetch(`${base}/v1/tasks/${manual.id}/approve`, { method: "POST", headers: auth })).status, 503);
@@ -142,6 +144,29 @@ test("control queue mutations reject while runner stopping without accepted stal
     assert.deepEqual(JSON.parse(await readFile(statePaths(agentDir).webhookDeliveries, "utf8")).deliveries, []);
     controller.abort(); await running;
   } finally { controller.abort(); await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("control restart lists pending dispatches only to authenticated callers without consuming them", { timeout: 10_000 }, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-control-dispatch-pending-"));
+  try {
+    const task = await createTaskStore({ agentDir }).create({ cwd: process.cwd(), initialStatus: "blocked", prompt: "--version", trigger: "webhook", webhookSecret: "e".repeat(64), worktree: false });
+    const accepted = await createWebhookDeliveryStore({ agentDir }).accept({ deliveryId: "private-delivery-key", kind: "generic", taskId: task.id });
+    const observe = async () => {
+      const controller = new AbortController(); const running = runControlServer({ agentDir, host: "127.0.0.1", port: 0, root, signal: controller.signal });
+      let control; for (let attempt = 0; attempt < 100; attempt += 1) { try { control = JSON.parse(await readFile(statePaths(agentDir).control)); break; } catch { await new Promise((done) => setTimeout(done, 10)); } }
+      const url = `http://127.0.0.1:${control.port}/v1/dispatch-pending`;
+      assert.equal((await fetch(url)).status, 401);
+      const response = await fetch(url, { headers: { authorization: `Bearer ${control.token}` } });
+       assert.equal(response.status, 200); const payload = await response.json();
+       controller.abort(); await running; return payload;
+     };
+     const first = await observe();
+     assert.ok(first.dispatchPending.length <= 1);
+     for (let attempt = 0; attempt < 100; attempt += 1) { if ((await createWebhookDeliveryStore({ agentDir }).listPending()).length === 0) break; await new Promise((done) => setTimeout(done, 25)); }
+     assert.deepEqual(await createWebhookDeliveryStore({ agentDir }).listPending(), []);
+     const encoded = JSON.stringify(first);
+     for (const secret of [task.webhookSecret, task.prompt, task.cwd]) assert.equal(encoded.includes(secret), false);
+   } finally { try { await stopRunner(agentDir); } catch {} await rm(agentDir, { recursive: true, force: true }); }
 });
 
 test("legacy control state without identity fails closed", async () => {

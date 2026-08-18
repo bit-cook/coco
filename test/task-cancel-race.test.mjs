@@ -101,7 +101,7 @@ test("durable terminal evidence wins a concurrent cancellation arbitration", asy
     await store.update((state) => { const active = state.tasks[0]; active.status = "running"; active.activeRunId = runId; active.startedAt = new Date().toISOString(); active.launchPending = true; return state; });
     const cancelling = cancelTask(store, task.id);
     for (let attempt = 0; attempt < 100; attempt += 1) { if ((await store.load()).tasks[0].cancelPending) break; await new Promise((done) => setTimeout(done, 5)); }
-    await store.update((state) => { const active = state.tasks[0]; active.launchPending = false; active.terminalEvidence = { endedAt: new Date().toISOString(), eventId: "018f47a0-7b20-7cc5-8a33-080808080808", exitCode: 0, lastError: null, logsTruncated: false, result: "done", status: "completed" }; return state; });
+    await store.update((state) => { const active = state.tasks[0]; active.launchPending = false; active.terminalEvidence = { encodingLoss: false, endedAt: new Date().toISOString(), eventId: "018f47a0-7b20-7cc5-8a33-080808080808", exitCode: 0, lastError: null, logsTruncated: false, result: "done", status: "completed" }; return state; });
     const arbitration = await cancelling;
     assert.equal(arbitration.status, "running"); assert.equal(arbitration.cancelPending, false); assert.equal(arbitration.activeRunId, runId); assert.equal(arbitration.terminalEvidence.status, "completed");
   } finally { await rm(agentDir, { recursive: true, force: true }); }

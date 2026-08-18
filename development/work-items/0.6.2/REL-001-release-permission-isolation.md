@@ -1,13 +1,13 @@
 # REL-001: Release Permission Isolation
 
 ```text
-Status: ready
+Status: completed
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
 Depends on: REL-005
 Blocks: REL-002
-Last updated: 2026-08-16
+Last updated: 2026-08-18
 ```
 
 ## Problem
@@ -65,4 +65,4 @@ Revert workflow and contract changes together; no persisted product state migrat
 
 ## Evidence
 
-Not implemented.
+Implemented and dry-run verified in uncommitted candidate bytes. GitHub requires write permission to read private draft assets, so the minimal-write upload stage performs only API download and hashing into a one-day immutable Actions snapshot. The read-only verification stage receives that snapshot without `GH_TOKEN`, then executes online, offline, and VSIX lifecycle checks with GitHub tokens explicitly absent. Build and publish remain separate permission-isolated stages.

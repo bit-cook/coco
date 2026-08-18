@@ -6,7 +6,7 @@ Current target: 0.6.2
 Development branch: candidate/v0.6.2
 Base commit: 30dfa4e67b5ac0bb01d00d4ddc2925484c453bb1
 Plan status: active
-Last updated: 2026-08-17
+Last updated: 2026-08-18
 ```
 
 ## Objective
@@ -15,24 +15,24 @@ Close the confirmed release-safety and deterministic task-recovery P0 findings b
 
 ## Next Executable Action
 
-Claim `REL-005` and `RUN-003A` as the next parallel pair. CON-002 may now start because RUN-001/RUN-002/CON-001 are complete. After REL-005, implement the four-stage REL-001/REL-002 workflow; after RUN-003A and CON-002, integrate RUN-003B and then RUN-004/005.
+All 0.6.2 P0 implementation, real delegated-cgroup proof, disposable private-draft release proof, and final 0.6.2 local gates are verified in the uncommitted candidate worktree. The next action is a coordinator-reviewed commit, push, and release-candidate binding; public Release publication remains a separate explicit authorization and is not automated by the workflow.
 
 ## Work Items
 
 | ID | Priority | Status | Depends on | Scope summary |
 |---|---|---|---|---|
-| REL-001 | P0 | pending | REL-005 | Implement four-stage release credential isolation |
-| REL-002 | P0 | pending | REL-001, REL-005 | Draft-first immutable publication and lifecycle |
+| REL-001 | P0 | completed | REL-005 | Four-stage release credential isolation |
+| REL-002 | P0 | completed | REL-001, REL-005 | Draft-first immutable publication and lifecycle |
 | REL-003 | P0 | completed | REL-004 | Bind offline bundle to verified public tarball |
 | REL-004 | P0 release gate | completed | none | Tighten package metadata and offline archive closure |
-| REL-005 | P0 release gate | pending | REL-003, REL-004 | Exact nine-asset contract, tag/commit/digest binding |
+| REL-005 | P0 release gate | completed | REL-003, REL-004 | Exact nine-asset contract, tag/commit/digest binding |
 | RUN-001 | P0 | completed | none | Durable supervisor launch FSM and crash recovery |
 | RUN-002 | P0 | completed | RUN-001 | Strict stop-barrier ownership |
-| RUN-003 | P0 | ready | RUN-001 for runner integration | Durable webhook dispatch outbox |
-| RUN-004 | P0 | pending | RUN-001 | Invalid cwd and provisioning isolation |
-| RUN-005 | P0 | pending | RUN-001 shared terminal recovery schema | Invalid UTF-8 terminal recovery |
+| RUN-003 | P0 | completed | RUN-001 for runner integration | Durable ledger plus owner-generation runner consumer |
+| RUN-004 | P0 | completed | RUN-001 | Invalid cwd and provisioning isolation |
+| RUN-005 | P0 | completed | RUN-001 shared terminal recovery schema | Invalid UTF-8 terminal recovery |
 | CON-001 | P0 decision | completed | none | Require Linux cgroup v2 for full-termination claim |
-| CON-002 | P0 implementation | pending | RUN-001, RUN-002, CON-001 | Implement Linux cgroup v2 containment |
+| CON-002 | P0 implementation | completed | RUN-001, RUN-002, CON-001 | Linux cgroup v2 containment and real detached descendant proof |
 | PERF-001 | P0 user-approved | completed | none | Optimize startup and runtime latency without weakening integrity |
 | PERF-002 | P0 release gate | completed | PERF-001 | Prove lightweight model-list equivalence across all config paths |
 | PERF-003 | P1 release gate | completed | PERF-001 | Versioned startup benchmark profile and regression budgets |
@@ -72,14 +72,14 @@ The coordinator owns `DEVELOPMENT_PLAN.md`, `AGENTS.md`, generated manifests, sh
 
 | Gate | Commit | Status | Last result |
 |---|---|---|---|
-| Core | a5eb3d3 | current | 524/524 passed |
-| Integrity | a5eb3d3 | current | 39/39 passed |
-| Package | a5eb3d3 | current | 2/2 passed |
-| Closure | a5eb3d3 | current | 175 manifests approved |
-| Scanner | a5eb3d3 | current | clean |
+| Core | uncommitted 0.6.2 candidate bytes | verified | 574/574 passed, 1 delegated-cgroup capability skip before real probe; real cgroup test separately passed 1/1 |
+| Integrity | uncommitted 0.6.2 candidate bytes | verified | 39/39 passed |
+| Package | uncommitted 0.6.2 candidate bytes | verified | 2/2 passed |
+| Closure | uncommitted 0.6.2 candidate bytes | verified | 175 manifests approved |
+| Scanner | uncommitted 0.6.2 candidate bytes | verified | clean; dedicated temp root `/root/coco-tmp/tmp` |
 | Pages | 30dfa4e | current | deployed and live-verified in run 32067272227 |
 
-PERF-001/002/003 and INT-001/002 are complete at `8cbcfc0`; later governed startup changes make their evidence stale. The Node 22/self-hosted benchmark matrix is tracked in `scripts/startup-baseline-linux-x64-node22.v1.json` and enforced by `benchmark:startup:check`.
+PERF-001/002/003 and INT-001/002 are complete at `8cbcfc0`; later governed startup changes make their historical evidence stale. Final 0.6.2 candidate gates passed on Node 22.19.0, integrity 39/39, core 574/574, package 2/2, closure 175, scanner, and a 20,677-entry runtime probe. Real offline tar byte equality/install/version/uninstall, detached runner/Control lifecycle, writable delegated-cgroup setsid/double-fork containment, and the disposable private-draft release lifecycle passed. GitHub's Release PATCH endpoint rejects `If-Match`; automatic workflow therefore finalizes only a verified private draft with tag-scoped serialization, immediate pre-write revalidation, complete binding payload, response validation, and post-write exact-inventory revalidation. Public release remains an explicit separate action.
 
 Any implementation edit must update this table immediately.
 

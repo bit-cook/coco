@@ -1,13 +1,13 @@
 # RUN-004: Invalid Task and Provisioning Isolation
 
 ```text
-Status: pending
+Status: completed
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
 Depends on: RUN-001
 Blocks: none
-Last updated: 2026-08-16
+Last updated: 2026-08-18
 ```
 
 ## Problem
@@ -63,4 +63,4 @@ New error fields must remain schema-valid and safely visible to older readers.
 
 ## Evidence
 
-Not implemented.
+Implemented in uncommitted candidate bytes. Missing, file, symlink, and non-Git cwd errors block only their task; every provisioning resume revalidates cwd and repository identity; worktree conflict and unknown task-local provisioning errors remain isolated; Git lock and generic transient failures use one-second per-task backoff and become `WORKTREE_RETRY_EXHAUSTED` after five attempts; RUNNER_STOPPING and STATE_LOCKED preserve durable provisioning for restart. Focused provisioning/task tests pass 54/54.

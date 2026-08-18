@@ -1,13 +1,13 @@
 # RUN-003: Durable Webhook Dispatch Outbox
 
 ```text
-Status: ready
+Status: completed
 Priority: P0
 Target: 0.6.2
 Owner: unassigned
 Depends on: none for RUN-003A ledger; RUN-001 and RUN-002 for RUN-003B dispatch consumer
 Blocks: none
-Last updated: 2026-08-16
+Last updated: 2026-08-18
 ```
 
 ## Problem
@@ -63,4 +63,4 @@ Legacy deliveries without dispatch state remain readable; migration must not ret
 
 ## Evidence
 
-Not implemented.
+RUN-003A and RUN-003B are implemented in uncommitted candidate bytes. Delivery, queued task, and intent commit atomically; legacy queued deliveries recover one latest intent per task; runner claim/ack is owner-generation CAS-bound after durable task claim and supervisor preparation; Control retries from durable task/dispatch anchors for its lifetime; queued cancellation and attempt-limit disposition update task and ledger atomically. Focused integration is 92/92, complete core is 559 passed with one delegated-cgroup capability skip, integrity is 39/39, package is 2/2, closure is 175 approved, scanner is clean, and runtime probe approves 20,677 entries.

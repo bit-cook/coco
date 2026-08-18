@@ -338,33 +338,38 @@ export function createTaskLogStore({ agentDir, now = () => new Date() } = {}) {
     const jsonlPath = pathFor(root, taskId, runId), idxPath = indexPath(root, taskId, runId), target = sealPath(root, taskId, runId);
     const identity = { taskId, runId: runId.toLowerCase() };
     if (!iso(at) || !Buffer.isBuffer(stdout) || !Buffer.isBuffer(stderr) || stdout.length > 4_000_000 || stderr.length > 1_000_000) fail("TASK_LOG_IMPORT_INVALID");
-    const records = [];
+    const records = [], encoded = []; let encodedBytes = 0, encodingLoss = false, logsTruncated = false;
+    const addRecord = (record) => {
+      const bytes = Buffer.from(canonicalJson(record));
+      if (records.length >= MAX_RECORDS || encodedBytes + bytes.length > MAX_BYTES) { logsTruncated = true; return false; }
+      records.push(record); encoded.push(bytes); encodedBytes += bytes.length; return true;
+    };
     for (const [stream, bytes] of [["stdout", stdout], ["stderr", stderr]]) {
-      let text;
-      try { text = new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch { fail("TASK_LOG_IMPORT_INVALID"); }
+      const text = new TextDecoder("utf-8").decode(bytes);
+      encodingLoss ||= !Buffer.from(text, "utf8").equals(bytes);
       let chunk = "", size = 0;
       for (const character of text) {
         const characterBytes = Buffer.byteLength(character);
-        if (chunk && size + characterBytes > 12 * 1024) { records.push({ at, data: chunk, runId: identity.runId, schemaVersion: 1, seq: records.length + 1, stream, taskId }); chunk = ""; size = 0; }
+        if (chunk && size + characterBytes > 12 * 1024) { if (!addRecord({ at, data: chunk, runId: identity.runId, schemaVersion: 1, seq: records.length + 1, stream, taskId })) break; chunk = ""; size = 0; }
         chunk += character; size += characterBytes;
       }
-      if (chunk) records.push({ at, data: chunk, runId: identity.runId, schemaVersion: 1, seq: records.length + 1, stream, taskId });
+      if (chunk && !logsTruncated) addRecord({ at, data: chunk, runId: identity.runId, schemaVersion: 1, seq: records.length + 1, stream, taskId });
     }
-    const bytes = Buffer.from(records.map(canonicalJson).join(""));
-    if (records.length > MAX_RECORDS || bytes.length > MAX_BYTES || records.some((record) => !valid(record, identity))) fail("TASK_LOG_LIMIT_EXCEEDED");
+    const bytes = Buffer.concat(encoded);
+    if (records.some((record) => !valid(record, identity))) fail("TASK_LOG_LIMIT_EXCEEDED");
     const value = { bytes: bytes.length, latestAt: records.at(-1)?.at ?? null, records: records.length, ref: `task-logs/${taskId}/${identity.runId}.jsonl`, sha256: createHash("sha256").update(bytes).digest("hex") };
     await ensureAgentDirectory(directoryRoot); await ensureDirectory(root, taskId);
     if (await inspectRegular(target) !== null) {
       const existing = await seal({ taskId, runId });
       if (canonicalJson(existing) !== canonicalJson(value)) fail("TASK_LOG_SEAL_CONFLICT");
-      return existing;
+      return { ...existing, encodingLoss, logsTruncated };
     }
     await applyStateTransaction({ agentDir: directoryRoot, operations: async () => [
       { bytes, path: jsonlPath },
       { bytes: Buffer.from(`${JSON.stringify({ recordCount: records.length, bytesLength: bytes.length })}\n`), path: idxPath },
       { bytes: Buffer.from(canonicalJson(value)), path: target },
     ] });
-    return value;
+    return { ...value, encodingLoss, logsTruncated };
   }
 
   async function exists({ taskId, runId }) { try { await access(pathFor(root, taskId, runId)); return true; } catch { return false; } }

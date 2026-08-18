@@ -142,6 +142,26 @@ test("sealing an empty run materializes an immutable evidence target", async () 
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });
 
+test("supervisor output replaces invalid UTF-8 deterministically without blocking sealing", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-log-invalid-utf8-"));
+  try {
+    const store = createTaskLogStore({ agentDir }); const taskId = "abcdefghijkl", runId = "018f47a0-7b20-7cc5-8a33-191919191919", at = "2026-08-18T00:00:00.000Z";
+    const descriptor = await store.materializeSupervisorOutput({ at, runId, stdout: Buffer.from([0x61, 0xff, 0x62]), stderr: Buffer.from([0xe4, 0xb8, 0xad]), taskId });
+    assert.equal(descriptor.encodingLoss, true);
+    const page = await store.read({ taskId, runId, cursor: 0, limit: 10 });
+    assert.equal(page.records[0].data, "a�b"); assert.equal(page.records[1].data, "中");
+    assert.deepEqual(await store.seal({ taskId, runId }), Object.fromEntries(Object.entries(descriptor).filter(([key]) => !["encodingLoss", "logsTruncated"].includes(key))));
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("replacement expansion at the raw output cap truncates materialized evidence instead of blocking", { timeout: 30_000 }, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-task-log-utf8-cap-"));
+  try {
+    const descriptor = await createTaskLogStore({ agentDir }).materializeSupervisorOutput({ at: "2026-08-18T00:00:00.000Z", runId: "018f47a0-7b20-7cc5-8a33-202020202020", stdout: Buffer.alloc(4_000_000, 0xff), taskId: "abcdefghijkl" });
+    assert.equal(descriptor.encodingLoss, true); assert.equal(descriptor.logsTruncated, true); assert.ok(descriptor.bytes <= 4 * 1024 * 1024);
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
 test("task log append and canonical metadata reads reject symlinks", async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-task-log-symlink-"));
   try {

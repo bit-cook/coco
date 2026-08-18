@@ -55,11 +55,12 @@ async function signalTarget(pid, signal) {
 }
 
 export async function terminateProcessTree(pid, { graceMs = 3000, identity } = {}) {
-  if (!Number.isSafeInteger(pid) || pid < 1 || pid === process.pid) return { pid, status: "absent" };
+  const semantics = process.platform === "win32" ? "process-tree" : "process-group";
+  if (!Number.isSafeInteger(pid) || pid < 1 || pid === process.pid) return { fullTermination: false, pid, semantics, status: "absent" };
   if (identity !== undefined) {
     const currentIdentity = await processIdentity(pid);
-    if (currentIdentity === null) return { pid, status: "absent" };
-    if (currentIdentity !== identity) return { pid, status: "identity-mismatch" };
+    if (currentIdentity === null) return { fullTermination: false, pid, semantics, status: "absent" };
+    if (currentIdentity !== identity) return { fullTermination: false, pid, semantics, status: "identity-mismatch" };
   }
   if (process.platform === "win32") {
     try { await execute("taskkill", ["/PID", String(pid), "/T"]); } catch {}
@@ -72,5 +73,5 @@ export async function terminateProcessTree(pid, { graceMs = 3000, identity } = {
   }
   for (let elapsed = 0; elapsed < 2000 && (await processAlive(pid) || await groupAlive(pid)); elapsed += 50) await delay(50);
   const alive = await processAlive(pid) || await groupAlive(pid);
-  return { pid, status: alive ? "alive" : "terminated" };
+  return { fullTermination: false, pid, semantics, status: alive ? "alive" : "terminated" };
 }

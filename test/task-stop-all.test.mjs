@@ -5,8 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { canonicalJson } from "../scripts/canonical-json.mjs";
 import { clearRunnerStopping, createTaskRunner, startDetachedRunner, stopRunner } from "../scripts/task-runner.mjs";
 import { processAlive, processIdentity } from "../scripts/task-process.mjs";
+import { createTaskRunSupervisorStore } from "../scripts/task-run-supervisor.mjs";
 import { statePaths } from "../scripts/state-paths.mjs";
 import { createTaskStore } from "../scripts/task-state.mjs";
 
@@ -119,4 +121,29 @@ test("an old stop owner cannot clear a replacement barrier", async () => {
     assert.equal(JSON.parse(await readFile(path, "utf8")).operationId, owner.operationId);
     assert.equal(await clearRunnerStopping(agentDir, owner), true);
   } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("stop-all never reports full termination for an unsupported persisted containment", { skip: process.platform === "win32" }, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-stop-unsupported-"));
+  const store = createTaskStore({ agentDir });
+  const child = spawn(process.execPath, ["-e", "process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"], { detached: true, stdio: "ignore" });
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "unsupported containment", worktree: false });
+    const runId = "018f47a0-7b20-7cc5-8a33-121212121212";
+    const supervisors = createTaskRunSupervisorStore({ agentDir, containment: { attach: async (value) => ({ ...value, reason: "CGROUP_DELEGATION_UNAVAILABLE", status: "unsupported" }) } });
+    const prepared = await supervisors.prepare({ cwd: process.cwd(), prompt: task.prompt, runId, taskId: task.id });
+    const identity = await processIdentity(child.pid);
+    await supervisors.register({ generation: prepared.generation, ownerId: prepared.ownerId, pid: child.pid, processIdentity: identity, runId, taskId: task.id });
+    await supervisors.authorize({ generation: prepared.generation, ownerId: prepared.ownerId, runId, specSha256: prepared.specSha256, taskId: task.id });
+    const launch = JSON.parse(await readFile(prepared.paths.launch, "utf8"));
+    launch.containment.reason = "CGROUP_DELEGATION_UNAVAILABLE"; launch.containment.status = "unsupported";
+    await writeFile(prepared.paths.launch, canonicalJson(launch), { mode: 0o600 });
+    await store.update((state) => { const active = state.tasks[0]; active.activeRunId = runId; active.status = "running"; active.pid = child.pid; active.processIdentity = identity; active.startedAt = new Date().toISOString(); active.updatedAt = active.startedAt; return state; });
+    await assert.rejects(stopRunner(agentDir), /TASK_CONTAINMENT_UNSUPPORTED/);
+    const retained = (await store.load()).tasks[0];
+    assert.equal(retained.status, "running"); assert.equal(retained.cancelPending, false); assert.equal(retained.activeRunId, runId);
+  } finally {
+    try { process.kill(-child.pid, "SIGKILL"); } catch {}
+    await rm(agentDir, { recursive: true, force: true });
+  }
 });

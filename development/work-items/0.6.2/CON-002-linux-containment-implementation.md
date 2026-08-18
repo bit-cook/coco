@@ -1,13 +1,13 @@
 # CON-002: Linux Run Containment Implementation
 
 ```text
-Status: pending
+Status: completed
 Priority: P0 implementation
 Target: 0.6.2
 Owner: unassigned
 Depends on: RUN-001, RUN-002, CON-001
 Blocks: containment release claim
-Last updated: 2026-08-17
+Last updated: 2026-08-18
 ```
 
 ## Problem
@@ -50,4 +50,4 @@ No live task may be stranded by a containment migration. Define cleanup and fall
 
 ## Evidence
 
-Not implemented.
+Implemented in uncommitted candidate bytes. Per-run cgroup descriptors, attach-before-authorization, cgroup.kill/empty checks, restart recovery, cleanup-pending retry, process-group degraded fallback, outcome handoff, and cancellation recovery are covered by focused tests. The real delegated-cgroup test now executes on this host and proves detached setsid and double-fork descendants are killed and the cgroup is empty before cleanup.
