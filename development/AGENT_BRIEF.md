@@ -5,7 +5,7 @@ Use this short brief when joining CoCo development.
 ## Current State
 
 - Released: `v0.6.2`, commit `964df56`
-- Development branch: `candidate/v0.6.2`
+- Development branch: `candidate/v0.6.3`
 - Next target: `0.6.3`
 - npm: not published
 - Website: https://bit-cook.github.io/coco/

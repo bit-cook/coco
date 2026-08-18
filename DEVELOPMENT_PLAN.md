@@ -5,7 +5,7 @@ Last updated: 2026-08-18
 ## Current State
 
 - Released: `v0.6.2` at `964df563312799df7f2e000b862b17beab88f42d`
-- Development branch: `candidate/v0.6.2`
+- Development branch: `candidate/v0.6.3`
 - Next target: `0.6.3`
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
@@ -15,7 +15,7 @@ Last updated: 2026-08-18
 
 ## Next Three Items
 
-These items are ready and can be developed in parallel by separate Agents:
+The first parallel implementation pass is complete; coordinator integration is next:
 
 | Item | Goal | Depends on |
 |---|---|---|

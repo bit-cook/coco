@@ -16,7 +16,7 @@ test("active development plan exposes the small, agent-ready 0.6.3 wave", async 
     readdir(workItems),
   ]);
 
-  assert.match(agents, /Current branch: `candidate\/v0\.6\.2`/);
+  assert.match(agents, /Current branch: `candidate\/v0\.6\.3`/);
   assert.match(agents, /DEVELOPMENT_PLAN\.md/);
   assert.match(agents, /HISTORICAL_DOCUMENTS\.md/);
   assert.match(agents, /Released version: `0\.6\.2`/);

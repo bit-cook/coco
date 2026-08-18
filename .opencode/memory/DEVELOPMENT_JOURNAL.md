@@ -2125,3 +2125,5 @@ Three Agents worked in parallel on non-overlapping file scopes from `candidate/v
 - BKP-001 added authenticated manifest rotation, encrypted operational state, retention, tamper detection, and restore drill helpers.
 
 Focused results: `13/13` combined tests passed, syntax checks passed, and diff check passed. These are initial modules, not yet wired into Control/provider/MCP runtime or a real off-host storage adapter. Leases were cleared after the focused handoff; coordinator integration is the next small batch.
+
+One upstream Agent prompt was rejected by the model provider's prompt filter. No code or repository operation failed. Subsequent coordination uses short prompts with file paths and local deterministic tests instead of repeating long research/security text.
