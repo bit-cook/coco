@@ -29,6 +29,7 @@
         <a class="brand-lockup" href="https://bit-cook.github.io/coco/zh-CN.html" aria-label="CoCo Agent 首页"><svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="logo.svg#coco-mark" /></svg><span class="wordmark" aria-hidden="true">CoCo</span></a>
         <div class="masthead-links">
           <a class="repository-link" href="plan.html">当前计划</a>
+          <a class="repository-link" href="research-zh-CN.html">Agent 研究</a>
           <a class="repository-link" href="roadmap.html">历史战略</a>
           <a class="repository-link" href="roadmap-legacy.html">旧版路线图</a>
           <a class="repository-link" href="landscape.html">旧竞品研究</a>
@@ -39,7 +40,7 @@
       </header>
       <main id="main">
         <section class="hero" aria-labelledby="hero-title">
-          <p class="eyebrow">CoCo 0.6.1 · 通用 AI 助手</p>
+          <p class="eyebrow">CoCo 0.6.2 · 通用 AI 助手</p>
           <h1 id="hero-title">安静地在你工作的地方协助你。</h1>
           <p class="intro">CoCo 在你的终端中启动，不用繁杂界面打断工作，既能处理通用任务，也能协助处理眼前的代码。</p>
           <div class="terminal" aria-label="CoCo 安装终端">
@@ -48,12 +49,12 @@
           </div>
         </section>
         <section class="release-note" aria-labelledby="release-title">
-          <div><p class="section-kicker">当前版本</p><h2 id="release-title">再次启动更快，每次启动依然谨慎。</h2><p>CoCo 0.6.1 将实测热启动从6.19秒缩短到2.18秒。此前PERF-001候选批次测得1.22秒；当前0.6.2候选仍需完成全部发布门禁后才能发布。</p></div>
-          <dl class="performance-grid"><div><dt>热启动</dt><dd>2.18s</dd><span>提升 65%</span></div><div><dt>冷启动</dt><dd>9.37s</dd><span>提升 40%</span></div><div><dt>完整性</dt><dd>37/37</dd><span>发布门禁</span></div></dl>
+          <div><p class="section-kicker">当前版本</p><h2 id="release-title">让恢复真正闭合。</h2><p>CoCo 0.6.2 强化了持久任务 dispatch、无效任务隔离、非法 UTF-8 终态恢复、权限隔离的 private-draft 发布，以及经过 detached 与 double-fork 后代验证的 Linux cgroup v2 containment。</p></div>
+          <dl class="performance-grid"><div><dt>核心测试</dt><dd>574/574</dd><span>发布门禁</span></div><div><dt>完整性</dt><dd>39/39</dd><span>完整验证</span></div><div><dt>Containment</dt><dd>1/1</dd><span>真实 cgroup 证明</span></div></dl>
         </section>
         <section class="specifications" aria-label="CoCo 使用体验"><p>打开 CoCo 就能直接使用。系统已经为你选择好可用模型，第一次对话前不需要配置模型。</p><dl><div class="specification"><dt>模型配置</dt><dd>无需配置</dd></div><div class="specification"><dt>首次启动</dt><dd>打开即用</dd></div><div class="specification"><dt>发布版安装器</dt><dd>Linux / macOS</dd></div></dl></section>
         <section class="engineering" aria-labelledby="engineering-title"><p class="section-kicker">下一步工程重点</p><h2 id="engineering-title">先提高可靠性，再扩大功能表面。</h2><p class="engineering-intro">发布后审查确定了清晰顺序：隔离发布凭据，让任务恢复确定性收敛，然后扩展长期状态能力并补齐平台交付闭包。</p><ol class="priority-list"><li><span>01</span><div><strong>原子发布</strong><p>只读构建、draft-first发布、不可变资产，以及在线和离线交付复用同一份已验证tarball。</p></div></li><li><span>02</span><div><strong>确定性恢复</strong><p>Supervisor启动阶段、可恢复webhook dispatch、严格stop owner，以及能够证明全部任务进程已经消失的containment。</p></div></li><li><span>03</span><div><strong>长期运行扩展性</strong><p>任务保留策略、日志与worktree清理、分页Control界面，以及面向运维的容量可见性。</p></div></li></ol><a class="plan-link" href="plan.html">阅读完整工程审查与计划<span aria-hidden="true"> →</span></a></section>
-        <section class="aftercare" aria-labelledby="aftercare-title"><h2 id="aftercare-title">需要移除 CoCo？</h2><details><summary>显示卸载命令</summary><div class="command-block command-block-secondary"><code id="uninstall-command" class="command-text">curl -fsSL https://github.com/bit-cook/coco/releases/download/v0.6.1/uninstall.sh | bash</code><button class="copy-button" type="button" data-copy-target="uninstall-command" aria-label="复制卸载命令">复制</button></div></details></section>
+        <section class="aftercare" aria-labelledby="aftercare-title"><h2 id="aftercare-title">需要移除 CoCo？</h2><details><summary>显示卸载命令</summary><div class="command-block command-block-secondary"><code id="uninstall-command" class="command-text">curl -fsSL https://github.com/bit-cook/coco/releases/download/v0.6.2/uninstall.sh | bash</code><button class="copy-button" type="button" data-copy-target="uninstall-command" aria-label="复制卸载命令">复制</button></div></details></section>
       </main>
       <footer class="footer"><span>为终端而构建。</span><a href="https://github.com/bit-cook/coco">github.com/bit-cook/coco</a></footer>
     </div>
