@@ -1,10 +1,10 @@
 # REC-001: Command Recovery Journal
 
 ```text
-Status: pending
+Status: ready
 Priority: P1 research-derived
-Target: 0.6.3 unless pulled into 0.6.2 after RUN-001
-Owner: unassigned
+Target: 0.6.3
+Owner: ai-agent-wave-a
 Depends on: RUN-001, RUN-003
 Blocks: EVID-002
 Sources: Prime Agent 849c9211

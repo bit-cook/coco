@@ -2109,3 +2109,9 @@ real 0.6.2 offline tar byte equality/install/version/uninstall: passed
 ```
 
 The authorized isolated GitHub exercise created and then removed temporary tag `v0.6.21818`, branch `dry-run/release-v0.6.21818`, and private drafts. It proved exact upload, private snapshot verification, no-token online/offline/VSIX lifecycle, receipt generation, and post-write inventory. GitHub Release PATCH rejected `If-Match`; automatic workflow was therefore changed to stop at a fully verified private draft rather than risk an unconditionally public partial release. Existing public `v0.6.1` remains unchanged. No commit, push, formal tag, public Release, or npm publish was performed for 0.6.2.
+
+## 2026-08-18: Post-Release Plan Reset
+
+The later authorized release completed `v0.6.2` at `964df56`, and the research pages were deployed in Pages run `32188532292`. The old pre-release plan is preserved at `development/history/DEVELOPMENT_PLAN-0.6.2-pre-release.md`; the exact earlier text remains available with `git show 0b9f857:DEVELOPMENT_PLAN.md`.
+
+The active plan is now deliberately short: `REC-001`, `CFG-000`, and `BKP-001` are ready for parallel AI Agents. Each Agent owns one work item and exact files, runs focused tests, and hands back a concise result. Full gates run only after integration or before a release. The onboarding rules are in `development/AGENT_BRIEF.md` and the short cadence is in `development/AI_AGENT_EXECUTION_PLAN.md`.

@@ -23,11 +23,11 @@ test("current plan, strategy, and historical research remain public, distinct, r
   }
 
   assert.match(plan, /rel="canonical" href="https:\/\/bit-cook\.github\.io\/coco\/plan\.html"/);
-  assert.match(plan, /CoCo v0\.6\.1/);
-  assert.match(plan, /v0\.6\.1 \/ plan baseline: 1db5610/);
-  for (const release of ["v0.6.2", "v0.7.0", "v0.8.0"]) assert.match(plan, new RegExp(release));
-  for (const concept of ["发布安全与任务恢复", "恢复证据与长期运行", "平台交付闭包", "Four-Stage Release", "Launch Recovery", "Linux Containment", "Integrity &amp; Performance"]) assert.match(plan, new RegExp(concept));
-  for (const evidence of ["1.22s", "7.14", "37/37", "472/472", "175"]) assert.match(plan, new RegExp(evidence.replace("/", "\\/")));
+  assert.match(plan, /CoCo v0\.6\.2/);
+  assert.match(plan, /Release baseline: v0\.6\.2 \/ next: v0\.6\.3/);
+  for (const release of ["v0.6.2", "v0.6.3"]) assert.match(plan, new RegExp(release));
+  for (const concept of ["命令恢复", "原子配置", "备份轮换", "小批次，短交接", "REC-001", "CFG-000", "BKP-001"]) assert.match(plan, new RegExp(concept));
+  for (const evidence of ["574/574", "39/39", "9个资产完整"]) assert.match(plan, new RegExp(evidence.replace("/", "\\/")));
   assert.match(plan, /#f7fbff/i);
   assert.match(plan, /@media\(max-width:/);
   assert.match(plan, /prefers-reduced-motion/);

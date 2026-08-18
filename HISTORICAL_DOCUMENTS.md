@@ -23,6 +23,9 @@ This index preserves the location and purpose of older plans, migration records,
 ## Preserved Strategy and Research
 
 - Current public engineering plan: `site/plan.html`
+- Historical 0.6.2 pre-release plan pointer: `development/history/DEVELOPMENT_PLAN-0.6.2-pre-release.md` (exact content at commit `0b9f857`)
+- AI Agent execution brief: `development/AGENT_BRIEF.md`
+- AI Agent execution plan: `development/AI_AGENT_EXECUTION_PLAN.md`
 - External Agent research report (English): `documentation/en/docs/external-agent-research.md`
 - External Agent research report (Chinese): `documentation/zh-CN/docs/external-agent-research.md`
 - External source snapshot and fixed commits: `development/research/prime-agent-deepseek-harness-snapshot.md`

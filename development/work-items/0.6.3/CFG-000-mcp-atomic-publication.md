@@ -1,10 +1,10 @@
 # CFG-000: MCP Atomic Publication
 
 ```text
-Status: pending
+Status: ready
 Priority: P1 recovery foundation
 Target: 0.6.3
-Owner: unassigned
+Owner: ai-agent-wave-a
 Depends on: REC-001
 Blocks: CFG-001
 ```

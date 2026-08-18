@@ -1,10 +1,10 @@
 # BKP-001: Offsite Authenticated Backup
 
 ```text
-Status: pending
+Status: ready
 Priority: P1 operations
 Target: 0.6.3
-Owner: unassigned
+Owner: ai-agent-wave-a
 Depends on: 0.6.2 release
 Blocks: disaster-recovery authenticity claim
 ```
