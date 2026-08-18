@@ -60,7 +60,11 @@
     {
       "title": "开发",
       "items": [
-        { "title": "开发", "path": "development.md" }
+        { "title": "开发", "path": "development.md" },
+        { "title": "全面工程审查与计划", "path": "development-review-plan.md" },
+        { "title": "外部 Agent 源码研究", "path": "external-agent-research.md" },
+        { "title": "完整备份与恢复", "path": "backup-and-restore.md" },
+        { "title": "迁移与断点恢复日志", "path": "development-migration-journal.md" }
       ]
     }
   ],

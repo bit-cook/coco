@@ -12,6 +12,7 @@ test("process-tree termination kills a TERM-ignoring agent and its descendants",
   assert.equal(await processAlive(child.pid), true);
   const result = await terminateProcessTree(child.pid, { graceMs: 100, identity });
   assert.equal(result.status, "terminated");
+  assert.equal(result.fullTermination, false); assert.equal(result.semantics, "process-group");
   assert.equal(await processAlive(child.pid), false);
 });
 
@@ -21,4 +22,11 @@ test("process-tree termination kills descendants after their group leader exits 
   const result = await terminateProcessTree(child.pid, { graceMs: 100, identity });
   assert.equal(result.status, "terminated");
   assert.equal(await processAlive(child.pid), false);
+});
+
+test("process-tree termination kills a non-group root instead of trusting a missing group", { skip: process.platform === "win32" }, async () => {
+  const child = spawn(process.execPath, ["-e", "process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"], { detached: false, stdio: "ignore" });
+  const identity = await processIdentity(child.pid); assert.ok(identity);
+  const result = await terminateProcessTree(child.pid, { graceMs: 50, identity });
+  assert.equal(result.status, "terminated"); assert.equal(await processAlive(child.pid), false);
 });

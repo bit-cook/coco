@@ -7,6 +7,7 @@ const CORE = "@earendil-works/pi-coding-agent";
 const RUNTIME_ROOTS = new Set(["bin", "dist", "docs", "examples", "resources"]);
 const RESOLVER_PATHS = ["CHANGELOG.md", "README.md", "docs", "examples", "package.json", "dist/core/export-html", "dist/modes/interactive/assets", "dist/modes/interactive/theme"];
 const GENERATED_RUNTIME_ARTIFACTS = new Set(["scripts/package-asset-map.v1.json", "resources/runtime-integrity-manifest.v1.json", "resources/runtime-integrity-manifest.v1.json.sha256"]);
+const REQUIRED_PROTECTED_PATHS = ["scripts/canonical-json.mjs"];
 
 class AssetMapError extends Error {
   constructor(code) { super(code); this.code = code; this.name = "AssetMapError"; }
@@ -42,7 +43,7 @@ async function requiredPaths(root) {
   const excluded = packageJson.files.filter((selector) => selector.startsWith("!")).map((selector) => selector.slice(1));
   if (excluded.some((selector) => !safePath(selector))) throw new AssetMapError("ASSET_MAP_INVALID");
   const isExcluded = (path) => excluded.some((selector) => selectorMatches(path, selector));
-  const paths = new Set(["package.json"]);
+  const paths = new Set(["package.json", ...REQUIRED_PROTECTED_PATHS]);
   for (const selector of packageJson.files) {
     if (selector.startsWith("!")) continue;
     if (typeof selector !== "string" || !safePath(selector)) throw new AssetMapError("ASSET_MAP_INVALID");

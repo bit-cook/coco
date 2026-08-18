@@ -1,0 +1,67 @@
+# REL-002: Draft-First Immutable Release
+
+```text
+Status: completed
+Priority: P0
+Target: 0.6.2
+Owner: unassigned
+Depends on: REL-001, REL-005
+Blocks: none
+Last updated: 2026-08-18
+```
+
+## Problem
+
+The workflow creates a public release before upload and lifecycle verification, then uses `--clobber`, allowing partial public releases and same-version asset replacement.
+
+## Reproduction
+
+Fail an upload or lifecycle check after `gh release create`; the public release already exists. Rerun with changed bytes; `--clobber` replaces assets.
+
+## Required Invariants
+
+- Failure cannot expose a public partial release.
+- Existing version assets are immutable.
+- Publication occurs only after remote asset and lifecycle verification.
+
+## Scope
+
+- `.github/workflows/release.yml`
+- release lifecycle helper/tests
+
+## Out of Scope
+
+- GitHub organization policy outside this repository
+- npm publication
+
+## Design
+
+Create an empty draft in a minimal write stage, reject pre-existing assets, and upload without clobber. A separate read-only stage downloads and executes online/offline/VSIX lifecycle checks. A final minimal write stage rechecks the verification receipt, run/attempt ownership, tag, commit, draft ID, and exact inventory before publishing once.
+
+## Fault Matrix
+
+| Fault point | Required recovery |
+|---|---|
+| upload failure | release remains non-public draft |
+| asset verification failure | release remains non-public draft |
+| lifecycle failure | release remains non-public draft |
+| existing tag/release/assets | reject without replacing bytes |
+
+## Acceptance Tests
+
+- No `--clobber` in release workflow.
+- Draft remains private through all verification steps.
+- Exact nine-asset inventory is enforced for the current release contract.
+- Publish step is last and runs once.
+
+## Verification
+
+Focused workflow contracts and a disposable-tag end-to-end dry run. Full release gate required.
+
+## Rollback
+
+Delete only an unpublished draft created by the current run; never delete or alter a published release.
+
+## Evidence
+
+Implemented and dry-run verified in uncommitted candidate bytes. Draft ownership is same-run/tag/commit bound, reruns reuse only exact matching assets, missing assets are repaired without clobber, and publication validates receipt and exact inventory immediately before and after a complete binding PATCH. GitHub's Release PATCH endpoint rejects `If-Match`, so the workflow records that platform limitation and uses tag-scoped serialization plus pre/post-write validation rather than claiming unsupported endpoint CAS.

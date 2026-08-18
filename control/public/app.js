@@ -10,7 +10,8 @@ async function render() {
   const [{ tasks }, { agents }] = await Promise.all([api("/v1/tasks"), api("/v1/agents")]);
   $("#agent-count").textContent = `${agents.filter((agent) => agent.alive).length} 个正在运行`;
   const root = $("#tasks"); root.replaceChildren();
-  for (const task of tasks.toReversed()) {
+  for (const summary of tasks.toReversed()) {
+    const { task } = await api(`/v1/tasks/${summary.id}`);
     const card = $("#task-template").content.cloneNode(true);
     escapeText(card.querySelector(".task-status"), task.status); escapeText(card.querySelector(".task-id"), task.id);
     escapeText(card.querySelector(".task-prompt"), task.prompt); escapeText(card.querySelector(".task-meta"), `${task.cwd}${task.branch ? ` · ${task.branch}` : ""}`);

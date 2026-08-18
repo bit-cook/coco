@@ -44,22 +44,34 @@ async function groupAlive(pid) {
   try { process.kill(-pid, 0); return true; } catch (error) { return error?.code === "EPERM"; }
 }
 
+async function signalTarget(pid, signal) {
+  let groupSignalled = false;
+  if (process.platform !== "win32") {
+    try { process.kill(-pid, signal); groupSignalled = true; } catch (error) { if (error?.code !== "ESRCH" && error?.code !== "EPERM") throw error; }
+  }
+  if (!groupSignalled || !(await groupAlive(pid))) {
+    try { process.kill(pid, signal); } catch (error) { if (error?.code !== "ESRCH") throw error; }
+  }
+}
+
 export async function terminateProcessTree(pid, { graceMs = 3000, identity } = {}) {
-  if (!Number.isSafeInteger(pid) || pid < 1 || pid === process.pid) return { pid, status: "absent" };
+  const semantics = process.platform === "win32" ? "process-tree" : "process-group";
+  if (!Number.isSafeInteger(pid) || pid < 1 || pid === process.pid) return { fullTermination: false, pid, semantics, status: "absent" };
   if (identity !== undefined) {
     const currentIdentity = await processIdentity(pid);
-    if (currentIdentity === null) return { pid, status: "absent" };
-    if (currentIdentity !== identity) return { pid, status: "identity-mismatch" };
+    if (currentIdentity === null) return { fullTermination: false, pid, semantics, status: "absent" };
+    if (currentIdentity !== identity) return { fullTermination: false, pid, semantics, status: "identity-mismatch" };
   }
   if (process.platform === "win32") {
     try { await execute("taskkill", ["/PID", String(pid), "/T"]); } catch {}
     for (let elapsed = 0; elapsed < graceMs && await processAlive(pid); elapsed += 50) await delay(50);
     if (await processAlive(pid)) try { await execute("taskkill", ["/PID", String(pid), "/T", "/F"]); } catch {}
   } else {
-    try { process.kill(-pid, "SIGTERM"); } catch (error) { if (error?.code !== "ESRCH") try { process.kill(pid, "SIGTERM"); } catch {} }
-    for (let elapsed = 0; elapsed < graceMs && await groupAlive(pid); elapsed += 50) await delay(50);
-    if (await groupAlive(pid)) try { process.kill(-pid, "SIGKILL"); } catch (error) { if (error?.code !== "ESRCH") try { process.kill(pid, "SIGKILL"); } catch {} }
+    await signalTarget(pid, "SIGTERM");
+    for (let elapsed = 0; elapsed < graceMs && (await processAlive(pid) || await groupAlive(pid)); elapsed += 50) await delay(50);
+    if (await processAlive(pid) || await groupAlive(pid)) await signalTarget(pid, "SIGKILL");
   }
-  for (let elapsed = 0; elapsed < 2000 && await groupAlive(pid); elapsed += 50) await delay(50);
-  return { pid, status: await groupAlive(pid) ? "alive" : "terminated" };
+  for (let elapsed = 0; elapsed < 2000 && (await processAlive(pid) || await groupAlive(pid)); elapsed += 50) await delay(50);
+  const alive = await processAlive(pid) || await groupAlive(pid);
+  return { fullTermination: false, pid, semantics, status: alive ? "alive" : "terminated" };
 }

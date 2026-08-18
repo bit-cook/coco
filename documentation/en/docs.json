@@ -60,7 +60,11 @@
     {
       "title": "Development",
       "items": [
-        { "title": "Development", "path": "development.md" }
+        { "title": "Development", "path": "development.md" },
+        { "title": "Engineering Review and Plan", "path": "development-review-plan.md" },
+        { "title": "External Agent Research", "path": "external-agent-research.md" },
+        { "title": "Backup and Restore", "path": "backup-and-restore.md" },
+        { "title": "Migration and Recovery Journal", "path": "development-migration-journal.md" }
       ]
     }
   ],

@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import test from "node:test";
 
 import { packageNpmCli } from "./package-npm-cli.mjs";
+import { verifyTarballClosure } from "../scripts/verify-package-closure.mjs";
 
 const exec = promisify(execFile);
 const root = new URL("..", import.meta.url).pathname;
@@ -42,6 +43,8 @@ test("Given the public package contract, when CoCo is packed, then only release-
     const npmCli = await packageNpmCli(root);
     const { stdout } = await exec(process.execPath, [npmCli, "pack", "--json", "--pack-destination", output], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
     const [{ filename }] = JSON.parse(stdout);
+    const closure = await verifyTarballClosure({ root, tarball: join(output, filename) });
+    assert.equal(closure.status, "approved");
     const { stdout: members } = await exec("tar", ["-tzf", join(output, filename)], { maxBuffer: 64 * 1024 * 1024 });
     const paths = members.split("\n").filter(Boolean);
 
@@ -91,6 +94,22 @@ test("Given the public package contract, when CoCo is packed, then only release-
   }
 });
 
+test("Given a tarball with a directory outside npm's source inventory, when closure is verified, then it is rejected", async () => {
+  const output = await mkdtemp(join(tmpdir(), "coco-release-extra-directory-"));
+  try {
+    const npmCli = await packageNpmCli(root);
+    const { stdout } = await exec(process.execPath, [npmCli, "pack", "--json", "--pack-destination", output], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
+    const [{ filename }] = JSON.parse(stdout);
+    const extracted = join(output, "source");
+    await mkdir(extracted);
+    await exec("tar", ["-xzf", join(output, filename), "-C", extracted]);
+    await mkdir(join(extracted, "package", "not-in-npm-inventory"));
+    const malicious = join(output, "malicious.tgz");
+    await exec("tar", ["-czf", malicious, "package"], { cwd: extracted });
+    assert.equal((await verifyTarballClosure({ root, tarball: malicious })).code, "PACKAGE_TARBALL_INVENTORY_MISMATCH");
+  } finally { await rm(output, { force: true, recursive: true }); }
+});
+
 test("Given release workflows, when package sidecars are generated, then GNU checksums name only the tarball", async () => {
   for (const workflowName of ["ci.yml", "release.yml"]) {
     const workflow = await readFile(join(root, ".github", "workflows", workflowName), "utf8");
@@ -113,11 +132,19 @@ test("Given release workflows, when npm packs release assets, then the destinati
   for (const workflowName of ["ci.yml", "release.yml"]) {
     const workflow = await readFile(join(root, ".github", "workflows", workflowName), "utf8");
     const createDirectory = workflow.indexOf("- run: mkdir release");
-    const pack = workflow.indexOf("- run: node node_modules/npm/bin/npm-cli.js pack --json --pack-destination release");
+    const pack = workflow.indexOf("node node_modules/npm/bin/npm-cli.js pack --json --pack-destination release");
     assert.notEqual(createDirectory, -1);
     assert.notEqual(pack, -1);
     assert.ok(createDirectory < pack);
   }
+});
+
+test("Given an offline bundle build, when its package input is selected, then it consumes an explicit verified public tarball without repacking", async () => {
+  const source = await readFile(join(root, "scripts", "build-offline-bundle.mjs"), "utf8");
+  assert.doesNotMatch(source, /npm-cli\.js|["']pack["']|--pack-destination/);
+  assert.match(source, /packageArchive: process\.env\.COCO_PACKAGE_ARCHIVE/);
+  assert.match(source, /packageSha256: process\.env\.COCO_PACKAGE_SHA256/);
+  assert.match(source, /snapshotPackageArchive\(\{ destination: join\(bundle, "coco-package\.tgz"\), packageArchive, packageSha256 \}\)/);
 });
 
 test("Given release workflows, when GitHub Actions and execution controls are configured, then pins are current, CI is cancellable, and jobs are bounded", async () => {
@@ -135,14 +162,15 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   assert.equal((ciWorkflow.match(/runs-on: \[self-hosted, Linux, X64, coco-ci\]/g) ?? []).length, 1);
   assert.equal((ciWorkflow.match(/runs-on: ubuntu-24\.04/g) ?? []).length, 1);
   assert.doesNotMatch(ciWorkflow, /needs: verify/);
-  assert.match(ciWorkflow, /verify-main:[\s\S]*?timeout-minutes: 20/);
+  assert.match(ciWorkflow, /verify-main:[\s\S]*?timeout-minutes: 45/);
   assert.match(ciWorkflow, /verify-main:[\s\S]*?\$RUNNER_TOOL_CACHE\/node\/22\.19\.0\/x64\/bin[\s\S]*?test "\$\(node --version\)" = "v22\.19\.0"/);
   assert.match(ciWorkflow, /verify-main:[\s\S]*?npm run test:core/);
   assert.match(ciWorkflow, /verify-main-integrity:[\s\S]*?runs-on: \[self-hosted, Linux, X64, coco-upstream\][\s\S]*?npm ci --ignore-scripts --no-audit --no-fund[\s\S]*?npm run build[\s\S]*?npm run test:integrity/);
   assert.equal((ciWorkflow.match(/npm run test:integrity/g) ?? []).length, 1);
-  assert.match(ciWorkflow, /verify-pr:[\s\S]*?timeout-minutes: 20/);
+  assert.match(ciWorkflow, /verify-pr:[\s\S]*?timeout-minutes: 45/);
   assert.match(pagesWorkflow, /timeout-minutes: 20/);
-  assert.match(releaseWorkflow, /timeout-minutes: 40/);
+  assert.match(releaseWorkflow, /timeout-minutes: 75/);
+  assert.match(ciWorkflow, /verify-main-integrity:[\s\S]*?timeout-minutes: 30/);
   for (const workflow of [ciWorkflow, releaseWorkflow, pagesWorkflow, promotionWorkflow]) assert.match(workflow, /actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09/);
   for (const workflow of [ciWorkflow, releaseWorkflow]) assert.match(workflow, /actions\/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38/);
   assert.match(ciWorkflow, /actions\/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4/);
@@ -157,15 +185,95 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   assert.match(promotionWorkflow, /runs-on: \[self-hosted, Linux, X64, coco-promotion\]/);
 });
 
-test("Given a published release, when post-release validation runs, then checksums and an isolated package lifecycle are verified", async () => {
+test("Given a private draft, when read-only validation runs, then online, offline, and VSIX lifecycle checks precede publication", async () => {
   const workflow = await readFile(join(root, ".github", "workflows", "release.yml"), "utf8");
-  assert.match(workflow, /curl -fsSL --retry 5 --retry-delay 2 "\$base_url\/\$asset" -o "\$release_dir\/\$asset"/);
-  assert.match(workflow, /\(cd "\$release_dir" && sha256sum --check SHA256SUMS\)/);
-  assert.match(workflow, /COCO_INSTALL_DIR="\$sandbox\/install"/);
-  assert.match(workflow, /bash "\$release_dir\/install\.sh"/);
-  assert.match(workflow, /test "\$\("\$COCO_BIN_DIR\/coco" --version\)" = "\$version"/);
-  assert.match(workflow, /bash "\$release_dir\/uninstall\.sh"/);
-  assert.match(workflow, /test ! -e "\$COCO_INSTALL_DIR"/);
+  const upload = workflow.slice(workflow.indexOf("  draft-upload-minimal-write:"), workflow.indexOf("  draft-verify-readonly:"));
+  const verify = workflow.slice(workflow.indexOf("  draft-verify-readonly:"), workflow.indexOf("  finalize-draft-minimal-write:"));
+  assert.match(verify, /permissions:\n\s+actions: read\n\s+contents: read/);
+  assert.match(upload, /releases\/assets\/\$asset_id/);
+  assert.match(verify, /name: \$\{\{ needs\.draft-upload-minimal-write\.outputs\.remote-artifact-name \}\}/);
+  assert.doesNotMatch(verify, /GH_TOKEN:\s|github\.token|gh api/);
+  assert.match(verify, /sha256sum --check SHA256SUMS/);
+  assert.match(verify, /bash "\$remote\/install\.sh"/);
+  assert.match(verify, /bash "\$offline_installer"/);
+  assert.match(verify, /unzip -q "\$remote\/coco-agent-\$version\.vsix" -d "\$vsix"/);
+  assert.match(verify, /test ! -e "\$vsix"/);
+  assert.match(verify, /release-artifact-contract\.mjs receipt/);
+  assert.ok(workflow.indexOf("release-artifact-contract.mjs receipt") < workflow.indexOf("- name: Finalize the verified private draft"));
+});
+
+test("Given the release workflow, then four permission-isolated stages pass one immutable artifact to draft-first publication", async () => {
+  const workflow = await readFile(join(root, ".github", "workflows", "release.yml"), "utf8");
+  for (const job of ["build-readonly", "draft-upload-minimal-write", "draft-verify-readonly", "finalize-draft-minimal-write"]) assert.match(workflow, new RegExp(`^  ${job}:`, "m"));
+  const build = workflow.slice(workflow.indexOf("  build-readonly:"), workflow.indexOf("  draft-upload-minimal-write:"));
+  const upload = workflow.slice(workflow.indexOf("  draft-upload-minimal-write:"), workflow.indexOf("  draft-verify-readonly:"));
+  const publish = workflow.slice(workflow.indexOf("  finalize-draft-minimal-write:"));
+  assert.match(build, /permissions:\n\s+contents: read/);
+  assert.match(build, /persist-credentials: false/);
+  assert.equal((build.match(/actions\/upload-artifact@/g) ?? []).length, 1);
+  assert.match(build, /outputs:\n\s+artifact-name: \$\{\{ steps\.artifact\.outputs\.name \}\}/);
+  assert.match(build, /name: \$\{\{ steps\.artifact\.outputs\.name \}\}/);
+  assert.match(workflow, /release-artifact-contract\.mjs generate --directory release/);
+  assert.match(workflow, /release-artifact-contract\.mjs verify-local --directory release/);
+  assert.match(workflow, /release-artifact-contract\.mjs verify-remote/);
+  assert.equal((workflow.match(/env -u GH_TOKEN -u GITHUB_TOKEN/g) ?? []).length, 4);
+  assert.match(workflow, /concurrency:\n  group: release-\$\{\{ github\.ref_name \}\}\n  cancel-in-progress: false/);
+  assert.match(upload, /contents: write/);
+  assert.match(upload, /releases\/tags\/\$GITHUB_REF_NAME/);
+  assert.match(upload, /\(\.assets\|length\)==9/);
+  assert.match(upload, /printf '%s\\n' install\.sh uninstall\.sh/);
+  assert.match(upload, /cmp -s "\$RUNNER_TEMP\/expected-assets" "\$RUNNER_TEMP\/manifest-assets"/);
+  assert.match(upload, /find staged\/release -maxdepth 1 -type f/);
+  assert.match(upload, /sha256sum "staged\/release\/\$name"/);
+  assert.ok(upload.indexOf("sha256sum \"staged/release/$name\"") < upload.indexOf("--method POST"));
+  assert.match(upload, /-F draft=true/);
+  assert.doesNotMatch(workflow, /If-Match:/);
+  assert.match(upload, /\.draft==true/);
+  assert.match(upload, /previous_attempt.*-le.*GITHUB_RUN_ATTEMPT/);
+  assert.match(upload, /\.upload_url \| sub\("\\\\\{\.\*\$"; ""\)/);
+  assert.match(upload, /--data-binary @"staged\/release\/\$name" "\$upload_url\?name=\$encoded"/);
+  assert.doesNotMatch(workflow, /--clobber/);
+  assert.match(publish, /contents: write/);
+  assert.match(publish, /\.draft==true/);
+  assert.match(publish, /\.attempt==\$attempt and \.draftId==\$draft/);
+  assert.match(publish, /\(\.assets\|length\)==9/);
+  assert.match(publish, /\{draft:true,prerelease:false,make_latest:"false",tag_name:\$tag,target_commitish:\$commit,name:\$name,body:\$body\}/);
+  assert.match(publish, /--request PATCH --data "\$payload"/);
+  assert.match(publish, /final-release\.json/);
+  assert.match(publish, /\.draft==true and \.prerelease==false and \(\.assets\|length\)==9/);
+  for (const writeJob of [upload, publish]) {
+    assert.doesNotMatch(writeJob, /actions\/checkout|actions\/setup-node|npm (?:ci|run)|node scripts\/|bash .*staged|bash .*remote/);
+  }
+});
+
+test("Given failed-job or full reruns, downstream jobs consume producer outputs and recover only same-run immutable draft assets", async () => {
+  const workflow = await readFile(join(root, ".github", "workflows", "release.yml"), "utf8");
+  const upload = workflow.slice(workflow.indexOf("  draft-upload-minimal-write:"), workflow.indexOf("  draft-verify-readonly:"));
+  const verify = workflow.slice(workflow.indexOf("  draft-verify-readonly:"), workflow.indexOf("  finalize-draft-minimal-write:"));
+  const publish = workflow.slice(workflow.indexOf("  finalize-draft-minimal-write:"));
+  assert.match(upload, /name: \$\{\{ needs\.build-readonly\.outputs\.artifact-name \}\}/);
+  assert.match(verify, /name: \$\{\{ needs\.build-readonly\.outputs\.artifact-name \}\}/);
+  assert.match(publish, /name: \$\{\{ needs\.build-readonly\.outputs\.artifact-name \}\}/);
+  assert.match(verify, /receipt-artifact-name: \$\{\{ steps\.receipt-artifact\.outputs\.name \}\}/);
+  assert.match(publish, /name: \$\{\{ needs\.draft-verify-readonly\.outputs\.receipt-artifact-name \}\}/);
+  assert.match(upload, /\.assets \|= map\(\.attempt=\$attempt\)/);
+  assert.match(upload, /test "\$artifact_attempt" -le "\$GITHUB_RUN_ATTEMPT"/);
+  assert.match(upload, /capture\("\^<!-- coco-release-owner run=/);
+  assert.match(upload, /test "\$\(jq -r '\.run'/);
+  assert.match(upload, /test "\$\(jq -r '\.commit'/);
+  assert.match(upload, /\.tag_name==\$tag and \.draft==true/);
+  assert.doesNotMatch(upload, /If-Match:/);
+  assert.match(upload, /\.assets\[\] \| \[\.id, \.name, \.state, \.size, \.digest\]/);
+  assert.match(upload, /if ! grep -Fxq "\$name"[\s\S]*--data-binary @"staged\/release\/\$name"/);
+  assert.match(upload, /\(\.assets\|length\)==9/);
+  assert.match(publish, /receipt_attempt=.*'\.attempt'/);
+  assert.match(publish, /previous_attempt=.*'\.attempt'/);
+  assert.match(publish, /test "\$previous_attempt" -le "\$GITHUB_RUN_ATTEMPT"/);
+  assert.doesNotMatch(publish, /If-Match:/);
+  assert.ok(publish.indexOf(".body==$owner") < publish.indexOf("--request PATCH"));
+  assert.match(publish, /test "\$receipt_attempt" -le "\$GITHUB_RUN_ATTEMPT"/);
+  assert.match(publish, /receipt-manifest\.json/);
+  assert.match(publish, /\.attempt=\$attempt \| \.manifestSha256=\$manifest/);
 });
 
 test("Given release workflows, when tarball closure runs through the shell, then its inline JavaScript contains no command substitution", async () => {
@@ -178,8 +286,8 @@ test("Given release workflows, when tarball closure runs through the shell, then
   }
 });
 
-test("Given the v0.5.3 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
-  const version = "0.5.3";
+test("Given the v0.6.2 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
+  const version = "0.6.2";
   const [packageJson, packageLock, installer, readme, englishReadme, chineseReadme, ciWorkflow, releaseWorkflow] = await Promise.all([
     readFile(join(root, "package.json"), "utf8"),
     readFile(join(root, "package-lock.json"), "utf8"),
@@ -205,8 +313,10 @@ test("Given the v0.5.3 release contract, when public release surfaces are inspec
   }
   assert.equal(releaseWorkflow.includes("releases/latest/download"), false);
   assert.equal(releaseWorkflow.includes("agnes.key"), false);
-  assert.match(releaseWorkflow, /releases\/download\/\$GITHUB_REF_NAME/);
+  assert.match(releaseWorkflow, /releases\/assets\/\$asset_id/);
   assert.match(releaseWorkflow, /sha256sum install\.sh uninstall\.sh coco-\*\.tgz coco-\*\.tgz\.sha256 coco-\*-offline-\*\.zip coco-\*-offline-\*\.zip\.sha256 coco-agent-\*\.vsix coco-agent-\*\.vsix\.sha256 > SHA256SUMS/);
   assert.match(releaseWorkflow, /npm run build:offline/);
-  assert.match(releaseWorkflow, /release\/SHA256SUMS/);
+  assert.match(releaseWorkflow, /COCO_PACKAGE_ARCHIVE: \$\{\{ steps\.package\.outputs\.archive \}\}/);
+  assert.match(releaseWorkflow, /COCO_PACKAGE_SHA256: \$\{\{ steps\.package\.outputs\.sha256 \}\}/);
+  assert.match(releaseWorkflow, /SHA256SUMS/);
 });

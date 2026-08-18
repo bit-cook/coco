@@ -8,14 +8,16 @@ import { extname, join, resolve } from "node:path";
 import { canonicalJson } from "./canonical-json.mjs";
 import { StateError } from "./state-schema.mjs";
 import { agentDirectory, ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
-import { atomicReplace } from "./state-transaction.mjs";
-import { createTaskStore } from "./task-state.mjs";
+import { acquireStateLock, atomicReplace } from "./state-transaction.mjs";
+import { createTaskStore, readRunnerStoppingState } from "./task-state.mjs";
 import { createTaskEventStore } from "./task-events.mjs";
 import { createTaskLogStore } from "./task-logs.mjs";
 import { createTaskReceiptStore } from "./task-receipts.mjs";
 import { diagnoseTask } from "./task-diagnosis.mjs";
 import { cancelTask, startDetachedRunner, stopRunner } from "./task-runner.mjs";
 import { processAlive, processIdentity, processMatches, terminateProcessTree } from "./task-process.mjs";
+import { createWebhookDeliveryStore } from "./webhook-deliveries.mjs";
+import { resolveRuntimeRoot } from "./runtime-root.mjs";
 
 const MAX_BODY = 1024 * 1024;
 const MAX_OBSERVATION_RESPONSE = 1024 * 1024;
@@ -23,7 +25,15 @@ const TYPES = { ".css": "text/css; charset=utf-8", ".html": "text/html; charset=
 function fail(code) { throw new StateError(code); }
 function requireLoopback(host) { if (host !== "127.0.0.1" && host !== "::1") fail("CONTROL_LOOPBACK_REQUIRED"); }
 function controlUrl(host, port) { return `http://${host === "::1" ? `[${host}]` : host}:${port}`; }
-function cleanTask({ cancelPending: _cancelPending, pendingRunEvent: _pendingRunEvent, webhookSecret: _secret, pid: _pid, ...task }) { return task; }
+function taskDto(task) {
+  const { activeRunId, attempts, branch, createdAt, encodingLoss, finishedAt, github, heartbeatAt, id, logsTruncated, schedule, startedAt, status, trigger, updatedAt, worktree } = task;
+  return { activeRunId, attempts, branch, createdAt, encodingLoss, finishedAt, github, heartbeatAt, id, logsTruncated, schedule, startedAt, status, trigger, updatedAt, worktree };
+}
+function taskDetailDto(task) { return { ...taskDto(task), cwd: task.cwd, lastError: task.lastError, prompt: task.prompt, result: task.result }; }
+function agentDto(task, alive, observedAt) {
+  const { activeRunId, heartbeatAt, id, startedAt, status, trigger, updatedAt } = task;
+  return { activeRunId, alive, heartbeatAt, id, observedAt, startedAt, status, trigger, updatedAt };
+}
 function json(response, status, body) { const bytes = Buffer.from(JSON.stringify(body)); response.writeHead(status, { "cache-control": "no-store", "content-length": bytes.length, "content-type": "application/json; charset=utf-8", "x-content-type-options": "nosniff" }); response.end(bytes); }
 async function body(request) {
   const chunks = []; let size = 0;
@@ -31,17 +41,43 @@ async function body(request) {
   return Buffer.concat(chunks);
 }
 function authorized(request, token) {
-  const actual = request.headers.authorization?.replace(/^Bearer /, "") ?? "";
+  const match = typeof request.headers.authorization === "string" ? /^Bearer ([^\s]+)$/i.exec(request.headers.authorization) : null;
+  const actual = match?.[1] ?? "";
   const a = Buffer.from(actual); const b = Buffer.from(token);
   return a.length === b.length && timingSafeEqual(a, b);
 }
 function webhookAuthorized(request, bytes, task) {
+  if (!task.github) return authorized(request, task.webhookSecret);
   const signature = request.headers["x-hub-signature-256"];
   if (typeof signature === "string" && signature.startsWith("sha256=")) {
     const expected = `sha256=${createHmac("sha256", task.webhookSecret).update(bytes).digest("hex")}`;
     return signature.length === expected.length && timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
   }
-  return authorized(request, task.webhookSecret);
+  return false;
+}
+const PUBLIC_ERRORS = new Map([
+  ["REQUEST_TOO_LARGE", 413],
+  ["REQUEST_PAYLOAD_INVALID", 400],
+  ["TASK_INVALID", 400],
+  ["TASK_NOT_APPROVABLE", 409],
+  ["TASK_NOT_CANCELLABLE", 409],
+  ["TASK_NOT_FOUND", 404],
+  ["RUNNER_STOPPING", 503],
+  ["RUNNER_START_FAILED", 503],
+  ["CONTROL_ALREADY_RUNNING", 409],
+]);
+function httpError(error) {
+  const status = PUBLIC_ERRORS.get(error?.code);
+  return status ? { status, code: error.code } : { status: 500, code: "CONTROL_INTERNAL_ERROR" };
+}
+async function acquireControlOwnership(agentDir) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    try { return await acquireStateLock(agentDir); } catch (error) {
+      if (error?.code !== "STATE_LOCKED" || attempt === 199) throw error;
+      await new Promise((done) => setTimeout(done, 10));
+    }
+  }
+  fail("CONTROL_START_FAILED");
 }
 async function state(agentDir) {
   const path = statePaths(agentDir).control;
@@ -50,22 +86,42 @@ async function state(agentDir) {
 }
 export async function controlStatus(agentDir) {
   const value = await state(agentDir);
-  const running = value && (value.processIdentity ? await processMatches(value.pid, value.processIdentity) : await processAlive(value.pid));
-  return running ? { host: value.host, legacyIdentity: !value.processIdentity, pid: value.pid, port: value.port, status: "running", url: controlUrl(value.host, value.port) } : { status: "stopped" };
+  if (!value) return { status: "stopped" };
+  if (!value.processIdentity) return { reason: "identity-unavailable", status: "stale" };
+  return await processMatches(value.pid, value.processIdentity) ? { host: value.host, pid: value.pid, port: value.port, status: "running", url: controlUrl(value.host, value.port) } : { status: "stopped" };
 }
 export async function startDetachedControl({ agentDir, host = "127.0.0.1", port = 3210, root }) {
   const current = await controlStatus(agentDir); if (current.status === "running") return current;
   requireLoopback(host);
   await ensureAgentDirectory(agentDir); const logs = join(agentDir, "logs"); await mkdir(logs, { recursive: true, mode: 0o700 });
   const output = await open(join(logs, "control.log"), "a", 0o600);
-  const child = spawn(process.execPath, [join(root, "scripts", "control-service-main.mjs"), "--agent-dir", agentDir, "--root", root, "--host", host, "--port", String(port)], { detached: true, env: { ...process.env, COCO_CODING_AGENT_DIR: agentDir }, stdio: ["ignore", output.fd, output.fd] });
+  const runtimeRoot = await resolveRuntimeRoot({ agentDir, root, statePaths: statePaths(agentDir) });
+  const child = spawn(process.execPath, [join(runtimeRoot, "scripts", "control-service-main.mjs"), "--agent-dir", agentDir, "--root", runtimeRoot, "--host", host, "--port", String(port)], { detached: true, env: { ...process.env, COCO_CODING_AGENT_DIR: agentDir }, stdio: ["ignore", output.fd, output.fd] });
   child.unref(); await output.close();
   for (let attempt = 0; attempt < 100; attempt += 1) { await new Promise((done) => setTimeout(done, 20)); const next = await controlStatus(agentDir); if (next.status === "running") return next; }
   fail("CONTROL_START_FAILED");
 }
+async function recoverPendingDispatches({ agentDir, root, signal }) {
+  while (!signal?.aborted) {
+    try {
+      const pending = await createWebhookDeliveryStore({ agentDir }).listPending();
+      const tasks = await createTaskStore({ agentDir }).load();
+      const cancelled = new Set(pending.filter(({ taskId }) => tasks.tasks.some((task) => task.id === taskId && task.status === "cancelled" && task.activeRunId === null)).map(({ taskId }) => taskId));
+      for (const taskId of cancelled) await createWebhookDeliveryStore({ agentDir }).disposeCancelled({ taskId });
+      const capped = new Set(pending.filter(({ taskId }) => tasks.tasks.some((task) => task.id === taskId && ["queued", "provisioning"].includes(task.status) && task.attempts >= 1000 && task.activeRunId === null)).map(({ taskId }) => taskId));
+      for (const taskId of capped) await createWebhookDeliveryStore({ agentDir }).disposeAttemptLimited({ taskId });
+      const pendingTasks = new Set(pending.map(({ taskId }) => taskId));
+      const needsRunner = tasks.tasks.some((task) => task.terminalEvidence !== null || task.pendingRunEvent !== null || task.launchPending || (pendingTasks.has(task.id) && ["queued", "provisioning", "running"].includes(task.status)));
+      if (needsRunner) await startDetachedRunner({ agentDir, root });
+    }
+    catch {}
+    await new Promise((done) => setTimeout(done, 500));
+  }
+}
 export async function stopControl(agentDir) {
-  const current = await state(agentDir); if (!current || !await processAlive(current.pid)) return { status: "stopped" };
+  const current = await state(agentDir); if (!current) return { status: "stopped" };
   if (!current.processIdentity) return { status: "identity-unavailable" };
+  if (!await processAlive(current.pid)) return { status: "stopped" };
   if (!await processMatches(current.pid, current.processIdentity)) return { status: "identity-mismatch" };
   const result = await terminateProcessTree(current.pid, { identity: current.processIdentity }); return { status: result.status === "terminated" ? "stopped" : result.status };
 }
@@ -73,9 +129,9 @@ export async function stopControl(agentDir) {
 export async function runControlServer({ agentDir, host, port, root, signal }) {
   requireLoopback(host);
   await ensureAgentDirectory(agentDir);
-  const previous = await state(agentDir); if (previous && previous.pid !== process.pid && (previous.processIdentity ? await processMatches(previous.pid, previous.processIdentity) : await processAlive(previous.pid))) fail("CONTROL_ALREADY_RUNNING");
   const token = randomBytes(32).toString("base64url");
   const store = createTaskStore({ agentDir }); const events = createTaskEventStore({ agentDir }); const logs = createTaskLogStore({ agentDir }); const receipts = createTaskReceiptStore({ agentDir }); const publicRoot = join(root, "control", "public");
+  const deliveries = createWebhookDeliveryStore({ agentDir });
   const server = createServer(async (request, response) => {
     response.setHeader("content-security-policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'");
     response.setHeader("referrer-policy", "no-referrer");
@@ -91,27 +147,39 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
       if (request.method === "POST" && hook) {
         const bytes = await body(request); const snapshot = await store.load(); const task = snapshot.tasks.find(({ id }) => id === hook[1]);
         if (!task || !task.webhookSecret || !webhookAuthorized(request, bytes, task)) return json(response, 401, { error: "UNAUTHORIZED" });
-        const event = request.headers["x-github-event"];
-        if (task.github && (event !== task.github.event || (task.github.repository && JSON.parse(bytes).repository?.full_name !== task.github.repository))) return json(response, 202, { accepted: false });
-        await store.update((value) => { const target = value.tasks.find(({ id }) => id === task.id); if (target && !["running", "cancelled"].includes(target.status)) { target.status = "queued"; target.updatedAt = new Date().toISOString(); target.finishedAt = null; } return value; });
-        await startDetachedRunner({ agentDir, root }); return json(response, 202, { accepted: true, taskId: task.id });
-      }
+        let payload; try { payload = JSON.parse(bytes); } catch { return json(response, 400, { error: "WEBHOOK_PAYLOAD_INVALID" }); }
+         const event = request.headers["x-github-event"];
+         if (task.github && (event !== task.github.event || (task.github.repository && payload.repository?.full_name !== task.github.repository))) return json(response, 202, { accepted: false });
+         const deliveryId = task.github ? request.headers["x-github-delivery"] : request.headers["idempotency-key"];
+         const kind = task.github ? "github" : "generic";
+         if (typeof deliveryId !== "string" || !/^[A-Za-z0-9._:-]{1,200}$/.test(deliveryId)) return json(response, 400, { error: task.github ? "WEBHOOK_DELIVERY_INVALID" : "IDEMPOTENCY_KEY_REQUIRED" });
+           const delivery = await deliveries.accept({ deliveryId, kind, taskId: task.id });
+            if (!delivery.accepted) return json(response, 202, { accepted: false, dispatch: delivery.intent ?? null, reason: delivery.duplicate ? "duplicate" : delivery.reason, taskId: task.id });
+           try { await startDetachedRunner({ agentDir, root }); } catch {} return json(response, 202, { accepted: true, dispatch: delivery.intent, taskId: task.id });
+       }
       if (!authorized(request, token)) return json(response, 401, { error: "UNAUTHORIZED" });
       if (request.method === "GET" && url.pathname === "/v1/health") return json(response, 200, { schemaVersion: 1, status: "ok" });
-      if (request.method === "GET" && url.pathname === "/v1/tasks") return json(response, 200, { tasks: (await store.load()).tasks.map(cleanTask) });
+       if (request.method === "GET" && url.pathname === "/v1/tasks") return json(response, 200, { tasks: (await store.load()).tasks.map(taskDto) });
+       if (request.method === "GET" && url.pathname === "/v1/dispatch-pending") return json(response, 200, { dispatchPending: await deliveries.listPending() });
+      const detail = /^\/v1\/tasks\/([a-z0-9_-]{12})$/.exec(url.pathname);
+      if (request.method === "GET" && detail) { const task = (await store.load()).tasks.find(({ id }) => id === detail[1]); return task ? json(response, 200, { task: taskDetailDto(task) }) : json(response, 404, { error: "NOT_FOUND" }); }
       const diagnosis = /^\/v1\/tasks\/([a-z0-9_-]{12})\/diagnosis$/.exec(url.pathname);
       if (request.method === "GET" && diagnosis) {
-        const task = (await store.load()).tasks.find(({ id }) => id === diagnosis[1]); if (!task) return json(response, 404, { error: "NOT_FOUND" });
-        const eventsPage = task.activeRunId ? await events.readPage({ taskId: task.id, runId: task.activeRunId, cursor: 0, limit: 4096 }) : { events: [] };
-        const logsPage = task.activeRunId ? await logs.read({ taskId: task.id, runId: task.activeRunId, cursor: 0, limit: 256 }) : { records: [] };
-        const latestHeartbeatAt = eventsPage.events.filter(({ type }) => type === "run.heartbeat").at(-1)?.at ?? null;
-        const latestLogAt = logsPage.records.at(-1)?.at ?? null;
-        const alive = task.pid && task.processIdentity ? await processMatches(task.pid, task.processIdentity) : false;
-        return json(response, 200, diagnoseTask({ task, latestHeartbeatAt, latestLogAt, processAlive: alive }));
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const snapshot = await store.load(); const task = snapshot.tasks.find(({ id }) => id === diagnosis[1]); if (!task) return json(response, 404, { error: "NOT_FOUND" });
+          const eventsPage = task.activeRunId ? await events.readPage({ taskId: task.id, runId: task.activeRunId, cursor: 0, limit: 4096 }) : { events: [] };
+          const latestHeartbeatAt = eventsPage.events.filter(({ type }) => type === "run.heartbeat").at(-1)?.at ?? null;
+          const latestLogAt = task.activeRunId ? await logs.latestAt({ taskId: task.id, runId: task.activeRunId }) : null;
+          const alive = task.pid && task.processIdentity ? await processMatches(task.pid, task.processIdentity) : false;
+          const currentState = await store.load(); const current = currentState.tasks.find(({ id }) => id === task.id);
+          if (currentState.revision === snapshot.revision && current?.updatedAt === task.updatedAt) return json(response, 200, diagnoseTask({ task: current, latestHeartbeatAt, latestLogAt, processAlive: alive }));
+        }
+        return json(response, 409, { error: "STATE_CHANGED_DURING_DIAGNOSIS" });
       }
       if (request.method === "GET" && url.pathname === "/v1/agents") {
         const active = (await store.load()).tasks.filter((task) => task.status === "running" && task.pid);
-        return json(response, 200, { agents: await Promise.all(active.map(async (task) => ({ ...cleanTask(task), alive: await processMatches(task.pid, task.processIdentity), pid: task.pid }))) });
+        const observedAt = new Date().toISOString();
+        return json(response, 200, { agents: await Promise.all(active.map(async (task) => agentDto(task, await processMatches(task.pid, task.processIdentity), observedAt))) });
       }
       const stream = /^\/v1\/tasks\/([a-z0-9_-]{12})\/runs\/([0-9a-f-]{36})\/(events|logs)$/.exec(url.pathname);
       if (request.method === "GET" && stream) {
@@ -136,46 +204,56 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
         return value ? json(response, 200, { receipt: value }) : json(response, 404, { error: "NOT_FOUND" });
       }
       if (request.method === "POST" && url.pathname === "/v1/tasks") {
-        const input = JSON.parse((await body(request)).toString("utf8"));
+        let input; try { input = JSON.parse((await body(request)).toString("utf8")); } catch { fail("REQUEST_PAYLOAD_INVALID"); }
         if (typeof input.prompt !== "string" || !input.prompt.trim() || typeof input.cwd !== "string") return json(response, 400, { error: "TASK_INVALID" });
         const task = await store.create({ cwd: input.cwd, initialStatus: input.approved === false ? "blocked" : "queued", prompt: input.prompt, trigger: "manual", worktree: input.worktree !== false });
-        if (task.status === "queued") await startDetachedRunner({ agentDir, root }); return json(response, 201, { task: cleanTask(task) });
+        if (task.status === "queued") await startDetachedRunner({ agentDir, root }); return json(response, 201, { task: taskDto(task) });
       }
       const approve = /^\/v1\/tasks\/([a-z0-9_-]{12})\/approve$/.exec(url.pathname);
       if (request.method === "POST" && approve) {
-        await store.update((value) => { const task = value.tasks.find(({ id }) => id === approve[1]); if (!task || task.status !== "blocked" || task.trigger !== "manual") fail("TASK_NOT_APPROVABLE"); task.status = "queued"; task.updatedAt = new Date().toISOString(); return value; });
+        await store.update(async (value) => { if (await readRunnerStoppingState(agentDir)) fail("RUNNER_STOPPING"); const task = value.tasks.find(({ id }) => id === approve[1]); if (!task || task.status !== "blocked" || task.trigger !== "manual") fail("TASK_NOT_APPROVABLE"); task.status = "queued"; task.updatedAt = new Date().toISOString(); return value; });
         await startDetachedRunner({ agentDir, root }); return json(response, 202, { approved: true });
       }
       const cancel = /^\/v1\/tasks\/([a-z0-9_-]{12})\/cancel$/.exec(url.pathname);
       if (request.method === "POST" && cancel) {
         const snapshot = await store.load(); const task = snapshot.tasks.find(({ id }) => id === cancel[1]); if (!task) fail("TASK_NOT_FOUND");
-        await cancelTask(store, task.id);
-        return json(response, 200, { cancelled: true });
+         const cancelled = await cancelTask(store, task.id);
+         return json(response, 200, { cancelled: cancelled.status === "cancelled", outcome: cancelled.status === "cancelled" ? "cancelled" : "terminal-won", task: taskDto(cancelled) });
       }
       if (request.method === "POST" && url.pathname === "/v1/tasks/stop-all") {
-        const snapshot = await store.load(); const running = snapshot.tasks.filter(({ pid, status }) => pid || status === "running");
         const result = await stopRunner(agentDir);
         if (result.status !== "stopped") return json(response, 500, { error: "TASK_PROCESS_STILL_ALIVE" });
-        return json(response, 200, { status: "terminated", stopped: running.length });
+        return json(response, 200, { status: "terminated", stopped: result.stopped ?? 0 });
       }
       return json(response, 404, { error: "NOT_FOUND" });
-    } catch (error) { return json(response, error?.code === "REQUEST_TOO_LARGE" ? 413 : 400, { error: error instanceof Error ? error.message : "REQUEST_FAILED" }); }
+    } catch (error) { const failure = httpError(error); return json(response, failure.status, { error: failure.code }); }
   });
-  await new Promise((done, reject) => { server.once("error", reject); server.listen(port, host, done); });
-  const address = server.address(); const selectedPort = typeof address === "object" && address ? address.port : port;
-  const close = () => { server.close(); server.closeIdleConnections?.(); server.closeAllConnections?.(); }; process.once("SIGINT", close); process.once("SIGTERM", close); signal?.addEventListener("abort", close, { once: true });
+  const ownership = await acquireControlOwnership(agentDir);
+  let selectedPort;
+  try {
+    const previous = await state(agentDir);
+    if (previous?.processIdentity && await processMatches(previous.pid, previous.processIdentity)) fail("CONTROL_ALREADY_RUNNING");
+    await new Promise((done, reject) => { server.once("error", reject); server.listen(port, host, done); });
+    const address = server.address(); selectedPort = typeof address === "object" && address ? address.port : port;
+    await atomicReplace({ agentDir, containsSecret: true, path: statePaths(agentDir).control, bytes: canonicalJson({ host, ownerId: ownership.ownerId, pid: process.pid, port: selectedPort, processIdentity: await processIdentity(process.pid), runtimeKey: process.env.COCO_RUNTIME_KEY ?? null, runtimeRoot: process.env.COCO_RUNTIME_ROOT ?? null, schemaVersion: 1, startedAt: new Date().toISOString(), token }) });
+  } catch (error) {
+    if (server.listening) await new Promise((done) => server.close(done));
+    throw error;
+  } finally { await ownership.release(); }
+  const recovery = new AbortController();
+  const recoveryLoop = recoverPendingDispatches({ agentDir, root, signal: recovery.signal });
+  const close = () => { recovery.abort(); server.close(); server.closeIdleConnections?.(); server.closeAllConnections?.(); }; process.once("SIGINT", close); process.once("SIGTERM", close); signal?.addEventListener("abort", close, { once: true });
   const closed = new Promise((done) => server.once("close", done)); if (signal?.aborted) close();
-  await atomicReplace({ agentDir, containsSecret: true, path: statePaths(agentDir).control, bytes: canonicalJson({ host, pid: process.pid, port: selectedPort, processIdentity: await processIdentity(process.pid), schemaVersion: 1, startedAt: new Date().toISOString(), token }) });
-  await closed;
+  await closed; recovery.abort(); await recoveryLoop;
   process.removeListener("SIGINT", close); process.removeListener("SIGTERM", close); signal?.removeEventListener("abort", close);
-  await rm(statePaths(agentDir).control, { force: true });
+  const current = await state(agentDir); if (current?.ownerId === ownership.ownerId) await rm(statePaths(agentDir).control, { force: true });
 }
 
 export async function controlCommand(argv, { agentDir, root }) {
   const [action, ...args] = argv;
   if (action === "status") { process.stdout.write(`${JSON.stringify(await controlStatus(agentDir))}\n`); return { exitCode: 0, kind: "native" }; }
   if (action === "stop") { process.stdout.write(`${JSON.stringify(await stopControl(agentDir))}\n`); return { exitCode: 0, kind: "native" }; }
-  if (action === "token") { const value = await state(agentDir); if (!value || !(value.processIdentity ? await processMatches(value.pid, value.processIdentity) : await processAlive(value.pid))) fail("CONTROL_NOT_RUNNING"); process.stdout.write(`${value.token}\n`); return { exitCode: 0, kind: "native" }; }
+  if (action === "token") { const value = await state(agentDir); if (!value?.processIdentity || !await processMatches(value.pid, value.processIdentity)) fail("CONTROL_NOT_RUNNING"); process.stdout.write(`${value.token}\n`); return { exitCode: 0, kind: "native" }; }
   if (action === "start") {
     const hostIndex = args.indexOf("--host"); const portIndex = args.indexOf("--port"); const host = hostIndex === -1 ? "127.0.0.1" : args[hostIndex + 1]; const port = portIndex === -1 ? 3210 : Number(args[portIndex + 1]);
     if (!Number.isSafeInteger(port) || port < 0 || port > 65535) fail("CONTROL_PORT_INVALID");

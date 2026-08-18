@@ -1,88 +1,1205 @@
 {
-  "schema": "coco-documentation-completeness-v1",
-  "generated": "2026-08-01",
-  "source_root": "..",
-  "locales": ["en", "zh-CN"],
-  "translation_status": "complete",
-  "inventory": {
-    "source_markdown_count": 39,
-    "source_markdown": [
-      {"source":"README.md","lines":81,"sha256":"fa5494876a5f41b864d72bd953fa6afb2f15e4a01296fcf9f9a16cb31b4eca32","en":"en/README.md","zh-CN":"zh-CN/README.md"},
-      {"source":"CHANGELOG.md","lines":5164,"sha256":"69a534e21fcf6cab8c423844b9c4c4c20a22385b1c6e8e064ad766a3f8c50f12","en":"en/CHANGELOG.md","zh-CN":"zh-CN/CHANGELOG.md"},
-      {"source":"DESIGN.md","lines":214,"sha256":"45fb6a93de357cb76d881708246c46fd1a21448227f8c7239756b6ee320e7e91","en":"en/DESIGN.md","zh-CN":"zh-CN/DESIGN.md"},
-      {"source":"docs/compaction.md","lines":401,"sha256":"70b93bbae068b11213ce84d36b8189e2909141622f198d7b888559c64fcaa01a","en":"en/docs/compaction.md","zh-CN":"zh-CN/docs/compaction.md"},
-      {"source":"docs/containerization.md","lines":111,"sha256":"29ac379f744052adf301e744559cb43d0e6e84d1b04f4757f1710680991be10b","en":"en/docs/containerization.md","zh-CN":"zh-CN/docs/containerization.md"},
-      {"source":"docs/custom-provider.md","lines":766,"sha256":"f244742b52cc748a197d01c9ae592d741992527b981d6acd9170c52c6216f2ac","en":"en/docs/custom-provider.md","zh-CN":"zh-CN/docs/custom-provider.md"},
-      {"source":"docs/development.md","lines":71,"sha256":"c8f216425e1fb084fb4323c2d9c68b60e0f1111e37575922a139c64158cc0e5d","en":"en/docs/development.md","zh-CN":"zh-CN/docs/development.md"},
-      {"source":"docs/environment-variables.md","lines":88,"sha256":"2c059009b9cc591d003482527e41da4c6b4ba95374698d0efe745d13f7c5625f","en":"en/docs/environment-variables.md","zh-CN":"zh-CN/docs/environment-variables.md"},
-      {"source":"docs/extensions.md","lines":2961,"sha256":"c8e40b19b2f92b5e828b4a40a42dc13fe276b8536537a2c58d4c01905414ba6b","en":"en/docs/extensions.md","zh-CN":"zh-CN/docs/extensions.md"},
-      {"source":"docs/index.md","lines":84,"sha256":"107d95d5dfba1da71ebd3c0b390199463261f78fe9f438c506a205f33b69f7fe","en":"en/docs/index.md","zh-CN":"zh-CN/docs/index.md"},
-      {"source":"docs/json.md","lines":86,"sha256":"276ecd8d2cc71bf36ced4ea0764b2c7d0b108de801dd9f59108e814c0978058e","en":"en/docs/json.md","zh-CN":"zh-CN/docs/json.md"},
-      {"source":"docs/keybindings.md","lines":198,"sha256":"2bf1c111f9d7607d9198415ad12c287f12f74ff200b8498f640a9ef602ec30d2","en":"en/docs/keybindings.md","zh-CN":"zh-CN/docs/keybindings.md"},
-      {"source":"docs/llama-cpp.md","lines":99,"sha256":"0fb4d8c4ef870053296d45bfddb76ac4dba5a5fb1c0de52a89e466f2861fc5de","en":"en/docs/llama-cpp.md","zh-CN":"zh-CN/docs/llama-cpp.md"},
-      {"source":"docs/models.md","lines":544,"sha256":"b0ab9e7b3a4f442b5b680ff5846836e49a5364fb739b633bb0260f184e77495a","en":"en/docs/models.md","zh-CN":"zh-CN/docs/models.md"},
-      {"source":"docs/packages.md","lines":228,"sha256":"f0780d116586c15800685d8ef96c59e89d22db4a80c3c349763989e3f48151f9","en":"en/docs/packages.md","zh-CN":"zh-CN/docs/packages.md"},
-      {"source":"docs/prompt-templates.md","lines":96,"sha256":"972bc0b5461d9140fd543b837abb9b4984e59be66182cbb4f72de894d916dbcb","en":"en/docs/prompt-templates.md","zh-CN":"zh-CN/docs/prompt-templates.md"},
-      {"source":"docs/providers.md","lines":308,"sha256":"535060909ce085ca9d0e149f89e5acd249dba9ea5b9eaf64021770cf87210af5","en":"en/docs/providers.md","zh-CN":"zh-CN/docs/providers.md"},
-      {"source":"docs/quickstart.md","lines":165,"sha256":"2f1babcbcf36f18e8534d7feb0306a1eaf59330eca7d6ff405e87b3c8f82d942","en":"en/docs/quickstart.md","zh-CN":"zh-CN/docs/quickstart.md"},
-      {"source":"docs/rpc.md","lines":1576,"sha256":"89b0d9c93838870e8401e75ab634c28cdeab2716f15010bf66bd776c27af24ec","en":"en/docs/rpc.md","zh-CN":"zh-CN/docs/rpc.md"},
-      {"source":"docs/sdk.md","lines":1186,"sha256":"c34060ea771ebd782067539cd40d7020a5781761b6179759b1a537a46413af21","en":"en/docs/sdk.md","zh-CN":"zh-CN/docs/sdk.md"},
-      {"source":"docs/security.md","lines":59,"sha256":"50ec5ce4c92db862ba56099a5262d30e7745cd4f7abcd36df1b3dc05fb12fa9d","en":"en/docs/security.md","zh-CN":"zh-CN/docs/security.md"},
-      {"source":"docs/session-format.md","lines":436,"sha256":"88b17c2d853b56b928f8f0b0a1acc75612232d79d02e7ae27c361539ec854f6e","en":"en/docs/session-format.md","zh-CN":"zh-CN/docs/session-format.md"},
-      {"source":"docs/sessions.md","lines":145,"sha256":"b4ed96521936b5b4ba464496d096bd6c345803f3fa63b5a647674af068cd83b2","en":"en/docs/sessions.md","zh-CN":"zh-CN/docs/sessions.md"},
-      {"source":"docs/settings.md","lines":319,"sha256":"6daafb1e7bcb9537cb3c3fe14ff26c6375b60fb3dd472c4d22f1e38bf079e093","en":"en/docs/settings.md","zh-CN":"zh-CN/docs/settings.md"},
-      {"source":"docs/shell-aliases.md","lines":13,"sha256":"adead5083689ca9d14fa32f2a3db0bd4d6963a91a1a00d060d5b49c420f257ae","en":"en/docs/shell-aliases.md","zh-CN":"zh-CN/docs/shell-aliases.md"},
-      {"source":"docs/skills.md","lines":231,"sha256":"de38956dcdb3f060b62a891c23b5c0facc568d26039cd0addd6d5adfbed2762f","en":"en/docs/skills.md","zh-CN":"zh-CN/docs/skills.md"},
-      {"source":"docs/terminal-setup.md","lines":142,"sha256":"1c024fd4f02c53ccbe934aa60d30c62f303535fad353093ad4eed61dd3dae4f1","en":"en/docs/terminal-setup.md","zh-CN":"zh-CN/docs/terminal-setup.md"},
-      {"source":"docs/termux.md","lines":127,"sha256":"471c4aff3e2004e7de5387737f728ede4c4c6ac1ccf51575ff4ef2fdbd52c3ce","en":"en/docs/termux.md","zh-CN":"zh-CN/docs/termux.md"},
-      {"source":"docs/themes.md","lines":297,"sha256":"683f45c90b8dfd920cab4d9ca44ece25c4c3680fa13247407a93673d251b5e3d","en":"en/docs/themes.md","zh-CN":"zh-CN/docs/themes.md"},
-      {"source":"docs/tmux.md","lines":63,"sha256":"1fa5373d65c3fac2e2afe5ba3174d4c265076a6832e2f42a79ac033a42a57030","en":"en/docs/tmux.md","zh-CN":"zh-CN/docs/tmux.md"},
-      {"source":"docs/tui.md","lines":942,"sha256":"0d73727b3c1870d92bee8a90a8c2d5c957e3a4316dcaf4adc170f2cbcd82013e","en":"en/docs/tui.md","zh-CN":"zh-CN/docs/tui.md"},
-      {"source":"docs/usage.md","lines":298,"sha256":"ca1093f341cd5cb84aa6d239af7d7c82c89e4bcc53074ad117d24749b515d174","en":"en/docs/usage.md","zh-CN":"zh-CN/docs/usage.md"},
-      {"source":"docs/windows.md","lines":17,"sha256":"506b1cbcc4b1503e3d66a0f3830c2934fc4b1febcd2cf4f4258aa195284c65cd","en":"en/docs/windows.md","zh-CN":"zh-CN/docs/windows.md"},
-      {"source":"examples/README.md","lines":25,"sha256":"b1adaa443da39115a4dfb9401c68e54de31b9145f0964c9a67f83893fd0cae2d","en":"en/examples/README.md","zh-CN":"zh-CN/examples/README.md"},
-      {"source":"examples/extensions/README.md","lines":213,"sha256":"81e2e6e0a51e4b904979dcbc62fbe1a55613cdf6e10346af71c86be68bcde54a","en":"en/examples/extensions/README.md","zh-CN":"zh-CN/examples/extensions/README.md"},
-      {"source":"examples/extensions/doom-overlay/README.md","lines":46,"sha256":"e17bc73b76c7977ffeef99120c7896ff992cf5938a60c4d7427a7b19fc180d97","en":"en/examples/extensions/doom-overlay/README.md","zh-CN":"zh-CN/examples/extensions/doom-overlay/README.md"},
-      {"source":"examples/extensions/plan-mode/README.md","lines":66,"sha256":"1ff8d611b8fbafef4ca1e3dbc72136fbcc166461b69f859b5e961b15147bff39","en":"en/examples/extensions/plan-mode/README.md","zh-CN":"zh-CN/examples/extensions/plan-mode/README.md"},
-      {"source":"examples/extensions/subagent/README.md","lines":175,"sha256":"b796076a5915e20c40ed8a61157764c4dcf789a9eeeeead4273968e24be7a1ef","en":"en/examples/extensions/subagent/README.md","zh-CN":"zh-CN/examples/extensions/subagent/README.md"},
-      {"source":"examples/sdk/README.md","lines":140,"sha256":"5af1e3827fa13a05d25e147659fdcf5af1a3d23e586177e336d39c5acd0c5f37","en":"en/examples/sdk/README.md","zh-CN":"zh-CN/examples/sdk/README.md"}
-    ],
-    "counterparts": {"en": {"exists": true, "complete": true, "byte_for_byte_source": true}, "zh-CN": {"exists": true, "complete": true, "translated": true, "notable_line_counts": {"CHANGELOG.md":5164,"docs/extensions.md":2961}}}
+  "schema": "coco-documentation-completeness-v2",
+  "product_version": "0.6.2",
+  "status": "complete",
+  "complete": true,
+  "generation": {
+    "deterministic": true,
+    "source": "scripts/generate-documentation-completeness.mjs",
+    "packed_artifact": "npm pack"
   },
-  "navigation": {
-    "en": "en/docs.json",
-    "zh-CN": "zh-CN/docs.json",
-    "same_route_count": true,
-    "navigation_files_exist": true
+  "counts": {
+    "logical_pages": 56,
+    "categories": {
+      "current-product-translated": 9,
+      "byte-mirror": 34,
+      "historical-inherited": 13,
+      "unclassified": 0
+    },
+    "locale_markdown": {
+      "en": 48,
+      "zh-CN": 56
+    }
   },
-  "publication_assets": {
-    "logs_per_locale": 0,
-    "logs": {"en":[],"zh-CN":[]},
-    "images_per_locale": 4,
-    "images": {"en":["en/docs/images/doom-extension.png","en/docs/images/exy.png","en/docs/images/interactive-mode.png","en/docs/images/tree-view.png"],"zh-CN":["zh-CN/docs/images/doom-extension.png","zh-CN/docs/images/exy.png","zh-CN/docs/images/interactive-mode.png","zh-CN/docs/images/tree-view.png"]},
-    "image_sha256": {"doom-extension.png":"c3b89b5e1fba711a5bcfa188e13d8695a84f7cdda12d9e127bb45b36d13cbb27","exy.png":"a8f253347440aed01ff659f41f573d340bcfd6010d829726ae92fe18abf601de","interactive-mode.png":"54de24b4c95a4f1833b2462000ce7de64a41e961745be7a776b30083c8b69715","tree-view.png":"ca61e7bbf300dfb3840cc191dc66dc4e9f5166b2f1f4089e6fb13fd04a2c3c66"}
-  },
-  "mapping": {"rule":"source path maps to the same relative path below each locale directory","source_to_locales":"all 39 source Markdown paths have en and zh-CN counterparts"},
-  "snapshot_coverage": {"source_snapshot":"repository working tree at generation date","locale_snapshot":"documentation/en and documentation/zh-CN at generation date","session_day_closed":false,"session_day_closed_reason":"UTC day is not closed","raw_sessions_included":false},
-  "exclusions": [
-    {"path":"node_modules","reason":"dependency tree, not publication documentation"},
-    {"path":".coco-tools","reason":"tooling state, not publication documentation"},
-    {"path":"prompts","reason":"runtime prompts, excluded from publication source mapping"},
-    {"path":"resources","reason":"runtime resources, excluded from publication source mapping"},
-    {"path":"dist","reason":"generated distribution output"},
-    {"path":"skills","reason":"agent and SKILL fixtures, excluded from publication source mapping"},
-    {"path":"examples/extensions/dynamic-resources","reason":"agent and SKILL fixtures, excluded from publication source mapping"},
-    {"path":"documentation/*/logs","reason":"generated logs are publication evidence, not source Markdown mappings"},
-    {"path":".coco-tools/runtime-prompts-and-resources","reason":"runtime prompts and resources, not publication documentation"},
-    {"path":"raw sessions and secret snippets","reason":"not included in the manifest or publication set"}
+  "inventory": [
+    {
+      "path": "CHANGELOG.md",
+      "category": "historical-inherited",
+      "source": {
+        "bytes": 495465,
+        "lines": 5382,
+        "sha256": "3086a7b82349448d52b3ceb904260fe46ee2730bcfdc871f7c6513ff04462aa2"
+      },
+      "locales": {
+        "en": {
+          "bytes": 485243,
+          "lines": 5182,
+          "sha256": "12479f0f21939eff12168418a843a40aeedd2c0fe89f96b99b0ec903a88962b6"
+        },
+        "zh-CN": {
+          "bytes": 471507,
+          "lines": 5182,
+          "sha256": "7fd8bddb1eb26b043c88e09e01e9563d118413a54365038eb7c8ff3d60db4ff4"
+        }
+      }
+    },
+    {
+      "path": "DESIGN.md",
+      "category": "historical-inherited",
+      "source": {
+        "bytes": 13634,
+        "lines": 235,
+        "sha256": "192b306f751ddd49683b96daa41204a2850f253c52c8671101699d82df2cb193"
+      },
+      "locales": {
+        "en": {
+          "bytes": 13296,
+          "lines": 227,
+          "sha256": "1479f3b6b0621f262c18048044ca5e039567c1cfdd7eb221e439035858507ed9"
+        },
+        "zh-CN": {
+          "bytes": 7363,
+          "lines": 94,
+          "sha256": "3752261c4a03490379b441681487d2299c54f94e89445a1a67f08f976e5fd3f6"
+        }
+      }
+    },
+    {
+      "path": "README.md",
+      "category": "current-product-translated",
+      "source": {
+        "bytes": 6871,
+        "lines": 116,
+        "sha256": "204f25874ef963a04e9b293544f8ad06166979d802412dabac7a49a2fe7e0d8c"
+      },
+      "locales": {
+        "en": {
+          "bytes": 4881,
+          "lines": 99,
+          "sha256": "cd4ce202d4fd16daf11e1ce19ecdcb39565b34609b1e8208d6f6c537e1f59ff7"
+        },
+        "zh-CN": {
+          "bytes": 5428,
+          "lines": 108,
+          "sha256": "539220fc0d78bba228402ded679971e0a8198b1dbfc32bc6fff855e455f6c625"
+        }
+      }
+    },
+    {
+      "path": "docs/backup-and-restore.md",
+      "category": "current-product-translated",
+      "source": null,
+      "locales": {
+        "en": {
+          "bytes": 1099,
+          "lines": 29,
+          "sha256": "659dd4a81615fea00a2ea7c63852b135b4c66354074fe88f44f758f2d8660e37"
+        },
+        "zh-CN": {
+          "bytes": 1010,
+          "lines": 29,
+          "sha256": "299bd8d5bef01e2acdf0965be95a05a993355e04b15727ed57766fde8c24acad"
+        }
+      }
+    },
+    {
+      "path": "docs/capability-matrix.md",
+      "category": "historical-inherited",
+      "source": null,
+      "locales": {
+        "en": null,
+        "zh-CN": {
+          "bytes": 2228,
+          "lines": 49,
+          "sha256": "ffde0db74d9927a5ef731d2dde54c2ef6a8a091f4adba98f812917de8b454c85"
+        }
+      }
+    },
+    {
+      "path": "docs/coco-cli.md",
+      "category": "current-product-translated",
+      "source": null,
+      "locales": {
+        "en": {
+          "bytes": 7780,
+          "lines": 130,
+          "sha256": "c9f1eb61a8edd53e3fdc95a7a3eb8abf6243d1c55f502f08946b88b94dffe974"
+        },
+        "zh-CN": {
+          "bytes": 7417,
+          "lines": 130,
+          "sha256": "43a1410855896c02bc3ee3324510b01f2c5c86bea7475c99c4bc497d1f5babf5"
+        }
+      }
+    },
+    {
+      "path": "docs/coco-security.md",
+      "category": "current-product-translated",
+      "source": null,
+      "locales": {
+        "en": {
+          "bytes": 1961,
+          "lines": 23,
+          "sha256": "7e2ac023cb51752451d82202ba7601af53c8af40824078de72a819f123663b1a"
+        },
+        "zh-CN": {
+          "bytes": 1720,
+          "lines": 23,
+          "sha256": "5f872bd746bae815f253492758fc63ea9692dee14798d217e882ef1a9f894fbf"
+        }
+      }
+    },
+    {
+      "path": "docs/compaction.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 18033,
+        "lines": 401,
+        "sha256": "70b93bbae068b11213ce84d36b8189e2909141622f198d7b888559c64fcaa01a"
+      },
+      "locales": {
+        "en": {
+          "bytes": 18033,
+          "lines": 401,
+          "sha256": "70b93bbae068b11213ce84d36b8189e2909141622f198d7b888559c64fcaa01a"
+        },
+        "zh-CN": {
+          "bytes": 17782,
+          "lines": 401,
+          "sha256": "a16d996bbf9415208784fb74ff6d60045a2c3ffe2f3d1ca55abce793d351a630"
+        }
+      }
+    },
+    {
+      "path": "docs/containerization.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 4522,
+        "lines": 111,
+        "sha256": "29ac379f744052adf301e744559cb43d0e6e84d1b04f4757f1710680991be10b"
+      },
+      "locales": {
+        "en": {
+          "bytes": 4522,
+          "lines": 111,
+          "sha256": "29ac379f744052adf301e744559cb43d0e6e84d1b04f4757f1710680991be10b"
+        },
+        "zh-CN": {
+          "bytes": 4409,
+          "lines": 112,
+          "sha256": "e7ff10429324fca60eeb5bd5304f7ffb36574b194f042cf3796578535c48b713"
+        }
+      }
+    },
+    {
+      "path": "docs/custom-provider.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 27382,
+        "lines": 766,
+        "sha256": "f244742b52cc748a197d01c9ae592d741992527b981d6acd9170c52c6216f2ac"
+      },
+      "locales": {
+        "en": {
+          "bytes": 27382,
+          "lines": 766,
+          "sha256": "f244742b52cc748a197d01c9ae592d741992527b981d6acd9170c52c6216f2ac"
+        },
+        "zh-CN": {
+          "bytes": 26867,
+          "lines": 766,
+          "sha256": "7df5dc7f8d76ae568dc136b9db179c58127b5e4cae865bf50a678272406378a1"
+        }
+      }
+    },
+    {
+      "path": "docs/development-migration-journal.md",
+      "category": "historical-inherited",
+      "source": null,
+      "locales": {
+        "en": {
+          "bytes": 20689,
+          "lines": 520,
+          "sha256": "e260fa28c0020d4f75be297f483746672deca5a0fb9501d2d941dc4abb41969d"
+        },
+        "zh-CN": {
+          "bytes": 14506,
+          "lines": 394,
+          "sha256": "cec5b9874ca4c0741bad6cd5048d7bef16511c3237c30725bad55bb9c68983e1"
+        }
+      }
+    },
+    {
+      "path": "docs/development-review-plan.md",
+      "category": "current-product-translated",
+      "source": null,
+      "locales": {
+        "en": {
+          "bytes": 11359,
+          "lines": 241,
+          "sha256": "60abb6a929e2932fe2a697e8a2a831b243c4cc6101229d899b9271e5a5910389"
+        },
+        "zh-CN": {
+          "bytes": 9967,
+          "lines": 241,
+          "sha256": "85176ab281b00cbcfdefeafe8ea1b2bc1819c42f0f4577d89fad9b9258bc59be"
+        }
+      }
+    },
+    {
+      "path": "docs/development.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 1483,
+        "lines": 71,
+        "sha256": "c8f216425e1fb084fb4323c2d9c68b60e0f1111e37575922a139c64158cc0e5d"
+      },
+      "locales": {
+        "en": {
+          "bytes": 1483,
+          "lines": 71,
+          "sha256": "c8f216425e1fb084fb4323c2d9c68b60e0f1111e37575922a139c64158cc0e5d"
+        },
+        "zh-CN": {
+          "bytes": 1520,
+          "lines": 71,
+          "sha256": "09da2221a4db7f34211273103ea86bc99d3c9f29818b123793c183902a045d5d"
+        }
+      }
+    },
+    {
+      "path": "docs/environment-variables.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 4014,
+        "lines": 88,
+        "sha256": "2c059009b9cc591d003482527e41da4c6b4ba95374698d0efe745d13f7c5625f"
+      },
+      "locales": {
+        "en": {
+          "bytes": 4014,
+          "lines": 88,
+          "sha256": "2c059009b9cc591d003482527e41da4c6b4ba95374698d0efe745d13f7c5625f"
+        },
+        "zh-CN": {
+          "bytes": 3596,
+          "lines": 87,
+          "sha256": "5e2b0542bb50ed9fadc9cd3283a91e8c5c7b953327e4d2a44cd4a5c0963931a9"
+        }
+      }
+    },
+    {
+      "path": "docs/extensions.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 117888,
+        "lines": 2961,
+        "sha256": "c8e40b19b2f92b5e828b4a40a42dc13fe276b8536537a2c58d4c01905414ba6b"
+      },
+      "locales": {
+        "en": {
+          "bytes": 117888,
+          "lines": 2961,
+          "sha256": "c8e40b19b2f92b5e828b4a40a42dc13fe276b8536537a2c58d4c01905414ba6b"
+        },
+        "zh-CN": {
+          "bytes": 116072,
+          "lines": 2961,
+          "sha256": "7f619522c531696f92d028ce4e5660f5859d0b6622f5b34bea1492b5d9872a65"
+        }
+      }
+    },
+    {
+      "path": "docs/external-agent-research.md",
+      "category": "current-product-translated",
+      "source": null,
+      "locales": {
+        "en": {
+          "bytes": 10112,
+          "lines": 141,
+          "sha256": "4fcf9b1d872b328bc5a1fe02bf52582ca0a0a30a5dfe03d0e820f486b2ababa4"
+        },
+        "zh-CN": {
+          "bytes": 8674,
+          "lines": 141,
+          "sha256": "dd7b1e988072fbf661e17cea18d0239b3bed9e493933ba484033860d04aed093"
+        }
+      }
+    },
+    {
+      "path": "docs/index.md",
+      "category": "historical-inherited",
+      "source": {
+        "bytes": 3365,
+        "lines": 84,
+        "sha256": "107d95d5dfba1da71ebd3c0b390199463261f78fe9f438c506a205f33b69f7fe"
+      },
+      "locales": {
+        "en": {
+          "bytes": 3904,
+          "lines": 90,
+          "sha256": "7ef1bf1e2a31aeab6d05b70c5e00272ae8565b15f507c150208838bd82dc373d"
+        },
+        "zh-CN": {
+          "bytes": 4649,
+          "lines": 98,
+          "sha256": "70c9ed3355de2169f8fb61a2abad6c6ec35f7d06ac762e15f87493c5fc23e3e5"
+        }
+      }
+    },
+    {
+      "path": "docs/json.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 3645,
+        "lines": 86,
+        "sha256": "276ecd8d2cc71bf36ced4ea0764b2c7d0b108de801dd9f59108e814c0978058e"
+      },
+      "locales": {
+        "en": {
+          "bytes": 3645,
+          "lines": 86,
+          "sha256": "276ecd8d2cc71bf36ced4ea0764b2c7d0b108de801dd9f59108e814c0978058e"
+        },
+        "zh-CN": {
+          "bytes": 3644,
+          "lines": 86,
+          "sha256": "d944b1ab49719f8716a2f2fe5440568744ab171aee6c015f87eb344f3a3d9849"
+        }
+      }
+    },
+    {
+      "path": "docs/keybindings.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 9090,
+        "lines": 198,
+        "sha256": "2bf1c111f9d7607d9198415ad12c287f12f74ff200b8498f640a9ef602ec30d2"
+      },
+      "locales": {
+        "en": {
+          "bytes": 9090,
+          "lines": 198,
+          "sha256": "2bf1c111f9d7607d9198415ad12c287f12f74ff200b8498f640a9ef602ec30d2"
+        },
+        "zh-CN": {
+          "bytes": 8997,
+          "lines": 198,
+          "sha256": "d55d4022565f435112566a2cd1fe6514c8ff8aa23043a5aa5fbf3bfa7aa0287b"
+        }
+      }
+    },
+    {
+      "path": "docs/llama-cpp.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 4065,
+        "lines": 99,
+        "sha256": "0fb4d8c4ef870053296d45bfddb76ac4dba5a5fb1c0de52a89e466f2861fc5de"
+      },
+      "locales": {
+        "en": {
+          "bytes": 4065,
+          "lines": 99,
+          "sha256": "0fb4d8c4ef870053296d45bfddb76ac4dba5a5fb1c0de52a89e466f2861fc5de"
+        },
+        "zh-CN": {
+          "bytes": 4073,
+          "lines": 99,
+          "sha256": "200b242bc0d2c780e6ad09a6ac8bc8c93fdc9fcfa6df6e1df28e53bd42c8b2c2"
+        }
+      }
+    },
+    {
+      "path": "docs/manual.md",
+      "category": "current-product-translated",
+      "source": null,
+      "locales": {
+        "en": {
+          "bytes": 32035,
+          "lines": 812,
+          "sha256": "1d10ad8478e6a04c6aaf1a4ae5d9896b9104b266be467a7a887f1dd629d7770d"
+        },
+        "zh-CN": {
+          "bytes": 36296,
+          "lines": 928,
+          "sha256": "fb298ad1c1254983c3b19a8bfe587af41e894ad15cd55ced60321a2032ae6510"
+        }
+      }
+    },
+    {
+      "path": "docs/model-panel-adapter-rfc.md",
+      "category": "historical-inherited",
+      "source": null,
+      "locales": {
+        "en": null,
+        "zh-CN": {
+          "bytes": 3013,
+          "lines": 58,
+          "sha256": "7cf580f637fd34404923e28febde5cbe7fc38f57c5eed047c964144af14bee94"
+        }
+      }
+    },
+    {
+      "path": "docs/model-panel-contract.md",
+      "category": "historical-inherited",
+      "source": null,
+      "locales": {
+        "en": null,
+        "zh-CN": {
+          "bytes": 2392,
+          "lines": 39,
+          "sha256": "6b88d886287353ae2c33faa8dc66b60ae0149dc0a2ed21b061e67c2a6de987ff"
+        }
+      }
+    },
+    {
+      "path": "docs/models.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 22207,
+        "lines": 544,
+        "sha256": "b0ab9e7b3a4f442b5b680ff5846836e49a5364fb739b633bb0260f184e77495a"
+      },
+      "locales": {
+        "en": {
+          "bytes": 22207,
+          "lines": 544,
+          "sha256": "b0ab9e7b3a4f442b5b680ff5846836e49a5364fb739b633bb0260f184e77495a"
+        },
+        "zh-CN": {
+          "bytes": 21325,
+          "lines": 544,
+          "sha256": "c72909f370fbc15fd652666c1f4794b7c272a565820f221a25235d466b7cfc75"
+        }
+      }
+    },
+    {
+      "path": "docs/packages.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 8784,
+        "lines": 228,
+        "sha256": "f0780d116586c15800685d8ef96c59e89d22db4a80c3c349763989e3f48151f9"
+      },
+      "locales": {
+        "en": {
+          "bytes": 8784,
+          "lines": 228,
+          "sha256": "f0780d116586c15800685d8ef96c59e89d22db4a80c3c349763989e3f48151f9"
+        },
+        "zh-CN": {
+          "bytes": 8279,
+          "lines": 228,
+          "sha256": "af49014f85b97552faa5660f74bad22297a71ef9bbb6584d8634d329bf30c995"
+        }
+      }
+    },
+    {
+      "path": "docs/patch-inventory.md",
+      "category": "historical-inherited",
+      "source": null,
+      "locales": {
+        "en": null,
+        "zh-CN": {
+          "bytes": 2774,
+          "lines": 47,
+          "sha256": "b21363fe93e25fbf367859493a5ea6735aadeeca14ca75d92cb874e5c604fa40"
+        }
+      }
+    },
+    {
+      "path": "docs/product-manifest-rfc.md",
+      "category": "historical-inherited",
+      "source": null,
+      "locales": {
+        "en": null,
+        "zh-CN": {
+          "bytes": 1976,
+          "lines": 50,
+          "sha256": "d773ef7d110129a151b825076b916b2c00b36153fa4bfa9c9f6d2f1b707fefa7"
+        }
+      }
+    },
+    {
+      "path": "docs/prompt-templates.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 2966,
+        "lines": 96,
+        "sha256": "972bc0b5461d9140fd543b837abb9b4984e59be66182cbb4f72de894d916dbcb"
+      },
+      "locales": {
+        "en": {
+          "bytes": 2966,
+          "lines": 96,
+          "sha256": "972bc0b5461d9140fd543b837abb9b4984e59be66182cbb4f72de894d916dbcb"
+        },
+        "zh-CN": {
+          "bytes": 2904,
+          "lines": 96,
+          "sha256": "3efdc8ab1b40a13bc93517cc223b092c372c9e289dd8364518c6ee4eb1202292"
+        }
+      }
+    },
+    {
+      "path": "docs/provider-readiness.md",
+      "category": "historical-inherited",
+      "source": null,
+      "locales": {
+        "en": null,
+        "zh-CN": {
+          "bytes": 3812,
+          "lines": 48,
+          "sha256": "7b1b5ba0dfc404fb1e44540b551dab102b8aac72a736c295b3dc4f7b6331254c"
+        }
+      }
+    },
+    {
+      "path": "docs/providers.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 13573,
+        "lines": 308,
+        "sha256": "535060909ce085ca9d0e149f89e5acd249dba9ea5b9eaf64021770cf87210af5"
+      },
+      "locales": {
+        "en": {
+          "bytes": 13573,
+          "lines": 308,
+          "sha256": "535060909ce085ca9d0e149f89e5acd249dba9ea5b9eaf64021770cf87210af5"
+        },
+        "zh-CN": {
+          "bytes": 13274,
+          "lines": 308,
+          "sha256": "08a2c229e9bae4116f9428432acf3f1bd51c700c9a14476f258c644d65fd9b12"
+        }
+      }
+    },
+    {
+      "path": "docs/quickstart.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 4505,
+        "lines": 165,
+        "sha256": "2f1babcbcf36f18e8534d7feb0306a1eaf59330eca7d6ff405e87b3c8f82d942"
+      },
+      "locales": {
+        "en": {
+          "bytes": 4505,
+          "lines": 165,
+          "sha256": "2f1babcbcf36f18e8534d7feb0306a1eaf59330eca7d6ff405e87b3c8f82d942"
+        },
+        "zh-CN": {
+          "bytes": 4358,
+          "lines": 165,
+          "sha256": "39155209274681f2c6da95e145cf2e8ea920968b52148874ec09071fc3849fe2"
+        }
+      }
+    },
+    {
+      "path": "docs/rpc.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 41291,
+        "lines": 1576,
+        "sha256": "89b0d9c93838870e8401e75ab634c28cdeab2716f15010bf66bd776c27af24ec"
+      },
+      "locales": {
+        "en": {
+          "bytes": 41291,
+          "lines": 1576,
+          "sha256": "89b0d9c93838870e8401e75ab634c28cdeab2716f15010bf66bd776c27af24ec"
+        },
+        "zh-CN": {
+          "bytes": 41229,
+          "lines": 1576,
+          "sha256": "c6a911d96d7b7119726a610e8ebde7733352320fdfc4ea634ba5a332dc864616"
+        }
+      }
+    },
+    {
+      "path": "docs/sdk.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 35420,
+        "lines": 1186,
+        "sha256": "c34060ea771ebd782067539cd40d7020a5781761b6179759b1a537a46413af21"
+      },
+      "locales": {
+        "en": {
+          "bytes": 35420,
+          "lines": 1186,
+          "sha256": "c34060ea771ebd782067539cd40d7020a5781761b6179759b1a537a46413af21"
+        },
+        "zh-CN": {
+          "bytes": 35231,
+          "lines": 1186,
+          "sha256": "11b9f40e10278ce5ea3b405fe8c619d84423c64e7caf1d5058cd3e1a3c942ec3"
+        }
+      }
+    },
+    {
+      "path": "docs/security.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 5287,
+        "lines": 59,
+        "sha256": "50ec5ce4c92db862ba56099a5262d30e7745cd4f7abcd36df1b3dc05fb12fa9d"
+      },
+      "locales": {
+        "en": {
+          "bytes": 5287,
+          "lines": 59,
+          "sha256": "50ec5ce4c92db862ba56099a5262d30e7745cd4f7abcd36df1b3dc05fb12fa9d"
+        },
+        "zh-CN": {
+          "bytes": 4785,
+          "lines": 59,
+          "sha256": "df57c12ce18fb249f62451976eaf426a023466178bf371c4718fc826659b0e26"
+        }
+      }
+    },
+    {
+      "path": "docs/session-format.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 16446,
+        "lines": 436,
+        "sha256": "88b17c2d853b56b928f8f0b0a1acc75612232d79d02e7ae27c361539ec854f6e"
+      },
+      "locales": {
+        "en": {
+          "bytes": 16446,
+          "lines": 436,
+          "sha256": "88b17c2d853b56b928f8f0b0a1acc75612232d79d02e7ae27c361539ec854f6e"
+        },
+        "zh-CN": {
+          "bytes": 16117,
+          "lines": 436,
+          "sha256": "d7d3b618365f459cd1335db44e4f771f359a9a9c4adbfcbaf285085ace92e468"
+        }
+      }
+    },
+    {
+      "path": "docs/sessions.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 5340,
+        "lines": 145,
+        "sha256": "b4ed96521936b5b4ba464496d096bd6c345803f3fa63b5a647674af068cd83b2"
+      },
+      "locales": {
+        "en": {
+          "bytes": 5340,
+          "lines": 145,
+          "sha256": "b4ed96521936b5b4ba464496d096bd6c345803f3fa63b5a647674af068cd83b2"
+        },
+        "zh-CN": {
+          "bytes": 5149,
+          "lines": 145,
+          "sha256": "dcf820c24b09c8810068c5db7b3ae0d897b42a55fd227c8007fda1eb242ece36"
+        }
+      }
+    },
+    {
+      "path": "docs/settings.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 13174,
+        "lines": 319,
+        "sha256": "6daafb1e7bcb9537cb3c3fe14ff26c6375b60fb3dd472c4d22f1e38bf079e093"
+      },
+      "locales": {
+        "en": {
+          "bytes": 13174,
+          "lines": 319,
+          "sha256": "6daafb1e7bcb9537cb3c3fe14ff26c6375b60fb3dd472c4d22f1e38bf079e093"
+        },
+        "zh-CN": {
+          "bytes": 12140,
+          "lines": 319,
+          "sha256": "8c5a87180ddad74fd30054824c8fbbe4cd0844f55746cce801ffb712eb002a3e"
+        }
+      }
+    },
+    {
+      "path": "docs/shell-aliases.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 356,
+        "lines": 13,
+        "sha256": "adead5083689ca9d14fa32f2a3db0bd4d6963a91a1a00d060d5b49c420f257ae"
+      },
+      "locales": {
+        "en": {
+          "bytes": 356,
+          "lines": 13,
+          "sha256": "adead5083689ca9d14fa32f2a3db0bd4d6963a91a1a00d060d5b49c420f257ae"
+        },
+        "zh-CN": {
+          "bytes": 356,
+          "lines": 13,
+          "sha256": "ecd99b1ee925c7729543f74267646cbbdb34747bdb9fec619c0848147cbc4fbc"
+        }
+      }
+    },
+    {
+      "path": "docs/skills.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 6897,
+        "lines": 231,
+        "sha256": "de38956dcdb3f060b62a891c23b5c0facc568d26039cd0addd6d5adfbed2762f"
+      },
+      "locales": {
+        "en": {
+          "bytes": 6897,
+          "lines": 231,
+          "sha256": "de38956dcdb3f060b62a891c23b5c0facc568d26039cd0addd6d5adfbed2762f"
+        },
+        "zh-CN": {
+          "bytes": 6564,
+          "lines": 231,
+          "sha256": "9576b641db53615b76fde68004f9e78beddfaedefe827677b3a4aac229e1a2f6"
+        }
+      }
+    },
+    {
+      "path": "docs/strategy-roadmap-2026.md",
+      "category": "historical-inherited",
+      "source": null,
+      "locales": {
+        "en": null,
+        "zh-CN": {
+          "bytes": 19486,
+          "lines": 425,
+          "sha256": "cea74154ded5a6226f5430a0e05abaaa92fac600908f03f1870cf2193acb01ca"
+        }
+      }
+    },
+    {
+      "path": "docs/task-events.md",
+      "category": "current-product-translated",
+      "source": null,
+      "locales": {
+        "en": {
+          "bytes": 6545,
+          "lines": 32,
+          "sha256": "e6d5adf61335fdff744083b3f40d177806c100a4e40ba8ead9ba2af0e4ff4438"
+        },
+        "zh-CN": {
+          "bytes": 6045,
+          "lines": 32,
+          "sha256": "77c61f40c37e3c80d1df54ebd808c165b037319c8b25837b514d79c445334050"
+        }
+      }
+    },
+    {
+      "path": "docs/tasks.md",
+      "category": "current-product-translated",
+      "source": null,
+      "locales": {
+        "en": {
+          "bytes": 2595,
+          "lines": 50,
+          "sha256": "8ae4c8f236dded858930832620779342e44b2b9d17651316b6c580f8d335e5c4"
+        },
+        "zh-CN": {
+          "bytes": 2337,
+          "lines": 50,
+          "sha256": "7c4a7825054f68d812607d73c63c1cd4633c68df7076ff3f37747f2c15c1bf88"
+        }
+      }
+    },
+    {
+      "path": "docs/terminal-setup.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 5101,
+        "lines": 142,
+        "sha256": "1c024fd4f02c53ccbe934aa60d30c62f303535fad353093ad4eed61dd3dae4f1"
+      },
+      "locales": {
+        "en": {
+          "bytes": 5101,
+          "lines": 142,
+          "sha256": "1c024fd4f02c53ccbe934aa60d30c62f303535fad353093ad4eed61dd3dae4f1"
+        },
+        "zh-CN": {
+          "bytes": 5108,
+          "lines": 142,
+          "sha256": "5dc70b83656a4f5d47803f41ac70766ac9587282b25ec61562cdb9b55ae19f8c"
+        }
+      }
+    },
+    {
+      "path": "docs/termux.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 3213,
+        "lines": 127,
+        "sha256": "471c4aff3e2004e7de5387737f728ede4c4c6ac1ccf51575ff4ef2fdbd52c3ce"
+      },
+      "locales": {
+        "en": {
+          "bytes": 3213,
+          "lines": 127,
+          "sha256": "471c4aff3e2004e7de5387737f728ede4c4c6ac1ccf51575ff4ef2fdbd52c3ce"
+        },
+        "zh-CN": {
+          "bytes": 3201,
+          "lines": 127,
+          "sha256": "8acae95c0c36acc720a7e684cb5265a646c38d38cbfba2904eec4afed4540181"
+        }
+      }
+    },
+    {
+      "path": "docs/themes.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 8262,
+        "lines": 297,
+        "sha256": "683f45c90b8dfd920cab4d9ca44ece25c4c3680fa13247407a93673d251b5e3d"
+      },
+      "locales": {
+        "en": {
+          "bytes": 8262,
+          "lines": 297,
+          "sha256": "683f45c90b8dfd920cab4d9ca44ece25c4c3680fa13247407a93673d251b5e3d"
+        },
+        "zh-CN": {
+          "bytes": 8181,
+          "lines": 297,
+          "sha256": "6d8e55f0746dd3a0b7cddadaf4db3b7cd91bd9a0ca275b34a01cc128db0e1f60"
+        }
+      }
+    },
+    {
+      "path": "docs/tmux.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 2041,
+        "lines": 63,
+        "sha256": "1fa5373d65c3fac2e2afe5ba3174d4c265076a6832e2f42a79ac033a42a57030"
+      },
+      "locales": {
+        "en": {
+          "bytes": 2041,
+          "lines": 63,
+          "sha256": "1fa5373d65c3fac2e2afe5ba3174d4c265076a6832e2f42a79ac033a42a57030"
+        },
+        "zh-CN": {
+          "bytes": 2021,
+          "lines": 63,
+          "sha256": "8308786ad6e01ea9c20099aa9f2878da35fd7f1ca76814e6dfa3eb7d40c52a67"
+        }
+      }
+    },
+    {
+      "path": "docs/tui.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 30742,
+        "lines": 942,
+        "sha256": "0d73727b3c1870d92bee8a90a8c2d5c957e3a4316dcaf4adc170f2cbcd82013e"
+      },
+      "locales": {
+        "en": {
+          "bytes": 30742,
+          "lines": 942,
+          "sha256": "0d73727b3c1870d92bee8a90a8c2d5c957e3a4316dcaf4adc170f2cbcd82013e"
+        },
+        "zh-CN": {
+          "bytes": 30647,
+          "lines": 942,
+          "sha256": "8df1df5f99553798e21ee1710dec53019d16895f46fc27f7293170657fe35f91"
+        }
+      }
+    },
+    {
+      "path": "docs/upstream-dashboard.md",
+      "category": "historical-inherited",
+      "source": null,
+      "locales": {
+        "en": null,
+        "zh-CN": {
+          "bytes": 2843,
+          "lines": 59,
+          "sha256": "9d8c03d681e2c46979bac098f5bc6925dffa02967e8272a38e6edd40391ae9a8"
+        }
+      }
+    },
+    {
+      "path": "docs/usage.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 13359,
+        "lines": 298,
+        "sha256": "ca1093f341cd5cb84aa6d239af7d7c82c89e4bcc53074ad117d24749b515d174"
+      },
+      "locales": {
+        "en": {
+          "bytes": 13359,
+          "lines": 298,
+          "sha256": "ca1093f341cd5cb84aa6d239af7d7c82c89e4bcc53074ad117d24749b515d174"
+        },
+        "zh-CN": {
+          "bytes": 12538,
+          "lines": 298,
+          "sha256": "d026070d3cf78a3604a5d9fc90bf78463dc99d21f8c5ea099283d8d3defbeb82"
+        }
+      }
+    },
+    {
+      "path": "docs/windows.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 394,
+        "lines": 17,
+        "sha256": "506b1cbcc4b1503e3d66a0f3830c2934fc4b1febcd2cf4f4258aa195284c65cd"
+      },
+      "locales": {
+        "en": {
+          "bytes": 394,
+          "lines": 17,
+          "sha256": "506b1cbcc4b1503e3d66a0f3830c2934fc4b1febcd2cf4f4258aa195284c65cd"
+        },
+        "zh-CN": {
+          "bytes": 444,
+          "lines": 17,
+          "sha256": "9105ed370ee2da69e7a3e07a48e096448ca9fac82edf3da8b4c6bacc3350a56e"
+        }
+      }
+    },
+    {
+      "path": "examples/README.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 906,
+        "lines": 25,
+        "sha256": "b1adaa443da39115a4dfb9401c68e54de31b9145f0964c9a67f83893fd0cae2d"
+      },
+      "locales": {
+        "en": {
+          "bytes": 906,
+          "lines": 25,
+          "sha256": "b1adaa443da39115a4dfb9401c68e54de31b9145f0964c9a67f83893fd0cae2d"
+        },
+        "zh-CN": {
+          "bytes": 863,
+          "lines": 25,
+          "sha256": "957d7984927089461159cd056c10efe67234d9704d08ec378591f33f46d9c910"
+        }
+      }
+    },
+    {
+      "path": "examples/extensions/README.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 10000,
+        "lines": 213,
+        "sha256": "81e2e6e0a51e4b904979dcbc62fbe1a55613cdf6e10346af71c86be68bcde54a"
+      },
+      "locales": {
+        "en": {
+          "bytes": 10000,
+          "lines": 213,
+          "sha256": "81e2e6e0a51e4b904979dcbc62fbe1a55613cdf6e10346af71c86be68bcde54a"
+        },
+        "zh-CN": {
+          "bytes": 9858,
+          "lines": 213,
+          "sha256": "d8e71e33feabebbeeeff0a858633b5e8a2e065d83a5b77aa7060796cf0df5cd0"
+        }
+      }
+    },
+    {
+      "path": "examples/extensions/doom-overlay/README.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 1322,
+        "lines": 46,
+        "sha256": "e17bc73b76c7977ffeef99120c7896ff992cf5938a60c4d7427a7b19fc180d97"
+      },
+      "locales": {
+        "en": {
+          "bytes": 1322,
+          "lines": 46,
+          "sha256": "e17bc73b76c7977ffeef99120c7896ff992cf5938a60c4d7427a7b19fc180d97"
+        },
+        "zh-CN": {
+          "bytes": 1255,
+          "lines": 46,
+          "sha256": "73b335b103c591f7c36093e2e81d43181f9c3ad8008a2b38cb96e9524e129490"
+        }
+      }
+    },
+    {
+      "path": "examples/extensions/plan-mode/README.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 2009,
+        "lines": 66,
+        "sha256": "1ff8d611b8fbafef4ca1e3dbc72136fbcc166461b69f859b5e961b15147bff39"
+      },
+      "locales": {
+        "en": {
+          "bytes": 2009,
+          "lines": 66,
+          "sha256": "1ff8d611b8fbafef4ca1e3dbc72136fbcc166461b69f859b5e961b15147bff39"
+        },
+        "zh-CN": {
+          "bytes": 1919,
+          "lines": 66,
+          "sha256": "fefb8a474eb35abde4cfd98f4e18477a372ea6b205c458a0cf02c562f35b79b4"
+        }
+      }
+    },
+    {
+      "path": "examples/extensions/subagent/README.md",
+      "category": "historical-inherited",
+      "source": {
+        "bytes": 6146,
+        "lines": 175,
+        "sha256": "766bf5659a2aeb40955e4ab067bcc94907b55fab3fa0f4cf2ee37c2e06c9a05e"
+      },
+      "locales": {
+        "en": {
+          "bytes": 6111,
+          "lines": 175,
+          "sha256": "b796076a5915e20c40ed8a61157764c4dcf789a9eeeeead4273968e24be7a1ef"
+        },
+        "zh-CN": {
+          "bytes": 6116,
+          "lines": 175,
+          "sha256": "1e54047414513202d20c75b43eb89005b3d820aa40117902ffa28ed417477a25"
+        }
+      }
+    },
+    {
+      "path": "examples/sdk/README.md",
+      "category": "byte-mirror",
+      "source": {
+        "bytes": 4698,
+        "lines": 140,
+        "sha256": "5af1e3827fa13a05d25e147659fdcf5af1a3d23e586177e336d39c5acd0c5f37"
+      },
+      "locales": {
+        "en": {
+          "bytes": 4698,
+          "lines": 140,
+          "sha256": "5af1e3827fa13a05d25e147659fdcf5af1a3d23e586177e336d39c5acd0c5f37"
+        },
+        "zh-CN": {
+          "bytes": 4641,
+          "lines": 140,
+          "sha256": "322866ed19584f5246e2d90aac2187ac8b3538c4cc1d176970d1f4b6c9be811e"
+        }
+      }
+    }
   ],
-  "verification": {
-    "target_counterparts_verified": "passed: 39 source paths have byte-identical English mirrors and Chinese counterparts",
-    "locale_markdown_and_logs": "passed: 39 mapped Markdown files; local operational logs are excluded from publication",
-    "chinese_structure": "passed: CHANGELOG.md has 5164 lines, 854 headings, 266 releases, and 28 fences; docs/extensions.md has 2961 lines",
-    "navigation_and_assets": "passed: docs.json parses in both locales, route sequences and redirects match, all 28 routes resolve, and image inventory matches",
-    "publication_safety": "passed: no session identifiers, absolute local project paths, or high-confidence credential patterns found in the public documentation set; generated operational logs remain local",
-    "translation_corruption_scan": "passed: no high-confidence mixed-token corruption remains",
-    "broken_link_checks": "completed: all 859 relative Markdown links were checked from their locale locations; 725 resolve and 134 unresolved inherited historical/source-tree references were classified. Repairing the remaining references would require changing required byte-identical English mirrors or adding non-publication source files"
+  "navigation": {
+    "route_parity": true,
+    "locales": {
+      "en": {
+        "bytes": 2891,
+        "lines": 75,
+        "sha256": "4c50c931a9d704056f0dff43a24233ff4a6b2d1f580f2b6ad1645cb25f4f8c9d",
+        "routes": [
+          "index.md",
+          "manual.md",
+          "coco-cli.md",
+          "coco-security.md",
+          "tasks.md",
+          "task-events.md",
+          "quickstart.md",
+          "usage.md",
+          "providers.md",
+          "security.md",
+          "containerization.md",
+          "settings.md",
+          "keybindings.md",
+          "sessions.md",
+          "compaction.md",
+          "extensions.md",
+          "skills.md",
+          "prompt-templates.md",
+          "themes.md",
+          "packages.md",
+          "models.md",
+          "custom-provider.md",
+          "session-format.md",
+          "sdk.md",
+          "rpc.md",
+          "json.md",
+          "tui.md",
+          "windows.md",
+          "termux.md",
+          "tmux.md",
+          "terminal-setup.md",
+          "shell-aliases.md",
+          "development.md",
+          "development-review-plan.md",
+          "external-agent-research.md",
+          "backup-and-restore.md",
+          "development-migration-journal.md"
+        ],
+        "missing": []
+      },
+      "zh-CN": {
+        "bytes": 2848,
+        "lines": 75,
+        "sha256": "be131007292863b88b18f6e38a1f02e23d3383d33e9a345a2a0fa394bb069a50",
+        "routes": [
+          "index.md",
+          "manual.md",
+          "coco-cli.md",
+          "coco-security.md",
+          "tasks.md",
+          "task-events.md",
+          "quickstart.md",
+          "usage.md",
+          "providers.md",
+          "security.md",
+          "containerization.md",
+          "settings.md",
+          "keybindings.md",
+          "sessions.md",
+          "compaction.md",
+          "extensions.md",
+          "skills.md",
+          "prompt-templates.md",
+          "themes.md",
+          "packages.md",
+          "models.md",
+          "custom-provider.md",
+          "session-format.md",
+          "sdk.md",
+          "rpc.md",
+          "json.md",
+          "tui.md",
+          "windows.md",
+          "termux.md",
+          "tmux.md",
+          "terminal-setup.md",
+          "shell-aliases.md",
+          "development.md",
+          "development-review-plan.md",
+          "external-agent-research.md",
+          "backup-and-restore.md",
+          "development-migration-journal.md"
+        ],
+        "missing": []
+      }
+    }
+  },
+  "links": {
+    "checked": 982,
+    "resolved": 841,
+    "external_fixed_commit": 0,
+    "external_other": 4469,
+    "historical_inherited": 141,
+    "unclassified": []
   }
 }

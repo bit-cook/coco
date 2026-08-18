@@ -130,6 +130,19 @@ def copy_directory(source_fd: int, parent_fd: int, name: str, mode: int) -> None
         os.close(destination_fd)
 
 
+def staged_manifest(stage_fd: int, name: str, directory: bool) -> list[dict[str, object]]:
+    try:
+        fd = os.open(name, flags(directory), dir_fd=stage_fd)
+    except OSError as error:
+        raise Race from error
+    try:
+        return manifest(fd)
+    except (Invalid, OSError) as error:
+        raise Race from error
+    finally:
+        os.close(fd)
+
+
 def remove_tree(parent_fd: int, name: str) -> None:
     info = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
     if stat.S_ISDIR(info.st_mode):
@@ -189,12 +202,13 @@ def run(root_path: str, global_path: str) -> dict[str, object]:
     stage_name = ""
     stage_fd = -1
     journal_name = ""
-    sources: list[tuple[Selector, int, tuple[int, int, int]]] = []
+    sources: list[tuple[Selector, int, tuple[int, int, int], list[dict[str, object]]]] = []
     source_fds: list[int] = []
     try:
         root_id, global_id = identity(os.fstat(root_fd)), identity(os.fstat(global_fd))
         snapshots = [snapshot_selector(root_fd, global_path, name) for name in SELECTORS]
         stage_name, stage_fd = create_private_directory(root_fd, ".package-inputs-")
+        stage_id = identity(os.fstat(stage_fd))
         inputs: list[dict[str, object]] = []
         for snapshot in snapshots:
             if snapshot.target is None:
@@ -225,10 +239,18 @@ def run(root_path: str, global_path: str) -> dict[str, object]:
             revalidate(root_fd, global_fd, global_path, root_id, global_id, snapshot, source_fd, source_id)
             if manifest(source_fd) != source_manifest:
                 raise Race
-            sources.append((snapshot, source_fd, source_id))
+            if identity(os.fstat(stage_fd)) != stage_id:
+                raise Race
+            if staged_manifest(stage_fd, snapshot.name, directory) != source_manifest:
+                raise Race
+            sources.append((snapshot, source_fd, source_id, source_manifest))
             inputs.append({"selector": {"name": snapshot.name, "state": "present"}, "sourceManifest": source_manifest})
-        for snapshot, source_fd, source_id in sources:
+        for snapshot, source_fd, source_id, source_manifest in sources:
             revalidate(root_fd, global_fd, global_path, root_id, global_id, snapshot, source_fd, source_id)
+            if identity(os.fstat(stage_fd)) != stage_id:
+                raise Race
+            if staged_manifest(stage_fd, snapshot.name, snapshot.name in DIRECTORIES) != source_manifest:
+                raise Race
         journal_name, journal_fd = create_private_directory(root_fd, ".package-inputs-journal-")
         moved: list[str] = []
         installed: list[str] = []

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
@@ -9,6 +10,9 @@ import {
   restoreGoalState,
   validGoalState,
 } from "../resources/coco-goal.mjs";
+import { createLanguageService } from "../resources/coco-language.mjs";
+
+globalThis[Symbol.for("coco.language.service")] = createLanguageService({ agentDir: join(new URL(".", import.meta.url).pathname, ".nonexistent-language-state") });
 
 const empty = { goal: null, revision: 0, schemaVersion: 1, status: "paused", steps: [] };
 

@@ -1,6 +1,6 @@
 # Tasks, Agents, and Control
 
-CoCo 0.2 runs durable tasks through one local runner. A task keeps its status and result under `~/.coco/agent/tasks.json`, while each coding task uses a Git worktree by default.
+Current CoCo releases run durable tasks through one local runner. A task keeps its status and result under `~/.coco/agent/tasks.json`, while each coding task uses a Git worktree by default.
 
 ```bash
 coco task create "Implement and test the feature"
@@ -10,7 +10,7 @@ coco task cancel <id>
 coco task stop-all
 ```
 
-`active` reports the runner and every running Agent PID. `stop-all` first terminates every Agent process group, escalates from `SIGTERM` to `SIGKILL`, verifies that the groups are gone, marks their tasks cancelled, and stops the runner so schedules cannot immediately restart work.
+`active` reports the runner and every running Agent PID. In published `0.6.1`, `stop-all` terminates verified original process groups, escalates from `SIGTERM` to `SIGKILL`, and stops the runner so schedules cannot immediately restart work. A descendant that creates another session can escape that process group; therefore `0.6.1` does not claim complete descendant containment. The `0.6.2` plan requires Linux cgroup v2 before reporting full termination.
 
 ## Triggers
 
@@ -30,7 +30,7 @@ coco control token
 coco control status
 ```
 
-Open the reported loopback URL and enter the token. The dashboard can create approval-gated worktree tasks, show history and live Agents, cancel one task, or completely terminate all tasks. It does not expose raw RPC, provider credentials, arbitrary session paths, or a direct shell endpoint.
+Open the reported loopback URL and enter the token. The dashboard can create approval-gated worktree tasks, show history and live Agents, cancel one task, or request termination of all tracked task process groups. Complete descendant termination is not claimed by `0.6.1`; the `0.6.2` cgroup gate applies. The dashboard does not expose raw RPC, provider credentials, arbitrary session paths, or a direct shell endpoint.
 
 The control server only accepts loopback listeners. For remote access, keep it on `127.0.0.1` and use an authenticated SSH tunnel or a TLS-terminating tunnel that keeps the origin private. The built-in server is HTTP and does not terminate TLS.
 

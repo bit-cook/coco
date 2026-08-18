@@ -25,7 +25,7 @@ test("CoCo operational documentation is locale-paired and records the native CLI
   for (const page of [englishCli, chineseCli]) {
     for (const command of [
       "curl -fsSL https://bit-cook.github.io/coco/install.sh | bash",
-      "COCO_VERSION=0.5.3 bash install.sh",
+      "COCO_VERSION=0.6.2 bash install.sh",
       "PI_OFFLINE=0 coco",
       "coco manage auth set idepub",
       "coco manage auth set idepub --stdin",
@@ -116,5 +116,16 @@ test("CoCo operational documentation is locale-paired and records the native CLI
     assert.equal(paths.includes("manual.md"), true, `${locale} links CoCo manual`);
     assert.equal(paths.includes("coco-cli.md"), true, `${locale} links CoCo CLI`);
     assert.equal(paths.includes("coco-security.md"), true, `${locale} links CoCo security`);
+    const development = navigation.navigation.find(({ title }) => title === (locale === "en" ? "Development" : "开发"));
+    assert.equal(development.items.some(({ path }) => path === "development-review-plan.md"), true, `${locale} links engineering review`);
+  }
+
+  const [englishReview, chineseReview] = await Promise.all([documentation("en", "development-review-plan.md"), documentation("zh-CN", "development-review-plan.md")]);
+  for (const review of [englishReview, chineseReview]) {
+    for (const evidence of ["0.6.1", "b88190b", "472/472", "37/37", "2.18", "9.37", "0.6.2", "0.7.0", "0.8.0"]) assert.ok(review.includes(evidence), evidence);
+    assert.match(review, /draft-first/);
+    assert.match(review, /dispatchPending/);
+    assert.match(review, /EXECUTION_OUTCOME_IN_DOUBT/);
+    assert.match(review, /cgroup v2/);
   }
 });

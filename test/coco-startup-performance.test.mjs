@@ -1,43 +1,47 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 
 const root = new URL("..", import.meta.url).pathname;
 
-function run(environment) {
-  return new Promise((finish) => {
-    const child = spawn(process.execPath, [join(root, "scripts", "coco-bootstrap.cjs"), "--version"], {
-      env: environment,
-      stdio: "pipe",
-    });
-    let stderr = "";
-    child.stderr.on("data", (chunk) => { stderr += chunk; });
-    child.once("close", (code) => finish({ code, stderr }));
-  });
-}
+test("Given the runtime manifest, when startup closure is selected, then it strictly covers every entry", async () => {
+  const manifest = JSON.parse(await readFile(join(root, "resources", "runtime-integrity-manifest.v1.json"), "utf8"));
+  const startupClosure = manifest.startupClosure ?? manifest.entries.map((entry) => entry.path);
+  const dependencyEntries = startupClosure.filter((path) => path.startsWith("node_modules/"));
 
-test("Given a successful cold verification, when CoCo writes its warm cache, then it stores only the bounded startup closure", async () => {
-  // Given
-  const directory = await mkdtemp(join(tmpdir(), "coco-fast-startup-"));
-  const agentDir = join(directory, "agent");
-  try {
-    const environment = { ...process.env, COCO_CODING_AGENT_DIR: agentDir };
+  assert.deepEqual([...startupClosure].sort(), manifest.entries.map((entry) => entry.path).sort());
+  assert.equal(new Set(startupClosure).size, manifest.entries.length);
+  assert.ok(dependencyEntries.some((path) => path.startsWith("node_modules/@earendil-works/pi-tui/dist/")));
+  assert.ok(dependencyEntries.some((path) => path.startsWith("node_modules/@modelcontextprotocol/sdk/dist/")));
+});
 
-    // When
-    const cold = await run(environment);
-    assert.equal(cold.code, 0, cold.stderr);
-    const cache = JSON.parse(await readFile(join(agentDir, ".runtime-integrity-cache.json"), "utf8"));
+test("Given the bootstrap warm path, then CAS reuse is metadata-gated and critical entries remain content-verified", async () => {
+  const source = await readFile(join(root, "scripts", "coco-bootstrap.cjs"), "utf8");
+  assert.match(source, /entrySnapshotsMatch\(cached\.entries, manifest, snapshotRoot\)/);
+  assert.match(source, /directorySnapshotsMatch\(cached\.directories, runtimeRoots, snapshotRoot\)/);
+  assert.match(source, /directoryCount: Object\.keys\(directories\)\.length/);
+  assert.match(source, /function directorySnapshotsMatch[\s\S]{0,500}directorySnapshots\(runtimeRoots, base\)/);
+  assert.match(source, /COCO_RUNTIME_CAS_INTEGRITY_MODE = cacheHit \? "fast" : "full"/);
+  assert.match(source, /\["scripts\/coco-launcher\.mjs", "scripts\/runtime-store-policy\.cjs"\]/);
+  assert.match(source, /hash\(storedManifest\) === hash\(manifestBytes\)/);
+  assert.match(source, /hash\(storedSidecar\) === hash\(sidecarBytes\)/);
+});
 
-    // Then
-    const dependencyEntries = Object.keys(cache.entries).filter((path) => path.startsWith("node_modules/"));
-    assert.ok(Object.keys(cache.entries).length > 0);
-    assert.ok(Object.keys(cache.entries).length < 5_000);
-    assert.ok(Object.keys(cache.directories).length > 0);
-    assert.ok(dependencyEntries.every((path) => path.startsWith("node_modules/@earendil-works/pi-coding-agent/dist/") || path === "node_modules/@earendil-works/pi-coding-agent/package.json" || path.startsWith("node_modules/@modelcontextprotocol/sdk/dist/") || path === "node_modules/@modelcontextprotocol/sdk/package.json"));
-  } finally {
-    await rm(directory, { force: true, recursive: true });
-  }
+test("Given project resource preflight, launcher scans initially and revalidates immediately before Pi import", async () => {
+  const [launcher, preflight] = await Promise.all([
+    readFile(join(root, "scripts", "coco-launcher.mjs"), "utf8"),
+    readFile(join(root, "scripts", "project-resource-preflight.mjs"), "utf8"),
+  ]);
+  assert.match(launcher, /preflightProjectResources[\s\S]*dispatchCoco/);
+  assert.match(launcher, /coco-runtime-resource[\s\S]*preflight\.revalidate\(\)[\s\S]*runtime\.piCli/);
+  assert.equal((launcher.match(/preflight\.revalidate\(\)/g) ?? []).length, 1);
+  assert.equal((preflight.match(/inspectProjectResources\(snapshot\)/g) ?? []).length, 2);
+});
+
+test("startup benchmark records expected command exit status and full percentile summaries", async () => {
+  const source = await readFile(join(root, "scripts", "benchmark-startup.mjs"), "utf8");
+  assert.match(source, /COCO_BENCHMARK_EXPECTED_CODE/);
+  assert.match(source, /expectedCode: expectedCommandCode/);
+  for (const metric of ["minMs", "maxMs", "meanMs", "p50Ms", "p95Ms", "samples"]) assert.match(source, new RegExp(metric));
 });

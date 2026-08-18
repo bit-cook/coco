@@ -1,10 +1,63 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { chmod, mkdtemp, mkdir, readFile, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import test from "node:test";
+import { gzipSync } from "node:zlib";
 
 import { configureIntranetModel } from "../scripts/configure-intranet-model.mjs";
+import { buildOfflineBundle, snapshotPackageArchive } from "../scripts/build-offline-bundle.mjs";
+
+const exec = promisify(execFile);
+const installerSource = new URL("../offline-install.sh", import.meta.url);
+const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const bundleMembers = ["coco-package.tgz", "node-runtime.tar.gz", "offline-install.sh", "uninstall.sh", "platform.txt", "README.txt"];
+
+function tarArchive(entries) {
+  const blocks = [];
+  for (const { body = "", name, type = "0", link = "" } of entries) {
+    const content = Buffer.from(body), header = Buffer.alloc(512);
+    header.write(name, 0, 100, "utf8"); header.write("0000644\0", 100, 8, "ascii"); header.write("0000000\0", 108, 8, "ascii"); header.write("0000000\0", 116, 8, "ascii");
+    header.write(`${content.length.toString(8).padStart(11, "0")}\0`, 124, 12, "ascii"); header.write("00000000000\0", 136, 12, "ascii"); header.fill(0x20, 148, 156); header.write(type, 156, 1, "ascii"); header.write(link, 157, 100, "utf8"); header.write("ustar\0", 257, 6, "ascii"); header.write("00", 263, 2, "ascii");
+    const checksum = [...header].reduce((total, byte) => total + byte, 0); header.write(`${checksum.toString(8).padStart(6, "0")}\0 `, 148, 8, "ascii");
+    blocks.push(header); if (content.length > 0) blocks.push(content, Buffer.alloc((512 - content.length % 512) % 512));
+  }
+  return gzipSync(Buffer.concat([...blocks, Buffer.alloc(1024)]));
+}
+
+function storedZipMember(zip, expectedName) {
+  let offset = 0;
+  while (zip.readUInt32LE(offset) === 0x04034b50) {
+    const compressedSize = zip.readUInt32LE(offset + 18), nameLength = zip.readUInt16LE(offset + 26), extraLength = zip.readUInt16LE(offset + 28);
+    const nameStart = offset + 30, dataStart = nameStart + nameLength + extraLength;
+    const name = zip.toString("utf8", nameStart, nameStart + nameLength);
+    if (name === expectedName) return zip.subarray(dataStart, dataStart + compressedSize);
+    offset = dataStart + compressedSize;
+  }
+  throw new Error("ZIP_MEMBER_MISSING");
+}
+
+async function offlineBundle(root, packageArchive, checksumLines, nodeArchive = tarArchive([{ body: "node\n", name: "bin/node" }])) {
+  const files = {
+    "README.txt": Buffer.from("fixture\n"),
+    "coco-package.tgz": packageArchive,
+    "node-runtime.tar.gz": nodeArchive,
+    "offline-install.sh": await readFile(installerSource),
+    "platform.txt": Buffer.from("linux-x64\n"),
+    "uninstall.sh": Buffer.from("#!/bin/sh\n"),
+  };
+  for (const [name, bytes] of Object.entries(files)) await writeFile(join(root, name), bytes);
+  const lines = checksumLines ?? bundleMembers.map((name) => `${sha256(files[name])}  ${name}`);
+  await writeFile(join(root, "SHA256SUMS"), `${lines.join("\n")}\n`);
+}
+
+async function runOfflineInstaller(bundle) {
+  const home = join(bundle, "home"); await mkdir(home);
+  return await exec("bash", [join(bundle, "offline-install.sh")], { env: { ...process.env, COCO_BIN_DIR: join(home, "bin"), COCO_INSTALL_DIR: join(home, "install"), HOME: home }, timeout: 30_000 });
+}
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "coco-offline-model-"));
@@ -78,4 +131,123 @@ test("offline installer source has no downloader and forces offline startup", as
   assert.match(source, /SHA256SUMS/);
   assert.match(source, /node-runtime\.tar\.gz/);
   assert.match(source, /configure-intranet-model\.mjs/);
+});
+
+test("offline installer requires the exact canonical SHA256SUMS inventory", async () => {
+  const cases = [
+    ["empty", []],
+    ["missing", bundleMembers.slice(0, -1).map((name) => `${"0".repeat(64)}  ${name}`)],
+    ["duplicate", [...bundleMembers, "README.txt"].map((name) => `${"0".repeat(64)}  ${name}`)],
+    ["extra", [...bundleMembers, "extra.txt"].map((name) => `${"0".repeat(64)}  ${name}`)],
+    ["absolute", bundleMembers.map((name, index) => `${"0".repeat(64)}  ${index === 0 ? "/coco-package.tgz" : name}`)],
+    ["traversal", bundleMembers.map((name, index) => `${"0".repeat(64)}  ${index === 0 ? "../coco-package.tgz" : name}`)],
+  ];
+  for (const [label, lines] of cases) {
+    const root = await mkdtemp(join(tmpdir(), `coco-offline-checksums-${label}-`));
+    try {
+      await offlineBundle(root, tarArchive([{ body: "safe\n", name: "package/file" }]), lines);
+      await assert.rejects(runOfflineInstaller(root), (error) => /SHA256SUMS/.test(error.stderr));
+    } finally { await rm(root, { force: true, recursive: true }); }
+  }
+});
+
+test("offline installer rejects unsafe tar structure before extraction", async () => {
+  const cases = [
+    ["absolute", [{ body: "x", name: "/tmp/coco-rel-004-absolute" }]],
+    ["traversal", [{ body: "x", name: "../coco-rel-004-traversal" }]],
+    ["duplicate", [{ body: "a", name: "package/file" }, { body: "b", name: "package/file" }]],
+    ["prefix", [{ body: "a", name: "package/file" }, { body: "b", name: "package/file/child" }]],
+    ["symlink", [{ name: "package/link", type: "2", link: "target" }]],
+    ["hardlink", [{ name: "package/link", type: "1", link: "target" }]],
+    ["special", [{ name: "package/fifo", type: "6" }]],
+  ];
+  for (const [label, entries] of cases) {
+    const root = await mkdtemp(join(tmpdir(), `coco-offline-tar-${label}-`));
+    try {
+      await offlineBundle(root, tarArchive(entries));
+      await assert.rejects(runOfflineInstaller(root), (error) => new RegExp(`package archive .*(unsafe|duplicate|prefix|link|special)`).test(error.stderr));
+    } finally { await rm(root, { force: true, recursive: true }); }
+  }
+});
+
+test("offline installer accepts only safe direct internal Node runtime symlinks", async () => {
+  const safe = await mkdtemp(join(tmpdir(), "coco-offline-node-safe-"));
+  try {
+    const node = tarArchive([
+      { body: "node\n", name: "bin/node" },
+      { body: "npm\n", name: "lib/node_modules/npm/bin/npm-cli.js" },
+      { name: "bin/npm", type: "2", link: "../lib/node_modules/npm/bin/npm-cli.js" },
+    ]);
+    await offlineBundle(safe, tarArchive([{ body: "safe\n", name: "package/file" }]), undefined, node);
+    await assert.rejects(runOfflineInstaller(safe), (error) => !/node-runtime archive/.test(error.stderr));
+  } finally { await rm(safe, { force: true, recursive: true }); }
+
+  for (const [label, link, extra = []] of [
+    ["absolute", "/outside"],
+    ["escape", "../../outside"],
+    ["dangling", "../missing"],
+    ["chain", "npm-link", [{ name: "bin/npm-link", type: "2", link: "../lib/node_modules/npm/bin/npm-cli.js" }]],
+  ]) {
+    const root = await mkdtemp(join(tmpdir(), `coco-offline-node-${label}-`));
+    try {
+      const node = tarArchive([{ body: "node\n", name: "bin/node" }, { body: "npm\n", name: "lib/node_modules/npm/bin/npm-cli.js" }, ...extra, { name: "bin/npm", type: "2", link }]);
+      await offlineBundle(root, tarArchive([{ body: "safe\n", name: "package/file" }]), undefined, node);
+      await assert.rejects(runOfflineInstaller(root), (error) => /node-runtime archive .*(link|unsafe)/.test(error.stderr));
+    } finally { await rm(root, { force: true, recursive: true }); }
+  }
+});
+
+test("offline installer source enforces compressed, member, cumulative, and member-count archive budgets", async () => {
+  const source = await readFile(installerSource, "utf8");
+  for (const limit of ["536870912", "50000", "268435456", "1073741824"]) assert.match(source, new RegExp(limit));
+});
+
+test("offline package snapshot rejects missing, symlinked, identity-drifted, raced, and mismatched inputs", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coco-offline-package-input-"));
+  const archive = join(root, "coco.tgz"), destination = join(root, "snapshot.tgz");
+  const bytes = Buffer.from("verified public package bytes\n"), digest = sha256(bytes);
+  try {
+    await assert.rejects(buildOfflineBundle({ outputDirectory: join(root, "release") }), { message: "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_REQUIRED" });
+    await assert.rejects(snapshotPackageArchive({ destination, packageSha256: digest }), { message: "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_REQUIRED" });
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: join(root, "missing.tgz"), packageSha256: digest }), { message: "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_MISSING" });
+    await writeFile(archive, bytes);
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: archive }), { message: "OFFLINE_BUNDLE_PACKAGE_SHA256_REQUIRED" });
+    await symlink(archive, join(root, "linked.tgz"));
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: join(root, "linked.tgz"), packageSha256: digest }), { message: "OFFLINE_BUNDLE_PACKAGE_ARCHIVE_SYMLINK" });
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: archive, packageSha256: "0".repeat(64) }), { message: "OFFLINE_BUNDLE_PACKAGE_CHECKSUM_MISMATCH" });
+
+    await writeFile(archive, bytes);
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: archive, packageSha256: digest, observe: async (phase) => {
+      if (phase === "after-lstat") { await rename(archive, join(root, "identity-original.tgz")); await writeFile(archive, bytes); }
+    } }), { message: "OFFLINE_BUNDLE_PACKAGE_IDENTITY_CHANGED" });
+
+    await rm(archive, { force: true }); await writeFile(archive, bytes);
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: archive, packageSha256: digest, observe: async (phase) => {
+      if (phase === "after-open") { await rename(archive, join(root, "race-original.tgz")); await writeFile(archive, bytes); }
+    } }), { message: "OFFLINE_BUNDLE_PACKAGE_RACE" });
+
+    await rm(archive, { force: true }); await writeFile(archive, bytes, { mode: 0o600 });
+    await assert.rejects(snapshotPackageArchive({ destination, packageArchive: archive, packageSha256: digest, observe: async (phase) => {
+      if (phase === "after-open") await chmod(archive, 0o644);
+    } }), { message: "OFFLINE_BUNDLE_PACKAGE_RACE" });
+  } finally { await rm(root, { force: true, recursive: true }); }
+});
+
+test("offline builder embeds the exact verified public package bytes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coco-offline-package-binding-"));
+  const output = join(root, "release"), packageArchive = join(root, "coco.tgz"), nodeArchive = join(root, "node.tar.gz");
+  const packageBytes = Buffer.from("one immutable public package\n"), nodeBytes = tarArchive([{ body: "node\n", name: "bin/node" }]);
+  const previousNodeDigest = process.env.COCO_NODE_ARCHIVE_SHA256;
+  try {
+    await writeFile(packageArchive, packageBytes); await writeFile(nodeArchive, nodeBytes);
+    process.env.COCO_NODE_ARCHIVE_SHA256 = sha256(nodeBytes);
+    const result = await buildOfflineBundle({ nodeArchive, outputDirectory: output, packageArchive, packageSha256: sha256(packageBytes) });
+    const embedded = storedZipMember(await readFile(result.path), `${result.path.split("/").at(-1).replace(/\.zip$/, "")}/coco-package.tgz`);
+    assert.equal(sha256(embedded), sha256(await readFile(packageArchive)));
+    assert.deepEqual(embedded, packageBytes);
+    assert.equal((await stat(packageArchive)).isFile(), true);
+  } finally {
+    if (previousNodeDigest === undefined) delete process.env.COCO_NODE_ARCHIVE_SHA256; else process.env.COCO_NODE_ARCHIVE_SHA256 = previousNodeDigest;
+    await rm(root, { force: true, recursive: true });
+  }
 });

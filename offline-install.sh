@@ -53,6 +53,89 @@ checksum() {
   else die "Neither sha256sum nor shasum was found"; fi
 }
 
+validate_archive() {
+  local archive="$1" label="$2"
+  local names="$TMP/$label.names" details="$TMP/$label.details" records="$TMP/$label.records" paths="$TMP/$label.paths" files="$TMP/$label.files" parents="$TMP/$label.parents"
+  local members=0 total=0 name canonical type size component remainder detail link_target="" resolved_target="" base target_type
+  [ "$(wc -c < "$archive")" -le 536870912 ] || die "$label archive exceeds compressed size budget"
+  tar -tzf "$archive" > "$names" 2>/dev/null || die "$label archive inventory is invalid"
+  tar --numeric-owner -tvzf "$archive" > "$details" 2>/dev/null || die "$label archive metadata is invalid"
+  [ "$(wc -l < "$names")" = "$(wc -l < "$details")" ] || die "$label archive inventory is inconsistent"
+  : > "$records"
+  exec 8< "$details"
+  while IFS= read -r name; do
+    IFS= read -r detail <&8 || die "$label archive inventory is inconsistent"
+    members=$((members + 1)); [ "$members" -le 50000 ] || die "$label archive has too many members"
+    [ -n "$name" ] || die "$label archive has an empty member"
+    case "$name" in /*|[A-Za-z]:*|*\\*|*//*|*$'\t'*|*$'\r'*) die "$label archive has an unsafe member path" ;; esac
+    canonical="$name"; case "$canonical" in ./*) canonical="${canonical#./}" ;; esac
+    case "$canonical" in */) canonical="${canonical%/}" ;; esac
+    [ "$canonical" != "./" ] || canonical=""
+    remainder="$canonical"
+    while [ -n "$remainder" ]; do
+      component="${remainder%%/*}"
+      [ -n "$component" ] && [ "$component" != "." ] && [ "$component" != ".." ] || die "$label archive has an unsafe member path"
+      [ "$remainder" = "$component" ] && remainder="" || remainder="${remainder#*/}"
+    done
+    type="${detail:0:1}"
+    case "$type" in
+      -|d) ;;
+      l)
+        [ "$label" = "node-runtime" ] || die "$label archive contains a link"
+        [[ "$detail" = *"$name -> "* ]] || die "$label archive link metadata is invalid"
+        link_target="${detail#*"$name -> "}"
+        case "$link_target" in ""|/*|[A-Za-z]:*|*\*|*$'\t'*|*$'\r'*) die "$label archive has an unsafe link target" ;; esac
+        base="${canonical%/*}"; [ "$base" != "$canonical" ] || base=""
+        resolved_target="$(normalize_archive_path "${base:+$base/}$link_target")" || die "$label archive link escapes its root"
+        ;;
+      h) die "$label archive contains a hardlink" ;;
+      *) die "$label archive contains a special member" ;;
+    esac
+    if [[ "$detail" =~ ^[^[:space:]]+[[:space:]]+[^[:space:]]+/[^[:space:]]+[[:space:]]+([0-9]+)[[:space:]] ]]; then size="${BASH_REMATCH[1]}"
+    elif [[ "$detail" =~ ^[^[:space:]]+[[:space:]]+[0-9]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+([0-9]+)[[:space:]] ]]; then size="${BASH_REMATCH[1]}"
+    else die "$label archive metadata is invalid"; fi
+    [ "$size" -le 268435456 ] || die "$label archive member exceeds size budget"
+    total=$((total + size)); [ "$total" -le 1073741824 ] || die "$label archive exceeds uncompressed size budget"
+    [ -n "$canonical" ] || { [ "$type" = d ] || die "$label archive root is not a directory"; canonical="."; }
+    printf '%s\t%s\t%s\n' "$canonical" "$type" "$resolved_target" >> "$records"
+    link_target=""; resolved_target=""
+  done < "$names"
+  exec 8<&-
+  [ "$members" -gt 0 ] || die "$label archive is empty"
+  cut -f1 "$records" > "$paths"
+  [ -z "$(LC_ALL=C sort "$paths" | uniq -d)" ] || die "$label archive contains a duplicate member"
+  : > "$files"; : > "$parents"
+  while IFS=$'\t' read -r canonical type resolved_target; do
+    case "$type" in -|l) printf '%s\n' "$canonical" >> "$files" ;; esac
+    remainder="$canonical"
+    while [[ "$remainder" = */* ]]; do remainder="${remainder%/*}"; printf '%s\n' "$remainder" >> "$parents"; done
+  done < "$records"
+  if [ -s "$files" ] && [ -s "$parents" ]; then
+    LC_ALL=C sort -u "$files" -o "$files"; LC_ALL=C sort -u "$parents" -o "$parents"
+    [ -z "$(comm -12 "$files" "$parents")" ] || die "$label archive contains a prefix conflict"
+  fi
+  if [ "$label" = "node-runtime" ]; then
+    while IFS=$'\t' read -r canonical type resolved_target; do
+      [ "$type" != "l" ] || grep -Fqx -- "$resolved_target" "$paths" || die "$label archive link target is missing"
+      if [ "$type" = "l" ]; then
+        target_type="$(awk -F '\t' -v target="$resolved_target" '$1 == target { print $2; exit }' "$records")"
+        [ "$target_type" = "-" ] || die "$label archive link target is not a regular file"
+      fi
+    done < "$records"
+  fi
+}
+
+normalize_archive_path() {
+  local path="$1" component remainder="$1"; local -a parts=()
+  while [ -n "$remainder" ]; do
+    component="${remainder%%/*}"
+    [ "$remainder" = "$component" ] && remainder="" || remainder="${remainder#*/}"
+    case "$component" in ""|.) ;; ..) [ "${#parts[@]}" -gt 0 ] || return 1; unset 'parts[-1]' ;; *) parts+=("$component") ;; esac
+  done
+  [ "${#parts[@]}" -gt 0 ] || return 1
+  local IFS=/; printf '%s\n' "${parts[*]}"
+}
+
 validate_paths() {
   [ "$HOME_DIR" != "/" ] || die "Refusing HOME=/"
   [ "$COCO_INSTALL_DIR" != "/" ] || die "Refusing COCO_INSTALL_DIR=/"
@@ -66,12 +149,13 @@ validate_paths() {
 }
 
 validate_bundle() {
-  need tar
+  need tar; need wc; need sort; need uniq; need cut; need comm; need grep; need awk
   [ -f "$SCRIPT_DIR/SHA256SUMS" ] || die "SHA256SUMS is missing"
   [ -f "$SCRIPT_DIR/coco-package.tgz" ] || die "coco-package.tgz is missing"
   [ -f "$SCRIPT_DIR/node-runtime.tar.gz" ] || die "node-runtime.tar.gz is missing"
   [ -f "$SCRIPT_DIR/platform.txt" ] || die "platform.txt is missing"
-  local expected_platform actual_platform expected actual file
+  local expected_platform actual_platform expected actual file line index=0
+  local required=(coco-package.tgz node-runtime.tar.gz offline-install.sh uninstall.sh platform.txt README.txt)
   case "$(uname -s)-$(uname -m)" in
     Linux-x86_64|Linux-amd64) actual_platform="linux-x64" ;;
     Linux-arm64|Linux-aarch64) actual_platform="linux-arm64" ;;
@@ -81,16 +165,27 @@ validate_bundle() {
   esac
   expected_platform="$(<"$SCRIPT_DIR/platform.txt")"
   [ "$actual_platform" = "$expected_platform" ] || die "Bundle is for $expected_platform, host is $actual_platform"
-  while read -r expected file; do
-    [ -n "$expected" ] || continue
+  TMP="$(mktemp -d "${TMPDIR:-/tmp}/coco-offline-validate.XXXXXX")"
+  while IFS= read -r line || [ -n "$line" ]; do
+    [ "$index" -lt "${#required[@]}" ] || die "SHA256SUMS has extra members"
+    expected="${line%%  *}"; file="${line#*  }"
+    [[ "$expected" =~ ^[a-f0-9]{64}$ ]] && [ "$line" = "$expected  $file" ] && [ "$file" = "${required[$index]}" ] || die "SHA256SUMS inventory is not canonical"
+    index=$((index + 1))
+  done < "$SCRIPT_DIR/SHA256SUMS"
+  [ "$index" -eq "${#required[@]}" ] || die "SHA256SUMS is missing members"
+  while IFS= read -r line; do
+    expected="${line%%  *}"; file="${line#*  }"
     [ -f "$SCRIPT_DIR/$file" ] || die "Bundle member is missing: $file"
     actual="$(checksum "$SCRIPT_DIR/$file")"
     [ "$actual" = "$expected" ] || die "SHA-256 mismatch: $file"
   done < "$SCRIPT_DIR/SHA256SUMS"
+  validate_archive "$SCRIPT_DIR/coco-package.tgz" package
+  validate_archive "$SCRIPT_DIR/node-runtime.tar.gz" node-runtime
 }
 
 extract_candidate() {
   mkdir -p -- "$INSTALL_PARENT"
+  rm -rf -- "$TMP"
   TMP="$(mktemp -d "${INSTALL_PARENT}/.${INSTALL_NAME}.offline.XXXXXX")"
   AGENT_BACKUP="$TMP/agent-backup"; PREVIOUS_LINK="$TMP/previous-link"
   local package_extract="$TMP/package" node_extract="$TMP/node"

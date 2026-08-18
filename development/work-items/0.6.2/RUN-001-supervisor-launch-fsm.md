@@ -1,0 +1,81 @@
+# RUN-001: Durable Supervisor Launch FSM
+
+```text
+Status: completed
+Priority: P0
+Target: 0.6.2
+Owner: unassigned
+Depends on: none
+Blocks: RUN-002, RUN-004, RUN-005, CON-002
+Last updated: 2026-08-16
+```
+
+## Problem
+
+A crash after supervisor `spec.json` preparation but before registration or authorization leaves a task permanently `running` with no live process and no recovery transition.
+
+## Reproduction
+
+1. Claim a task.
+2. Wait for `spec.json`.
+3. Kill runner before registration.
+4. Restart runner.
+5. Observe permanent `running` with no execution or outcome.
+
+## Required Invariants
+
+- Unauthorized dead runs eventually become abandoned and may retry with a new run ID.
+- Authorized dead/no-outcome runs remain `EXECUTION_OUTCOME_IN_DOUBT` and never retry automatically.
+- No crash phase leaves permanent ambiguous `running` state.
+- Terminal evidence still prevents re-execution.
+
+## Scope
+
+- `scripts/task-runner.mjs`
+- `scripts/task-run-supervisor.mjs`
+- `scripts/task-run-supervisor-main.mjs`
+- `scripts/task-state.mjs` if schema changes are required
+- focused supervisor/recovery tests
+
+## Out of Scope
+
+- Process containment implementation
+- Stop barrier ownership
+- Dashboard
+
+## Design
+
+Persist `prepared`, `registered`, `authorized`, `outcome`, `revoked`, and `abandoned` transitions with one mutually exclusive transaction. Define lease owner, process identity, monotonic/clock semantics, stale criteria, takeover CAS, worker generation, and rejection of stale-owner writes. Represent outcome-in-doubt as structured state rather than only `lastError` text.
+
+## Fault Matrix
+
+| Fault point | Required recovery |
+|---|---|
+| after prepare | abandon and requeue with new run ID |
+| after process spawn, before registration | detect dead/unregistered lease and abandon |
+| after registration, before authorization | revoke/terminate then abandon and requeue |
+| after authorization, before outcome | outcome in doubt, no retry |
+| after outcome | consume outcome, never re-execute |
+
+## Acceptance Tests
+
+One SIGKILL fault test per transition, repeated restart tests, concurrent registration tests, and zero duplicate child executions.
+
+## Verification
+
+Supervisor/recovery focused suite, task core suite, typecheck, and complete core before integration.
+
+## Rollback
+
+Persisted schema migration must retain safe interpretation of partial new states. Document downgrade behavior before completion.
+
+## Evidence
+
+Implemented at `8cbcfc0`.
+
+```text
+focused supervisor/control: 48/48 passed
+complete core: 511/511 passed
+```
+
+The durable schema records prepared/registered/authorized/outcome/revoked/abandoned, owner identity, generation and lease. Authorization, revocation and outcome share transaction arbitration. Stale takeover uses generation CAS and rejects old owners. Pre-authorization dead runs abandon/requeue with a new run ID; authorized/no-outcome becomes structured outcome-in-doubt and never auto-reruns. Every successful transition is replay-idempotent after response loss; legacy split state migrates on guarded transition.

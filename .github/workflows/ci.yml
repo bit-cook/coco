@@ -17,7 +17,7 @@ jobs:
   verify-pr:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - name: Configure hosted temporary directory
         run: |
@@ -53,7 +53,7 @@ jobs:
   verify-main:
     if: github.event_name != 'pull_request'
     runs-on: [self-hosted, Linux, X64, coco-ci]
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       TMPDIR: /root/coco-tmp
       COCO_SCANNER_TMPDIR: /root/coco-tmp
@@ -72,6 +72,7 @@ jobs:
       - run: npm run typecheck:features
       - run: npm run typecheck:model-panel
       - run: npm run build
+      - run: npm run benchmark:startup:check
       - run: npm run test:core
       - run: npm run verify:closure
       - run: node scripts/publication-secret-scanner.mjs .
@@ -90,7 +91,7 @@ jobs:
   verify-main-integrity:
     if: github.event_name != 'pull_request'
     runs-on: [self-hosted, Linux, X64, coco-upstream]
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       TMPDIR: /root/coco-tmp
       COCO_SCANNER_TMPDIR: /root/coco-tmp

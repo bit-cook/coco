@@ -100,7 +100,10 @@ test("Given an actual tar member set with an escaped, missing, extra, or mismatc
     assert.equal(verifyAssetMap({ actual: [...actual, { classification: "runtime-asset", path: "../escape" }], map }).code, "ASSET_MAP_RESOLUTION_ESCAPE");
     assert.equal(verifyAssetMap({ actual: actual.slice(1), map }).code, "ASSET_MAP_MISSING");
     assert.equal(verifyAssetMap({ actual: [...actual, { classification: "runtime-asset", path: "surplus.txt" }], map }).code, "ASSET_MAP_EXTRA");
-    assert.equal(verifyAssetMap({ actual: [{ ...actual[0], classification: "documentation" }, ...actual.slice(1)], map }).code, "ASSET_MAP_CLASS_MISMATCH");
+    const mismatchIndex = actual.findIndex(({ classification }) => classification !== "documentation");
+    const mismatched = actual.map((entry, index) => index === mismatchIndex ? { ...entry, classification: "documentation" } : entry);
+    assert.notEqual(mismatchIndex, -1);
+    assert.equal(verifyAssetMap({ actual: mismatched, map }).code, "ASSET_MAP_CLASS_MISMATCH");
   } finally {
     await rm(fixture, { force: true, recursive: true });
   }

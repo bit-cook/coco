@@ -2,7 +2,7 @@
 
 CoCo Agent 是通用 AI 助手，具备强大的编码和终端能力。它作为 [Pi Coding Agent](https://github.com/earendil-works/pi) 的下游发行版构建，并将 `agnes/agnes-2.5-flash` 和最高思考级别 `max` 设为默认配置。CoCo 源码不包含提供商凭据。
 
-[English](https://github.com/bit-cook/coco/blob/main/README.md) | [简体中文](README.md) | [文档](../README.md)
+[English](../en/README.md) | [简体中文](README.md) | [文档](../)
 
 ## 安装
 
@@ -17,8 +17,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 或者安装经过明确审阅的固定版本：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.5.3/install.sh
-COCO_VERSION=0.5.3 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.6.2/install.sh
+COCO_VERSION=0.6.2 bash install.sh
 ```
 
 安装程序会根据已发布的 SHA-256 值验证固定标签发行包和公开 Agnes 凭据，安全解压 CoCo，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。
@@ -43,6 +43,7 @@ coco --list-models
 - 操作参考：[CoCo CLI](docs/coco-cli.md) | [CoCo 安全](docs/coco-security.md)
 - 语言包：[中文说明](docs/manual.md#多语言切换与语言包) | [English instructions](../en/docs/manual.md#language-switching-and-language-packs)
 - 文档索引：[简体中文](README.md) | [English](../en/README.md)
+- 完整备份与恢复：[运维手册](docs/backup-and-restore.md)
 
 如与继承的 Pi 文档冲突，以 CoCo 专用文档为准。
 

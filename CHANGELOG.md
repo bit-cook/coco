@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.6.2] - 2026-08-18
+
+### Security
+
+- Split release construction, private-draft upload, no-token lifecycle verification, and private-draft finalization into permission-isolated stages with an exact nine-asset contract.
+- Added Linux cgroup v2 containment with attach-before-authorization, durable cleanup recovery, and real detached setsid/double-fork termination evidence.
+
+### Reliability
+
+- Added durable webhook dispatch claim/ack recovery, invalid task and worktree provisioning isolation, bounded Git retry backoff, and invalid UTF-8 terminal materialization.
+- Preserved terminal evidence, receipt, log seal, cancellation, and restart invariants across runner and Control failures.
+
+## [0.6.1] - 2026-08-16
+
+### Performance
+
+- Reduced real cold startup from about 15.7 seconds to 9.4 seconds and warm startup from about 6.2 seconds to 2.2 seconds on the release candidate host.
+- Eliminated duplicate CAS verification between bootstrap and launcher, added metadata-gated CAS reuse with critical-entry hashing, enabled a runtime-keyed compile cache, and parallelized first materialization writes.
+
+### Security
+
+- Preserved full hashing on cache changes, direct-launch verification, source race detection, CAS tamper rebuilding, private staging, and atomic completion semantics.
+
+## [0.6.0] - 2026-08-16
+
+### Added
+
+- Added persistent content-addressed verified runtime roots for detached runner and Control lifecycles.
+- Added durable supervisor authorization, outcomes, bounded capture, worktree provisioning recovery, and transactional webhook idempotency.
+- Added authenticated task summary/detail APIs for the Dashboard and VS Code client.
+
+### Security
+
+- Hardened runtime snapshot reuse, process identity locks, terminal evidence, log seals, package closure, bundled dependency scanning, and bounded nested archive verification.
+- Added fail-closed storage budgets, CAS recovery, cancellation arbitration, and capture-write failure evidence.
+
+### Fixed
+
+- Prevented stale runtime roots, provisioning conflicts, duplicate webhook deliveries, terminal cancellation rewrites, and background process termination errors.
+
 ## [0.3.0] - 2026-08-11
 
 ### Added

@@ -10,6 +10,7 @@ import { processAlive, processIdentity } from "../scripts/task-process.mjs";
 import { cancelTask } from "../scripts/task-runner.mjs";
 import { createTaskStore } from "../scripts/task-state.mjs";
 import { createTaskRunner } from "../scripts/task-runner.mjs";
+import { createTaskRunSupervisorStore } from "../scripts/task-run-supervisor.mjs";
 
 test("queued tasks cancel without entering process termination", async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-cancel-queued-"));
@@ -89,4 +90,49 @@ test("cancellation fails closed for a live PID without process identity", async 
     try { process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGKILL"); } catch {}
     await rm(agentDir, { recursive: true, force: true });
   }
+});
+
+test("durable terminal evidence wins a concurrent cancellation arbitration", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-cancel-terminal-evidence-"));
+  const store = createTaskStore({ agentDir });
+  const runId = "018f47a0-7b20-7cc5-8a33-070707070707";
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "terminal wins", worktree: false });
+    await store.update((state) => { const active = state.tasks[0]; active.status = "running"; active.activeRunId = runId; active.startedAt = new Date().toISOString(); active.launchPending = true; return state; });
+    const cancelling = cancelTask(store, task.id);
+    for (let attempt = 0; attempt < 100; attempt += 1) { if ((await store.load()).tasks[0].cancelPending) break; await new Promise((done) => setTimeout(done, 5)); }
+    await store.update((state) => { const active = state.tasks[0]; active.launchPending = false; active.terminalEvidence = { encodingLoss: false, endedAt: new Date().toISOString(), eventId: "018f47a0-7b20-7cc5-8a33-080808080808", exitCode: 0, lastError: null, logsTruncated: false, result: "done", status: "completed" }; return state; });
+    const arbitration = await cancelling;
+    assert.equal(arbitration.status, "running"); assert.equal(arbitration.cancelPending, false); assert.equal(arbitration.activeRunId, runId); assert.equal(arbitration.terminalEvidence.status, "completed");
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
+});
+
+test("durable supervisor outcome cannot be overwritten by cancellation", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-cancel-supervisor-outcome-")); const store = createTaskStore({ agentDir });
+  const runId = "018f47a0-7b20-7cc5-8a33-090909090909"; let child;
+  try {
+    const task = await store.create({ cwd: process.cwd(), prompt: "outcome wins", worktree: false });
+    child = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { detached: process.platform !== "win32", stdio: "ignore" }); const identity = await processIdentity(child.pid);
+    await store.update((state) => { const active = state.tasks[0]; active.status = "running"; active.activeRunId = runId; active.pid = child.pid; active.processIdentity = identity; active.startedAt = "2026-08-15T00:00:00.000Z"; return state; });
+    const supervisor = createTaskRunSupervisorStore({ agentDir }), prepared = await supervisor.prepare({ cwd: process.cwd(), prompt: "outcome wins", runId, taskId: task.id });
+    await supervisor.register({ generation: prepared.generation, ownerId: prepared.ownerId, pid: child.pid, processIdentity: identity, taskId: task.id, runId }); await supervisor.authorize({ generation: prepared.generation, ownerId: prepared.ownerId, taskId: task.id, runId, specSha256: prepared.specSha256 });
+    await supervisor.writeOutcome({ endedAt: "2026-08-15T00:00:01.000Z", exitCode: 0, generation: prepared.generation, ownerId: prepared.ownerId, pid: child.pid, processIdentity: identity, runId, specSha256: prepared.specSha256, startedAt: "2026-08-15T00:00:00.000Z", taskId: task.id });
+    await assert.rejects(cancelTask(store, task.id), /TASK_NOT_CANCELLABLE/);
+    const retained = (await store.load()).tasks[0]; assert.equal(retained.status, "running"); assert.equal(retained.activeRunId, runId);
+  } finally {
+    if (child?.pid) { try { process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGKILL"); } catch {} }
+    await rm(agentDir, { recursive: true, force: true });
+  }
+});
+
+test("terminal tasks cannot be rewritten by cancellation", async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-cancel-terminal-")); const store = createTaskStore({ agentDir });
+  try {
+    for (const status of ["completed", "failed", "cancelled"]) {
+      const task = await store.create({ cwd: process.cwd(), prompt: `terminal ${status}`, worktree: false });
+      await store.update((state) => { const target = state.tasks.find(({ id }) => id === task.id); target.status = status; target.finishedAt = "2026-08-16T00:00:00.000Z"; return state; });
+      await assert.rejects(cancelTask(store, task.id), /TASK_NOT_CANCELLABLE/);
+      assert.equal((await store.load()).tasks.find(({ id }) => id === task.id).status, status);
+    }
+  } finally { await rm(agentDir, { recursive: true, force: true }); }
 });

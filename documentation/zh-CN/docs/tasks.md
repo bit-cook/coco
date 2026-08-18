@@ -1,6 +1,6 @@
 # 任务、Agent 与控制后台
 
-CoCo 0.2 使用一个本地 Runner 执行持久任务。任务状态和结果保存在 `~/.coco/agent/tasks.json`，编码任务默认使用独立 Git worktree。
+当前CoCo版本使用一个本地Runner执行持久任务。任务状态和结果保存在`~/.coco/agent/tasks.json`，编码任务默认使用独立Git worktree。
 
 ```bash
 coco task create "实现并测试这个功能"
@@ -10,7 +10,7 @@ coco task cancel <id>
 coco task stop-all
 ```
 
-`active` 会显示 Runner 和所有运行中 Agent 的 PID。`stop-all` 会终止每个 Agent 的完整进程组，从 `SIGTERM` 升级到 `SIGKILL`，验证进程组已经消失，将任务标记为已取消，并停止 Runner，避免定时任务立即重新启动。
+`active`会显示Runner和所有运行中Agent的PID。已发布的`0.6.1`中，`stop-all`会终止经过身份验证的原始进程组，从`SIGTERM`升级到`SIGKILL`，并停止Runner以避免定时任务立即重启。创建新session的后代可以逃离原进程组，因此`0.6.1`不承诺完整后代containment；`0.6.2`计划要求Linux cgroup v2完成后才能报告完全终止。
 
 ## 触发器
 
@@ -30,7 +30,7 @@ coco control token
 coco control status
 ```
 
-打开返回的本机地址并输入令牌。后台可以创建需要审批的 worktree 任务、查看历史和活跃 Agent、取消单个任务或完全终止全部任务。它不会暴露原始 RPC、Provider 凭据、任意会话路径或直接 Shell 接口。
+打开返回的本机地址并输入令牌。后台可以创建需要审批的worktree任务、查看历史和活跃Agent、取消单个任务，或请求终止所有已跟踪任务进程组。`0.6.1`不承诺完整后代终止，仍受`0.6.2` cgroup门禁约束。后台不会暴露原始RPC、Provider凭据、任意会话路径或直接Shell接口。
 
 控制服务只接受 loopback 监听。远程访问时保持监听 `127.0.0.1`，并使用经过认证的 SSH 隧道或保持源站私有的 TLS 终止隧道。内置服务使用 HTTP，不负责 TLS 终止。
 
