@@ -6,6 +6,7 @@ import { createServer } from "node:http";
 import { extname, join, resolve } from "node:path";
 
 import { canonicalJson } from "./canonical-json.mjs";
+import { createCommandRecoveryJournal } from "./command-recovery-journal.mjs";
 import { StateError } from "./state-schema.mjs";
 import { agentDirectory, ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { acquireStateLock, atomicReplace } from "./state-transaction.mjs";
@@ -54,6 +55,10 @@ function webhookAuthorized(request, bytes, task) {
     return signature.length === expected.length && timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
   }
   return false;
+}
+function idempotencyKey(request) {
+  const value = request.headers["idempotency-key"];
+  return typeof value === "string" && /^[A-Za-z0-9._:-]{1,200}$/.test(value) ? value : null;
 }
 const PUBLIC_ERRORS = new Map([
   ["REQUEST_TOO_LARGE", 413],
@@ -129,6 +134,7 @@ export async function stopControl(agentDir) {
 export async function runControlServer({ agentDir, host, port, root, signal }) {
   requireLoopback(host);
   await ensureAgentDirectory(agentDir);
+  const commands = createCommandRecoveryJournal({ directory: join(agentDir, "command-recovery", "control") });
   const token = randomBytes(32).toString("base64url");
   const store = createTaskStore({ agentDir }); const events = createTaskEventStore({ agentDir }); const logs = createTaskLogStore({ agentDir }); const receipts = createTaskReceiptStore({ agentDir }); const publicRoot = join(root, "control", "public");
   const deliveries = createWebhookDeliveryStore({ agentDir });
@@ -206,8 +212,35 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
       if (request.method === "POST" && url.pathname === "/v1/tasks") {
         let input; try { input = JSON.parse((await body(request)).toString("utf8")); } catch { fail("REQUEST_PAYLOAD_INVALID"); }
         if (typeof input.prompt !== "string" || !input.prompt.trim() || typeof input.cwd !== "string") return json(response, 400, { error: "TASK_INVALID" });
-        const task = await store.create({ cwd: input.cwd, initialStatus: input.approved === false ? "blocked" : "queued", prompt: input.prompt, trigger: "manual", worktree: input.worktree !== false });
-        if (task.status === "queued") await startDetachedRunner({ agentDir, root }); return json(response, 201, { task: taskDto(task) });
+        const commandId = idempotencyKey(request);
+        if (!commandId && request.headers["idempotency-key"] !== undefined) return json(response, 400, { error: "IDEMPOTENCY_KEY_INVALID" });
+        if (!commandId) {
+          const task = await store.create({ cwd: input.cwd, initialStatus: input.approved === false ? "blocked" : "queued", prompt: input.prompt, trigger: "manual", worktree: input.worktree !== false });
+          if (task.status === "queued") await startDetachedRunner({ agentDir, root }); return json(response, 201, { task: taskDto(task) });
+        }
+        let command;
+        try { command = await commands.receive({ commandId, effectGeneration: 1, operationId: "control.tasks.create", request: { input, method: request.method, path: url.pathname } }); }
+        catch (error) { if (error?.message === "COMMAND_DIGEST_CONFLICT") return json(response, 409, { error: "IDEMPOTENCY_KEY_CONFLICT" }); throw error; }
+        if (command.status === "result") return json(response, command.response.status, command.response.body);
+        if (command.status === "uncertain") return json(response, 409, { error: "COMMAND_OUTCOME_UNCERTAIN", status: "uncertain" });
+        if (command.status === "executing") return json(response, 409, { error: "COMMAND_IN_PROGRESS", status: "executing" });
+        try { await commands.beginExecution(commandId); }
+        catch (error) {
+          if (error?.message !== "COMMAND_STATE_INVALID") throw error;
+          const current = await commands.read(commandId);
+          if (current?.status === "result") return json(response, current.response.status, current.response.body);
+          if (current?.status === "uncertain") return json(response, 409, { error: "COMMAND_OUTCOME_UNCERTAIN", status: "uncertain" });
+          return json(response, 409, { error: "COMMAND_IN_PROGRESS", status: "executing" });
+        }
+        try {
+          const task = await store.create({ cwd: input.cwd, initialStatus: input.approved === false ? "blocked" : "queued", prompt: input.prompt, trigger: "manual", worktree: input.worktree !== false });
+          if (task.status === "queued") await startDetachedRunner({ agentDir, root });
+          const recorded = await commands.recordResult(commandId, { body: { task: taskDto(task) }, status: 201 });
+          return json(response, recorded.response.status, recorded.response.body);
+        } catch {
+          await commands.markUncertain(commandId);
+          return json(response, 409, { error: "COMMAND_OUTCOME_UNCERTAIN", status: "uncertain" });
+        }
       }
       const approve = /^\/v1\/tasks\/([a-z0-9_-]{12})\/approve$/.exec(url.pathname);
       if (request.method === "POST" && approve) {
@@ -233,6 +266,7 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
   try {
     const previous = await state(agentDir);
     if (previous?.processIdentity && await processMatches(previous.pid, previous.processIdentity)) fail("CONTROL_ALREADY_RUNNING");
+    await commands.recover();
     await new Promise((done, reject) => { server.once("error", reject); server.listen(port, host, done); });
     const address = server.address(); selectedPort = typeof address === "object" && address ? address.port : port;
     await atomicReplace({ agentDir, containsSecret: true, path: statePaths(agentDir).control, bytes: canonicalJson({ host, ownerId: ownership.ownerId, pid: process.pid, port: selectedPort, processIdentity: await processIdentity(process.pid), runtimeKey: process.env.COCO_RUNTIME_KEY ?? null, runtimeRoot: process.env.COCO_RUNTIME_ROOT ?? null, schemaVersion: 1, startedAt: new Date().toISOString(), token }) });

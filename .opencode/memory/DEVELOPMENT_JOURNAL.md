@@ -2127,3 +2127,7 @@ Three Agents worked in parallel on non-overlapping file scopes from `candidate/v
 Focused results: `13/13` combined tests passed, syntax checks passed, and diff check passed. These are initial modules, not yet wired into Control/provider/MCP runtime or a real off-host storage adapter. Leases were cleared after the focused handoff; coordinator integration is the next small batch.
 
 One upstream Agent prompt was rejected by the model provider's prompt filter. No code or repository operation failed. Subsequent coordination uses short prompts with file paths and local deterministic tests instead of repeating long research/security text.
+
+The second short-prompt wave wired REC-001 into idempotent Control task creation, added a generation-safe MCP runtime registry adapter, and added a stable backup command API. Combined focused integration passed `34/34`, feature typecheck passed, and no prompt filter error recurred. Full generated/package/runtime gates are deferred to this frozen integrated batch rather than repeated per Agent.
+
+The frozen first integration batch regenerated runtime/package assets and passed: core `595/595`, package closure `175`, scanner clean, runtime probe `20,681`, real package contract `2/2`, and focused integration `34/34`. The adapters remain isolated until a subsequent production rollout review; no release or npm action is planned for this development batch.

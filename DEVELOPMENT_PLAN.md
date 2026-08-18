@@ -61,7 +61,7 @@ Do not repeat the full release gate for every Agent or documentation edit.
 
 The published `v0.6.2` passed:
 
-- Core `574/574`
+- Core `595/595`
 - Integrity `39/39`
 - Package `2/2`
 - Closure `175` manifests
@@ -70,6 +70,8 @@ The published `v0.6.2` passed:
 - Offline install/version/uninstall
 - Real delegated-cgroup detached setsid/double-fork test
 - GitHub private-draft release lifecycle and nine-asset verification
+
+The first 0.6.3 integration batch added Control idempotency, MCP runtime registry, and the backup command API. Focused integration is `34/34`; after build regeneration, core is `595/595`, package closure is `175`, scanner is clean, and the runtime probe is `20,681`. These adapters still need production rollout review before the work items can be marked completed.
 
 ## Boundaries
 
