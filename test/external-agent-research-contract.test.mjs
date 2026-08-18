@@ -21,7 +21,7 @@ test("external research report preserves fixed sources and explicit adoption bou
   assert.match(snapshot, /license: MIT/);
   assert.match(snapshot, /prime-agent-research/);
   assert.match(snapshot, /deepseek-harness-research/);
-  assert.match(plan, /EVID-001/); assert.match(plan, /CFG-001/); assert.match(plan, /External Research/);
+  assert.match(plan, /0\.7\.0/); assert.match(plan, /External Research/);
   assert.deepEqual(items.filter((entry) => entry.isFile()).map((entry) => entry.name).toSorted(), ["CFG-001-provider-mcp-generations.md", "EVID-001-model-input-ledger.md", "EVID-002-durability-fence.md", "ORCH-001-lineage-and-continuation.md", "TOOL-001-ordered-tool-pool.md"]);
 });
 

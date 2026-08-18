@@ -76,4 +76,9 @@ The published `v0.6.2` passed:
 - Public GitHub release requires explicit authorization.
 - npm publication is independent and currently not planned.
 - No broad UI redesign, speculative provider, Windows support, or wholesale external-runtime adoption during the 0.6.3 reliability wave.
+- Research candidates for 0.7.0 remain in `development/work-items/0.7.0/` and are not part of the current implementation wave.
 - Prime Agent and DeepSeek Harness are research inputs only; no external source or dependency was copied.
+
+## External Research
+
+Prime Agent and DeepSeek Harness were reviewed at fixed commits. Their useful ideas are summarized on the public research pages and mapped to future work items; neither runtime is being imported wholesale.
