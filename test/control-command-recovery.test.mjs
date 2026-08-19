@@ -89,3 +89,33 @@ test("Control restart safely executes a command that crashed before its effect",
     assert.deepEqual((await createTaskStore({ agentDir }).load()).tasks.map(({ id }) => id), [result.task.id]);
   } finally { await server?.close(); await rm(agentDir, { recursive: true, force: true }); }
 });
+
+test("Control approve cancel and stop-all replay journaled mutation results", { timeout: 15_000 }, async () => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-control-command-routes-"));
+  let server;
+  try {
+    server = await start(agentDir);
+    const create = await fetch(`${server.base}/v1/tasks`, { body: JSON.stringify({ approved: false, cwd: process.cwd(), prompt: "route recovery", worktree: false }), headers: server.auth, method: "POST" });
+    const task = (await create.json()).task;
+    const approveHeaders = { ...server.auth, "idempotency-key": "approve-command-1" };
+    const firstApprove = await fetch(`${server.base}/v1/tasks/${task.id}/approve`, { headers: approveHeaders, method: "POST" });
+    assert.equal(firstApprove.status, 202); assert.deepEqual(await firstApprove.json(), { approved: true });
+    const replayApprove = await fetch(`${server.base}/v1/tasks/${task.id}/approve`, { headers: approveHeaders, method: "POST" });
+    assert.equal(replayApprove.status, 202); assert.deepEqual(await replayApprove.json(), { approved: true });
+
+    const conflict = await fetch(`${server.base}/v1/tasks/${task.id}/cancel`, { headers: approveHeaders, method: "POST" });
+    assert.equal(conflict.status, 409); assert.deepEqual(await conflict.json(), { error: "IDEMPOTENCY_KEY_CONFLICT" });
+
+    const cancelHeaders = { ...server.auth, "idempotency-key": "cancel-command-1" };
+    const firstCancel = await fetch(`${server.base}/v1/tasks/${task.id}/cancel`, { headers: cancelHeaders, method: "POST" });
+    assert.equal(firstCancel.status, 200); const cancelled = await firstCancel.json(); assert.equal(typeof cancelled.cancelled, "boolean");
+    const replayCancel = await fetch(`${server.base}/v1/tasks/${task.id}/cancel`, { headers: cancelHeaders, method: "POST" });
+    assert.equal(replayCancel.status, 200); assert.deepEqual(await replayCancel.json(), cancelled);
+
+    const stopHeaders = { ...server.auth, "idempotency-key": "stop-command-1" };
+    const firstStop = await fetch(`${server.base}/v1/tasks/stop-all`, { headers: stopHeaders, method: "POST" });
+    const stop = await firstStop.json();
+    const replayStop = await fetch(`${server.base}/v1/tasks/stop-all`, { headers: stopHeaders, method: "POST" });
+    assert.equal(replayStop.status, firstStop.status); assert.deepEqual(await replayStop.json(), stop);
+  } finally { await server?.close(); await rm(agentDir, { recursive: true, force: true }); }
+});

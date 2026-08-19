@@ -47,4 +47,4 @@ Unknown records remain uncertain; downgrade must never turn them into retryable 
 
 ## Evidence
 
-The journal and reusable mutation wrapper are present. Control task creation uses the wrapper and focused duplicate/conflict/concurrency/uncertain tests pass. Remaining Control routes and provider/Bash/MCP effects are not yet integrated. No external code was copied.
+The journal and reusable mutation wrapper are present. Control task creation, approval, cancellation, and stop-all use the wrapper; focused duplicate/conflict/concurrency/uncertain tests pass. Webhooks retain their dedicated durable delivery ledger. Provider/Bash/MCP effects remain. No external code was copied.
