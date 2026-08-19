@@ -27,8 +27,9 @@ export function createRuntimeGenerationRegistry({ dispose = async () => {}, init
   const serialized = (operation) => { const result = queue.then(operation, operation); queue = result.catch(() => {}); return result; };
   async function cleanup() {
     const candidates = [...records.values()].filter((record) => record.id !== currentId && record.refs === 0).sort((left, right) => left.createdOrder - right.createdOrder);
+    for (const record of candidates) if (record.resources) { const resources = record.resources; record.resources = null; await Promise.resolve(dispose(resources)).catch(() => {}); }
     while (records.size > maxGenerations && candidates.length > 0) {
-      const record = candidates.shift(); records.delete(record.id); await Promise.resolve(dispose(record.resources)).catch(() => {});
+      records.delete(candidates.shift().id);
     }
   }
   async function commit(source, expectedRevision) {
@@ -73,7 +74,7 @@ export function createRuntimeGenerationRegistry({ dispose = async () => {}, init
     return serialized(async () => {
       closed = true;
       if ([...records.values()].some(({ refs }) => refs > 0)) fail("RUNTIME_GENERATION_IN_USE");
-      for (const record of records.values()) await dispose(record.resources);
+      for (const record of records.values()) if (record.resources) await dispose(record.resources);
       records.clear(); currentId = null;
     });
   }

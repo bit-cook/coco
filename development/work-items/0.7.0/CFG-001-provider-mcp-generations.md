@@ -57,4 +57,4 @@ Retain last-good generation and allow explicit operator rollback by generation I
 
 ## Evidence
 
-Research only. Inspired by DeepSeek Harness LLM, MCP, settings, and settings-file generation patterns. No external code copied.
+The initial runtime generation registry is present with revision-CAS publication, immutable in-flight leases, last-good retention, bounded history, rollback-by-source, stale-generation rejection, provider preflight binding, concurrent writer tests, and predecessor disposal after the last lease. Production provider/MCP composition remains for the next focused integration. No external code was copied.

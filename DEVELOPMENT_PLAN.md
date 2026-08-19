@@ -84,3 +84,5 @@ Control and MCP commands are journaled, MCP generations publish atomically throu
 ## External Research
 
 Prime Agent and DeepSeek Harness were reviewed at fixed commits. Their useful ideas are summarized on the public research pages and mapped to future work items; neither runtime is being imported wholesale.
+
+CFG-001 initial generation-registry evidence is current on `candidate/v0.7.0`: focused provider/MCP/generation tests `17/17`, complete core `624/624`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,687`. The next integration binds production provider and MCP composition to the registry; other 0.7.0 items remain pending.

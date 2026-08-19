@@ -12,10 +12,18 @@ test("generation publish is revision-CAS and in-flight leases keep one immutable
   assert.equal((await registry.initialize()).revision, 1);
   const first = registry.acquire(); assert.equal(first.provider.endpoint, "https://one.example");
   const secondState = await registry.publish(source("two"), { expectedRevision: 1 }); assert.equal(secondState.revision, 2);
-  const second = registry.acquire(); assert.equal(second.provider.endpoint, "https://two.example"); assert.equal(first.provider.endpoint, "https://one.example");
+  const second = registry.acquire(); assert.equal(second.provider.endpoint, "https://two.example"); assert.equal(first.provider.endpoint, "https://one.example"); assert.equal(first.provider.token, "one-secret"); assert.equal(second.provider.token, "two-secret");
   assert.throws(() => registry.assertCurrent(first.generationId), { code: "RUNTIME_GENERATION_STALE" }); assert.equal(registry.assertCurrent(second.generationId), true);
   await assert.rejects(registry.publish(source("stale"), { expectedRevision: 1 }), { code: "RUNTIME_GENERATION_REVISION_CONFLICT" });
-  await first.release(); await second.release(); await registry.close(); assert.ok(disposed.includes("https://one.example"));
+  await first.release(); assert.ok(disposed.includes("https://one.example")); await second.release(); await registry.close();
+});
+
+test("concurrent writers with one expected revision elect one generation", async () => {
+  const registry = createRuntimeGenerationRegistry({ initial: source("one"), prepare }); await registry.initialize();
+  const results = await Promise.allSettled([registry.publish(source("two"), { expectedRevision: 1 }), registry.publish(source("three"), { expectedRevision: 1 })]);
+  assert.equal(results.filter(({ status }) => status === "fulfilled").length, 1);
+  const rejected = results.find(({ status }) => status === "rejected"); assert.equal(rejected.reason.code, "RUNTIME_GENERATION_REVISION_CONFLICT");
+  assert.equal(registry.snapshot().revision, 2); const lease = registry.acquire(); assert.ok(["https://two.example", "https://three.example"].includes(lease.provider.endpoint)); await lease.release(); await registry.close();
 });
 
 test("failed prepare retains last-good and rollback creates a fresh generation", async () => {
