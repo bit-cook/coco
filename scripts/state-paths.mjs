@@ -22,6 +22,7 @@ export function statePaths(agentDir) {
     models: join(root, "models.json"),
     ownership: join(root, "ownership.json"),
     runner: join(root, "runner.json"),
+    runtimeGenerations: join(root, "runtime-generations.json"),
     settings: join(root, "settings.json"),
     taskEvents: join(root, "task-events"),
     taskExecutionBindings: join(root, "task-execution-bindings"),

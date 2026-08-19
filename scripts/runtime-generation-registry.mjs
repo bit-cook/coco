@@ -20,9 +20,9 @@ export function bindGenerationRequest(lease, providerId, request) {
   return Object.freeze({ ...binding, bindingSha256: createHash("sha256").update(canonicalJson(binding)).digest("hex") });
 }
 
-export function createRuntimeGenerationRegistry({ dispose = async () => {}, initial, maxGenerations = 3, prepare }) {
-  if (typeof prepare !== "function" || typeof dispose !== "function" || !Number.isSafeInteger(maxGenerations) || maxGenerations < 2 || maxGenerations > 10) fail("RUNTIME_GENERATION_CONFIG_INVALID");
-  const records = new Map(); let currentId = null, generation = 0, revision = 0, queue = Promise.resolve(), closed = false;
+export function createRuntimeGenerationRegistry({ dispose = async () => {}, initial, initialGeneration = 0, initialRevision = 0, maxGenerations = 3, prepare }) {
+  if (typeof prepare !== "function" || typeof dispose !== "function" || !Number.isSafeInteger(maxGenerations) || maxGenerations < 2 || maxGenerations > 10 || !Number.isSafeInteger(initialGeneration) || initialGeneration < 0 || !Number.isSafeInteger(initialRevision) || initialRevision < 0) fail("RUNTIME_GENERATION_CONFIG_INVALID");
+  const records = new Map(); let currentId = null, generation = initialGeneration, revision = initialRevision, queue = Promise.resolve(), closed = false;
 
   const serialized = (operation) => { const result = queue.then(operation, operation); queue = result.catch(() => {}); return result; };
   async function cleanup() {
@@ -43,12 +43,12 @@ export function createRuntimeGenerationRegistry({ dispose = async () => {}, init
     await cleanup(); return snapshot();
   }
   function snapshot() {
-    return Object.freeze({ generationId: currentId, retained: Object.freeze([...records.keys()]), revision, schemaVersion: 1 });
+    return Object.freeze({ generationCounter: generation, generationId: currentId, retained: Object.freeze([...records.keys()]), revision, schemaVersion: 1 });
   }
   async function initialize() {
     if (currentId) return snapshot();
     if (initial === undefined) return snapshot();
-    return commit(initial, 0);
+    return commit(initial, revision);
   }
   async function publish(source, { expectedRevision } = {}) { return serialized(() => commit(source, expectedRevision)); }
   async function rollback(generationId, { expectedRevision } = {}) {

@@ -38,7 +38,7 @@ test("failed prepare retains last-good and rollback creates a fresh generation",
 
 test("close rejects live leases and public snapshots exclude prepared resources", async () => {
   const registry = createRuntimeGenerationRegistry({ initial: source("one"), prepare }); await registry.initialize();
-  const lease = registry.acquire(); assert.deepEqual(Object.keys(registry.snapshot()).sort(), ["generationId", "retained", "revision", "schemaVersion"]);
+  const lease = registry.acquire(); assert.deepEqual(Object.keys(registry.snapshot()).sort(), ["generationCounter", "generationId", "retained", "revision", "schemaVersion"]);
   await assert.rejects(registry.close(), { code: "RUNTIME_GENERATION_IN_USE" }); await lease.release(); await registry.close();
 });
 

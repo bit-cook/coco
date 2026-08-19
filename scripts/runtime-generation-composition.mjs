@@ -10,6 +10,8 @@ export function createRuntimeGenerationComposition({
   disposeMcp = async () => {},
   disposeProvider = async () => {},
   initial,
+  initialGeneration,
+  initialRevision,
   maxGenerations,
   prepareMcp,
   prepareProvider,
@@ -28,5 +30,5 @@ export function createRuntimeGenerationComposition({
     return { mcp: mcp.value, provider: provider.value };
   };
   const dispose = async ({ mcp, provider }) => { await Promise.allSettled([disposeProvider(provider), disposeMcp(mcp)]); };
-  return createRuntimeGenerationRegistry({ dispose, initial, maxGenerations, prepare });
+  return createRuntimeGenerationRegistry({ dispose, initial, initialGeneration, initialRevision, maxGenerations, prepare });
 }

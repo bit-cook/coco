@@ -21,3 +21,29 @@ export function createRuntimeGenerationService(options = {}) {
     status: () => registry.snapshot(),
   });
 }
+
+export async function openRuntimeGenerationService({ state, ...options }) {
+  if (!state || typeof state.load !== "function" || typeof state.write !== "function") fail("RUNTIME_GENERATION_STATE_INVALID");
+  const resume = await state.load();
+  const service = createRuntimeGenerationService({ ...options, initialGeneration: resume.generationCounter, initialRevision: resume.revision });
+  let failed = false;
+  const ensure = () => { if (failed) fail("RUNTIME_GENERATION_STATE_WRITE_FAILED"); };
+  const persist = async (operation) => {
+    ensure(); const snapshot = await operation();
+    try { await state.write(snapshot); }
+    catch {
+      try { const durable = await state.load(); if (durable.generationId === snapshot.generationId && durable.revision === snapshot.revision && durable.generationCounter === snapshot.generationCounter) return snapshot; } catch {}
+      failed = true; await service.close().catch(() => {}); fail("RUNTIME_GENERATION_STATE_WRITE_FAILED");
+    }
+    return snapshot;
+  };
+  await persist(service.initialize);
+  return Object.freeze({
+    close: service.close,
+    mcp: (request) => { ensure(); return service.mcp(request); },
+    provider: (request) => { ensure(); return service.provider(request); },
+    reload: (source, expectedRevision) => persist(() => service.reload(source, expectedRevision)),
+    rollback: (generationId, expectedRevision) => persist(() => service.rollback(generationId, expectedRevision)),
+    status: () => { ensure(); return service.status(); },
+  });
+}
