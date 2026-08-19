@@ -1,1 +1,1 @@
-{"leases":[],"schemaVersion":1}
+{"leases":[{"baseCommit":"33cf5df2f4695cbe24c5628aa8e73bfd963afdee","expiresAt":"2026-08-21T23:59:59Z","files":["scripts/runtime-generation-registry.mjs","test/runtime-generation-registry.test.mjs"],"owner":"cfg-001-coordinator","workItem":"CFG-001"}],"schemaVersion":1}

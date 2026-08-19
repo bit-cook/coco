@@ -1,10 +1,10 @@
 # CFG-001: Provider and MCP Generations
 
 ```text
-Status: pending
+Status: in_progress
 Priority: P1 research-derived
 Target: 0.7.0
-Owner: unassigned
+Owner: coordinator
 Depends on: CFG-000, REL-004, RUN-001
 Blocks: EVID-001
 Sources: DeepSeek Harness 99f6f02f
