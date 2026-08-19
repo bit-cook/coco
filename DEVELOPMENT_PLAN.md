@@ -19,7 +19,7 @@ The first parallel implementation pass is complete; coordinator integration is n
 
 | Item | Goal | Depends on |
 |---|---|---|
-| `REC-001` | Make command effects recoverable; mark unknown effects `uncertain` | implementation started |
+| `REC-001` | Make command effects recoverable; mark unknown effects `uncertain` | completed |
 | `CFG-000` | Publish complete MCP/config generations or keep last-good | completed |
 | `BKP-001` | Rotate an authenticated off-host backup and prove one restore | implementation started |
 
@@ -71,7 +71,7 @@ The published `v0.6.2` passed:
 - Real delegated-cgroup detached setsid/double-fork test
 - GitHub private-draft release lifecycle and nine-asset verification
 
-The 0.6.3 waves added journaled Control mutations, atomic MCP generation publication, and native mounted off-host backup commands. MCP exposes one stable router tool after the full generation is prepared, avoiding partial per-tool registration. `coco backup` can rotate, verify, restore, prune, publish, fetch, list, and remove through a credential-free mounted store. The frozen batch passes core `614/614`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. REC provider/Bash/MCP effects and one deployment-specific off-host drill remain.
+The 0.6.3 waves added journaled Control and MCP commands, atomic MCP generation publication, and native mounted off-host backup commands. MCP exposes one stable router tool after the full generation is prepared and journals replayable tool-call IDs. Raw Bash/provider side effects move to EVID-002 because the host hook cannot replay a recorded result. `coco backup` supports the full mounted-store lifecycle. The frozen batch passes core `617/617`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. Only one deployment-specific off-host drill remains in the current three-item wave.
 
 ## Boundaries
 

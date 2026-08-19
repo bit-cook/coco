@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { canonicalJson } from "./canonical-json.mjs";
 
 const STATES = new Set(["received", "executing", "result", "uncertain"]);
+const MAX_RESPONSE_BYTES = 1024 * 1024;
 const digest = (value) => createHash("sha256").update(canonicalJson(value)).digest("hex");
 const fail = (code) => { throw new Error(code); };
 
@@ -27,12 +28,17 @@ function validId(value) {
 }
 
 function validRecord(record) {
-  return record && typeof record === "object" && !Array.isArray(record)
+  if (!(record && typeof record === "object" && !Array.isArray(record)
     && record.schemaVersion === 1 && validId(record.commandId) && validId(record.operationId)
     && /^[0-9a-f]{64}$/.test(record.requestDigest) && validId(String(record.effectGeneration))
     && STATES.has(record.status) && Object.keys(record).every((key) => [
       "commandId", "effectGeneration", "operationId", "requestDigest", "response", "schemaVersion", "status", "uncertainReason",
-    ].includes(key));
+    ].includes(key)))) return false;
+  if (record.status === "result") {
+    try { return Object.hasOwn(record, "response") && !Object.hasOwn(record, "uncertainReason") && Buffer.byteLength(canonicalJson(record.response)) <= MAX_RESPONSE_BYTES; } catch { return false; }
+  }
+  if (record.status === "uncertain") return !Object.hasOwn(record, "response") && typeof record.uncertainReason === "string" && record.uncertainReason.length > 0 && record.uncertainReason.length <= 256;
+  return !Object.hasOwn(record, "response") && !Object.hasOwn(record, "uncertainReason");
 }
 
 export function requestDigest(request) {
@@ -90,6 +96,8 @@ export function createCommandRecoveryJournal({ directory } = {}) {
       if (record.status === "result" || record.status === "uncertain") return structuredClone(record);
       if (status === "executing" && record.status !== "received") fail("COMMAND_STATE_INVALID");
       if (status === "result" && record.status !== "executing") fail("COMMAND_STATE_INVALID");
+      if (status === "result") { try { if (Buffer.byteLength(canonicalJson(response)) > MAX_RESPONSE_BYTES) fail("COMMAND_RESPONSE_INVALID"); } catch (error) { if (error?.message === "COMMAND_RESPONSE_INVALID") throw error; fail("COMMAND_RESPONSE_INVALID"); } }
+      if (status === "uncertain" && (typeof uncertainReason !== "string" || uncertainReason.length === 0 || uncertainReason.length > 256)) fail("COMMAND_UNCERTAIN_REASON_INVALID");
       return save({ ...record, ...(response === undefined ? {} : { response }), ...(uncertainReason === undefined ? {} : { uncertainReason }), status });
     });
   }

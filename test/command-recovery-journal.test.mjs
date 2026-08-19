@@ -53,3 +53,16 @@ test("restart converts in-flight effects to uncertain and never replays them", a
     await assert.rejects(restarted.recordResult("missing", true), /COMMAND_NOT_FOUND/);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+test("journal bounds durable responses and uncertain reasons", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "coco-command-journal-bounds-"));
+  try {
+    const journal = createCommandRecoveryJournal({ directory });
+    await journal.receive({ commandId: "bounded", operationId: "test.effect", effectGeneration: 1, request: { value: 1 } });
+    await journal.beginExecution("bounded");
+    await assert.rejects(journal.recordResult("bounded", { value: "x".repeat(1024 * 1024) }), /COMMAND_RESPONSE_INVALID/);
+    assert.equal((await journal.read("bounded")).status, "executing");
+    await assert.rejects(journal.markUncertain("bounded", "x".repeat(257)), /COMMAND_UNCERTAIN_REASON_INVALID/);
+    assert.equal((await journal.markUncertain("bounded", "bounded-output")).status, "uncertain");
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
