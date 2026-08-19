@@ -20,7 +20,7 @@ The first parallel implementation pass is complete; coordinator integration is n
 | Item | Goal | Depends on |
 |---|---|---|
 | `REC-001` | Make command effects recoverable; mark unknown effects `uncertain` | implementation started |
-| `CFG-000` | Publish complete MCP/config generations or keep last-good | implementation started |
+| `CFG-000` | Publish complete MCP/config generations or keep last-good | completed |
 | `BKP-001` | Rotate an authenticated off-host backup and prove one restore | implementation started |
 
 After these three items are integrated, select the smallest next feature from the `0.7.0` research-derived work items. Do not start all of them at once.
@@ -71,7 +71,7 @@ The published `v0.6.2` passed:
 - Real delegated-cgroup detached setsid/double-fork test
 - GitHub private-draft release lifecycle and nine-asset verification
 
-The first 0.6.3 waves added journaled Control mutations, MCP generation/host adapters, and a credential-free backup store. All ordinary Control task mutations now use the shared wrapper; webhooks retain their dedicated durable ledger. The frozen batch passes core `610/610`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,685`. Pi lacks an atomic tool registration API, so MCP activation remains fail-closed. REC provider/Bash/MCP effects and a real off-host backend remain.
+The 0.6.3 waves added journaled Control mutations, atomic MCP generation publication, and a credential-free backup store. All ordinary Control task mutations use the shared wrapper; webhooks retain their dedicated durable ledger. MCP now exposes one stable router tool after the full generation is prepared, avoiding partial per-tool registration. The frozen batch passes core `613/613`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. REC provider/Bash/MCP effects and a real off-host backend remain.
 
 ## Boundaries
 

@@ -2137,3 +2137,5 @@ The next adapter wave added a reusable Control mutation wrapper, a fail-closed M
 After batch freeze and generated-asset regeneration, complete core passed `609/609`; package closure remained `175`, scanner was clean, package contracts passed `2/2`, and runtime probe approved `20,685` entries. No npm or release action was performed.
 
 REC-001 then extended the shared mutation wrapper to Control approve, cancel, and stop-all while preserving no-key compatibility. Webhooks continue to use the existing durable delivery ledger. Focused Control recovery passed `23/23`; after regeneration, complete core passed `610/610`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,685`.
+
+CFG-000 resolved the Pi host limitation without adding an upstream patch: the production extension now registers one stable `mcp` router tool only after a complete generation has been discovered and prepared. Routing binds each call to the current generation. MCP focused tests passed `18/18`; after regeneration, complete core passed `613/613`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. CFG-000 is complete.

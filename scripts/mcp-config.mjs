@@ -56,8 +56,8 @@ async function closeClients(clients) {
   await Promise.allSettled([...new Set(clients)].map((client) => typeof client?.close === "function" ? client.close() : undefined));
 }
 
-export function createMcpPublisher({ agentDir, connect, prepareTool = ({ tool }) => tool }) {
-  if (typeof connect !== "function" || typeof prepareTool !== "function") fail("MCP_PUBLISHER_INVALID");
+export function createMcpPublisher({ agentDir, connect, prepareTool = ({ tool }) => tool, selectServer = () => true }) {
+  if (typeof connect !== "function" || typeof prepareTool !== "function" || typeof selectServer !== "function") fail("MCP_PUBLISHER_INVALID");
   let current = Object.freeze({ config: emptyMcpConfig(), generation: 0, revision: 0, tools: Object.freeze([]) });
   return Object.freeze({
     current: () => current,
@@ -72,7 +72,7 @@ export function createMcpPublisher({ agentDir, connect, prepareTool = ({ tool })
           if (!validMcpConfig(config) || config.generation !== previous.generation || config.revision !== previous.revision) fail("MCP_CONFIG_INVALID");
           const names = new Set();
           for (const [serverName, server] of Object.entries(config.servers).sort(([left], [right]) => left.localeCompare(right))) {
-            if (!server.enabled) continue;
+            if (!server.enabled || !await selectServer(structuredClone(server), serverName)) continue;
             const client = await connect(structuredClone(server), serverName); clients.push(client);
             if (!client || typeof client.listTools !== "function") fail("MCP_CLIENT_INVALID");
             let cursor;

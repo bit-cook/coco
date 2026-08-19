@@ -1,7 +1,7 @@
 # CFG-000: MCP Atomic Publication
 
 ```text
-Status: in_progress
+Status: completed
 Priority: P1 recovery foundation
 Target: 0.6.3
 Owner: ai-agent-wave-a
@@ -45,4 +45,4 @@ Disable reload and retain the last known good startup generation.
 
 ## Evidence
 
-Publisher, runtime registry, and host extension adapter are present with focused generation, collision, rollback, and shutdown tests. Pi currently lacks unregister or generation-commit APIs, so production extension activation is blocked fail-closed instead of claiming atomic registration.
+Publisher, runtime registry, fail-closed host adapter, and the production single-router extension are present. A complete MCP generation is discovered and prepared before one stable `mcp` tool is registered, avoiding partial per-tool publication on Pi. Generation switch, last-good, call routing, selection, and shutdown tests pass.

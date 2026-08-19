@@ -16,7 +16,18 @@ export function createMcpRuntimeRegistry(options) {
     return operation;
   };
 
+  const close = () => {
+    const operation = pending.then(async () => {
+      const clients = [...new Set(current.tools.map(({ client }) => client))];
+      await Promise.allSettled(clients.map((client) => typeof client?.close === "function" ? client.close() : undefined));
+      current = Object.freeze({ ...current, tools: Object.freeze([]) });
+    });
+    pending = operation.catch(() => {});
+    return operation;
+  };
+
   return Object.freeze({
+    close,
     current: () => current,
     tools: () => current.tools,
     reload,
