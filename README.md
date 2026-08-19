@@ -19,8 +19,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 Or install an explicitly reviewed release:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.6.2/install.sh
-COCO_VERSION=0.6.2 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.6.3/install.sh
+COCO_VERSION=0.6.3 bash install.sh
 ```
 
 The installer verifies the exact-tag release tarball and the pinned public Agnes credential against their published SHA-256 values, safely extracts CoCo, and preserves existing `~/.coco/agent` configuration during updates and reinstalls.
@@ -56,7 +56,7 @@ Use the built-in interactive `/goal` command to set and track a goal for the cur
 
 Use interactive `/loop` for recurring work in the current saved session. It runs only while that matching CoCo session is open, inherits normal CoCo guard and permission behavior, and never loads project-local loop prompts. See [CoCo CLI](documentation/en/docs/coco-cli.md#scheduled-loops).
 
-Use `coco task create` for durable background and worktree tasks that survive terminal closure. Inspect live Agent PIDs with `coco task active`; `coco task stop-all` terminates verified original process groups. The published `0.6.1` release cannot guarantee containment of descendants that detach into another session, so the `0.6.2` plan requires Linux cgroup v2 before claiming complete descendant termination. See [Tasks, Agents, and Control](documentation/en/docs/tasks.md).
+Use `coco task create` for durable background and worktree tasks that survive terminal closure. Inspect live Agent PIDs with `coco task active`; `coco task stop-all` terminates verified process groups and Linux cgroup descendants. See [Tasks, Agents, and Control](documentation/en/docs/tasks.md).
 
 CoCo includes English and Simplified Chinese language switching through `/language`. Additional languages can be installed as global JSON language packs.
 

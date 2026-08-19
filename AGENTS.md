@@ -6,10 +6,10 @@ Read this file before changing the repository.
 
 - Worktree: `/root/coco-tmp/coco-v053-migration`
 - Current branch: `candidate/v0.6.3`
-- Released version: `0.6.2`
-- Current target: `0.6.3`
+- Released version: `0.6.3`
+- Current target: `0.7.0` (`CFG-001` only)
 - Active plan: `DEVELOPMENT_PLAN.md`
-- Work items: `development/work-items/0.6.3/`
+- Work items: `development/work-items/0.7.0/`
 - Execution journal: `.opencode/memory/DEVELOPMENT_JOURNAL.md`
 - Historical document index: `HISTORICAL_DOCUMENTS.md`
 - Generated asset rules: `development/GENERATED_ASSETS.md`

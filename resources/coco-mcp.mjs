@@ -17,7 +17,7 @@ export default function cocoMcp(pi, options = {}) {
       selectServer: async (server, serverName) => server.approval === "allow" || server.approval === "ask" && ctx.hasUI && await ctx.ui.confirm("Enable MCP server?", `${serverName}: ${server.command} ${server.args.join(" ")}`),
       connect: async (server) => {
         const transport = new StdioClientTransport({ args: server.args, command: server.command, cwd: ctx.cwd, stderr: "pipe" });
-        const client = new Client({ name: "coco", version: "0.6.2" });
+        const client = new Client({ name: "coco", version: "0.6.3" });
         await client.connect(transport);
         return client;
       },

@@ -6,7 +6,7 @@ import test from "node:test";
 const root = new URL("..", import.meta.url).pathname;
 const workItems = join(root, "development", "work-items", "0.6.3");
 
-test("active development plan exposes the small, agent-ready 0.6.3 wave", async () => {
+test("active development plan preserves the completed 0.6.3 wave and one 0.7.0 target", async () => {
   const [agents, plan, history, generated, leases, files] = await Promise.all([
     readFile(join(root, "AGENTS.md"), "utf8"),
     readFile(join(root, "DEVELOPMENT_PLAN.md"), "utf8"),
@@ -19,9 +19,9 @@ test("active development plan exposes the small, agent-ready 0.6.3 wave", async 
   assert.match(agents, /Current branch: `candidate\/v0\.6\.3`/);
   assert.match(agents, /DEVELOPMENT_PLAN\.md/);
   assert.match(agents, /HISTORICAL_DOCUMENTS\.md/);
-  assert.match(agents, /Released version: `0\.6\.2`/);
-  assert.match(plan, /Next target: `0\.6\.3`/);
-  assert.match(plan, /Next Three Items/);
+  assert.match(agents, /Released version: `0\.6\.3`/);
+  assert.match(plan, /Next target: `0\.7\.0`, starting with `CFG-001` only/);
+  assert.match(plan, /Completed 0\.6\.3 Wave/);
   assert.equal(leases.schemaVersion, 1);
   assert.equal(Array.isArray(leases.leases), true);
 
