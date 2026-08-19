@@ -1,0 +1,75 @@
+name: Backup Drill
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  create-offhost-set:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.19.0
+          cache: npm
+      - run: npm ci
+      - name: Create authenticated backup set
+        env:
+          COCO_BACKUP_AUTH_KEY: ${{ secrets.COCO_BACKUP_DRILL_AUTH_KEY }}
+          COCO_BACKUP_STATE_KEY: ${{ secrets.COCO_BACKUP_DRILL_STATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/offhost"
+          git bundle create "$RUNNER_TEMP/source/repository.bundle" --all
+          npm pack --pack-destination "$RUNNER_TEMP/source" >/dev/null
+          node scripts/backup-command.mjs create \
+            --source-dir "$RUNNER_TEMP/source" \
+            --offsite-dir "$RUNNER_TEMP/offhost" \
+            --operational-state '{"scope":"backup-drill"}' \
+            --retention-days 30 > "$RUNNER_TEMP/create.json"
+          jq -e '.ok==true and .operation=="create"' "$RUNNER_TEMP/create.json" >/dev/null
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: coco-offhost-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/offhost
+          if-no-files-found: error
+          retention-days: 1
+
+  restore-offhost-set:
+    needs: create-offhost-set
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.19.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: coco-offhost-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/offhost
+      - name: Verify and restore downloaded set
+        env:
+          COCO_BACKUP_AUTH_KEY: ${{ secrets.COCO_BACKUP_DRILL_AUTH_KEY }}
+          COCO_BACKUP_STATE_KEY: ${{ secrets.COCO_BACKUP_DRILL_STATE_KEY }}
+        run: |
+          set -euo pipefail
+          backup_dir="$(find "$RUNNER_TEMP/offhost" -mindepth 1 -maxdepth 1 -type d -name 'backup-*' -print -quit)"
+          test -n "$backup_dir"
+          node scripts/backup-command.mjs verify --backup-dir "$backup_dir" > "$RUNNER_TEMP/verify.json"
+          node scripts/backup-command.mjs restore-drill \
+            --backup-dir "$backup_dir" \
+            --destination-dir "$RUNNER_TEMP/restored" \
+            --expected-paths '["repository.bundle"]' > "$RUNNER_TEMP/restore.json"
+          jq -e '.ok==true and .operation=="verify"' "$RUNNER_TEMP/verify.json" >/dev/null
+          jq -e '.ok==true and .operation=="restore-drill"' "$RUNNER_TEMP/restore.json" >/dev/null
+          git bundle verify "$RUNNER_TEMP/restored/repository.bundle"

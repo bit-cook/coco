@@ -213,6 +213,8 @@ coco backup restore-drill \
 
 The store publishes through an incomplete private directory and exposes the final backup ID only after the copy is complete. It rejects overwrite, symlink, special-file, traversal, and partial-object cases. Do not mount the off-host store inside the source tree.
 
+The manual `Backup Drill` workflow performs the same authentication and restore check across two isolated GitHub-hosted jobs. The first job uploads a one-day Actions artifact; the second downloads and verifies it before restoring the Git bundle. Its two repository secrets are drill-only keys and should be removed after the run.
+
 ## Recovery Decision Tree
 
 - Deleted or damaged worktree, Git history intact elsewhere: clone the bundle.
