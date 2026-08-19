@@ -57,4 +57,4 @@ Retain last-good generation and allow explicit operator rollback by generation I
 
 ## Evidence
 
-The runtime generation registry and composition layer are present with revision-CAS publication, immutable in-flight leases, provider/MCP all-or-none preparation, last-good retention, bounded history, rollback-by-source, stale-generation rejection, provider preflight binding, concurrent writer tests, peer cleanup on preparation failure, and predecessor disposal after the last lease. Production consumer lifecycle remains for the next focused integration. No external code was copied.
+The runtime generation registry, composition layer, and consumer boundary are present with revision-CAS publication, immutable in-flight leases, provider/MCP all-or-none preparation, last-good retention, bounded history, rollback-by-source, stale-generation rejection, provider preflight binding, concurrent writer tests, peer cleanup on preparation failure, exception-safe lease release, and predecessor disposal after the last lease. Concrete runtime consumer wiring remains. No external code was copied.

@@ -2159,3 +2159,5 @@ After the published `v0.6.3` baseline, `candidate/v0.7.0` was created from merge
 After build regeneration, complete core passed `624/624`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,687`. The CFG-001 lease was cleared for coordinator integration.
 
 CFG-001 then added provider/MCP all-or-none composition. One failed candidate disposes its prepared peer and retains last-good; concurrent writers elect one revision; provider preflight binds the acquired generation. Focused generation tests passed `19/19`; complete core `626/626`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,688` passed.
+
+CFG-001 then added the generation consumer boundary. Provider and MCP calls acquire one immutable lease, provider preflight records its generation and revision, generation swaps do not alter in-flight calls, and success or failure releases the lease. Focused generation/consumer tests passed `18/18`; complete core `628/628`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,689` passed.

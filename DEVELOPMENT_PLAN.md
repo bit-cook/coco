@@ -85,4 +85,4 @@ Control and MCP commands are journaled, MCP generations publish atomically throu
 
 Prime Agent and DeepSeek Harness were reviewed at fixed commits. Their useful ideas are summarized on the public research pages and mapped to future work items; neither runtime is being imported wholesale.
 
-CFG-001 generation evidence is current on `candidate/v0.7.0`: focused provider/MCP/generation tests `19/19`, complete core `626/626`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,688`. Provider and MCP candidates now prepare as one generation; the next integration connects the production consumer lifecycle. Other 0.7.0 items remain pending.
+CFG-001 generation evidence is current on `candidate/v0.7.0`: focused provider/MCP/generation tests `18/18`, complete core `628/628`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,689`. Provider and MCP candidates prepare as one generation, and provider/MCP calls acquire and report one immutable lease. The next integration connects the concrete runtime consumer. Other 0.7.0 items remain pending.
