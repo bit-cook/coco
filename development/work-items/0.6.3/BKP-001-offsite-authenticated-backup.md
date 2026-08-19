@@ -45,4 +45,4 @@ Never delete the last verified local set while migrating storage.
 
 ## Evidence
 
-Authenticated rotation, encrypted state, retention, command API, credential-free store contract, and atomic filesystem test backend are present. A provider-specific immutable off-host adapter and credential rotation runbook remain.
+Authenticated rotation, encrypted state, retention, native `coco backup` command, credential-free store contract, and atomic filesystem backend are present. The canonical runbook documents NFS/SSHFS/object-store mounts, environment-provided keys, atomic publish/fetch/list/remove, and restore drill. One deployment-specific off-host drill remains.

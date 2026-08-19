@@ -71,7 +71,7 @@ The published `v0.6.2` passed:
 - Real delegated-cgroup detached setsid/double-fork test
 - GitHub private-draft release lifecycle and nine-asset verification
 
-The 0.6.3 waves added journaled Control mutations, atomic MCP generation publication, and a credential-free backup store. All ordinary Control task mutations use the shared wrapper; webhooks retain their dedicated durable ledger. MCP now exposes one stable router tool after the full generation is prepared, avoiding partial per-tool registration. The frozen batch passes core `613/613`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. REC provider/Bash/MCP effects and a real off-host backend remain.
+The 0.6.3 waves added journaled Control mutations, atomic MCP generation publication, and native mounted off-host backup commands. MCP exposes one stable router tool after the full generation is prepared, avoiding partial per-tool registration. `coco backup` can rotate, verify, restore, prune, publish, fetch, list, and remove through a credential-free mounted store. The frozen batch passes core `614/614`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. REC provider/Bash/MCP effects and one deployment-specific off-host drill remain.
 
 ## Boundaries
 

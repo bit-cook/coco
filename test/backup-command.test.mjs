@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { lstat, mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { backupCommand } from "../scripts/backup-command.mjs";
+import { backupCommand, main } from "../scripts/backup-command.mjs";
 import { createFilesystemBackupStore } from "../scripts/backup-filesystem-store.mjs";
 
 const authKey = Buffer.alloc(32, 7);
@@ -66,4 +66,14 @@ test("command API publishes and fetches through a credential-free store adapter"
   assert.equal((await backupCommand({ operation: "store-remove", id: "backup-command" }, {}, dependencies)).ok, true);
   const missing = await backupCommand({ operation: "store-list" }, {}, {});
   assert.equal(missing.ok, false); assert.equal(missing.error.code, "BACKUP_STORE_INVALID");
+});
+
+test("CLI main constructs a mounted filesystem store without key arguments", async (t) => {
+  const temporary = await mkdtemp(join(tmpdir(), "coco-backup-cli-store-"));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const source = join(temporary, "source"), storeRoot = join(temporary, "store"); await mkdir(source); await mkdir(storeRoot); await writeFile(join(source, "manifest.json"), "{}\n");
+  let output = "";
+  assert.equal(await main(["store-publish", "--store-root", storeRoot, "--id", "backup-cli", "--source-dir", source], {}, { write(value) { output += value; return true; } }), 0);
+  assert.equal(JSON.parse(output).ok, true);
+  assert.equal((await lstat(join(storeRoot, "backup-cli"))).isDirectory(), true);
 });

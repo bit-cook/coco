@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 
 import { pruneBackups, restoreDrill, rotateBackup, verifyBackup } from "./backup-rotation.mjs";
 import { assertBackupStore } from "./backup-store-contract.mjs";
+import { createFilesystemBackupStore } from "./backup-filesystem-store.mjs";
 
 const OPERATIONS = new Set(["create", "verify", "restore-drill", "prune", "store-publish", "store-fetch", "store-list", "store-remove"]);
 
@@ -90,9 +91,12 @@ function argumentsToRequest(argv) {
   return request;
 }
 
-export async function main(argv = process.argv.slice(2), environment = process.env) {
-  const result = await backupCommand(argumentsToRequest(argv), environment);
-  process.stdout.write(`${JSON.stringify(result)}\n`);
+export async function main(argv = process.argv.slice(2), environment = process.env, output = process.stdout) {
+  const request = argumentsToRequest(argv);
+  const dependencies = request.storeRoot ? { store: createFilesystemBackupStore({ root: request.storeRoot }) } : {};
+  delete request.storeRoot;
+  const result = await backupCommand(request, environment, dependencies);
+  output.write(`${JSON.stringify(result)}\n`);
   return result.ok ? 0 : 1;
 }
 
