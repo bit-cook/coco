@@ -106,10 +106,12 @@ test("Control approve cancel and stop-all replay journaled mutation results", { 
     const conflict = await fetch(`${server.base}/v1/tasks/${task.id}/cancel`, { headers: approveHeaders, method: "POST" });
     assert.equal(conflict.status, 409); assert.deepEqual(await conflict.json(), { error: "IDEMPOTENCY_KEY_CONFLICT" });
 
+    const createCancelled = await fetch(`${server.base}/v1/tasks`, { body: JSON.stringify({ approved: false, cwd: process.cwd(), prompt: "cancel recovery", worktree: false }), headers: server.auth, method: "POST" });
+    const cancelTask = (await createCancelled.json()).task;
     const cancelHeaders = { ...server.auth, "idempotency-key": "cancel-command-1" };
-    const firstCancel = await fetch(`${server.base}/v1/tasks/${task.id}/cancel`, { headers: cancelHeaders, method: "POST" });
+    const firstCancel = await fetch(`${server.base}/v1/tasks/${cancelTask.id}/cancel`, { headers: cancelHeaders, method: "POST" });
     assert.equal(firstCancel.status, 200); const cancelled = await firstCancel.json(); assert.equal(typeof cancelled.cancelled, "boolean");
-    const replayCancel = await fetch(`${server.base}/v1/tasks/${task.id}/cancel`, { headers: cancelHeaders, method: "POST" });
+    const replayCancel = await fetch(`${server.base}/v1/tasks/${cancelTask.id}/cancel`, { headers: cancelHeaders, method: "POST" });
     assert.equal(replayCancel.status, 200); assert.deepEqual(await replayCancel.json(), cancelled);
 
     const stopHeaders = { ...server.auth, "idempotency-key": "stop-command-1" };

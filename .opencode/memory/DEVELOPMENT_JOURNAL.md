@@ -2157,3 +2157,5 @@ The candidate version surface was synchronized to 0.6.3. Product identity, docum
 After the published `v0.6.3` baseline, `candidate/v0.7.0` was created from merged main. CFG-001 began with one runtime generation registry: provider and MCP candidates prepare before revision-CAS commit; in-flight requests retain one lease; stale generations are rejected; last-good remains after prepare faults; rollback reparses retained source into a fresh generation; predecessor resources dispose after the last lease. Focused provider/MCP/generation tests pass `17/17`. Production composition is not yet enabled.
 
 After build regeneration, complete core passed `624/624`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,687`. The CFG-001 lease was cleared for coordinator integration.
+
+CFG-001 then added provider/MCP all-or-none composition. One failed candidate disposes its prepared peer and retains last-good; concurrent writers elect one revision; provider preflight binds the acquired generation. Focused generation tests passed `19/19`; complete core `626/626`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,688` passed.
