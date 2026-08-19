@@ -4,18 +4,18 @@ Last updated: 2026-08-18
 
 ## Current State
 
-- Released: `v0.6.2` at `964df563312799df7f2e000b862b17beab88f42d`
+- Released: `v0.6.3` at `016597c95efa511c861ed651b1ded9e56c9ed22c`
 - Development branch: `candidate/v0.6.3`
-- Next target: `0.6.3`
+- Next target: `0.7.0`, starting with `CFG-001` only
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
 - Research pages: `/research.html` and `/research-zh-CN.html`
 
-`v0.6.2` closed the release, task recovery, dispatch, provisioning, UTF-8, and Linux containment work. Do not reopen those work items unless a regression is found.
+`v0.6.3` closed command recovery, atomic MCP publication, and authenticated off-host backup work. Do not reopen completed 0.6.x work unless a regression is found.
 
-## Next Three Items
+## Completed 0.6.3 Wave
 
-The first parallel implementation pass is complete; coordinator integration is next:
+The release wave is complete:
 
 | Item | Goal | Depends on |
 |---|---|---|
@@ -23,7 +23,7 @@ The first parallel implementation pass is complete; coordinator integration is n
 | `CFG-000` | Publish complete MCP/config generations or keep last-good | completed |
 | `BKP-001` | Rotate an authenticated off-host backup and prove one restore | completed |
 
-The three-item 0.6.3 wave is complete and release gates are current. Publish 0.6.3 before starting `CFG-001`; do not start the rest of 0.7.0 at once.
+The three-item 0.6.3 wave is released. Start `CFG-001` only; do not start the rest of 0.7.0 at once.
 
 ## Agent Workflow
 
@@ -59,19 +59,19 @@ Do not repeat the full release gate for every Agent or documentation edit.
 
 ## Evidence
 
-The published `v0.6.2` passed:
+The published `v0.6.3` passed:
 
-- Core `595/595`
+- Core `619/619`
 - Integrity `39/39`
 - Package `2/2`
 - Closure `175` manifests
-- Runtime probe `20,677` entries
+- Runtime probe `20,686` entries
 - Node 22.19 startup matrix
 - Offline install/version/uninstall
 - Real delegated-cgroup detached setsid/double-fork test
 - GitHub private-draft release lifecycle and nine-asset verification
 
-The 0.6.3 wave is complete: Control and MCP commands are journaled, MCP generations publish atomically through one router, and native mounted off-host backups passed a two-runner restore drill. Raw Bash/provider side effects move to EVID-002 because the host hook cannot replay a recorded result. Final 0.6.3 gates pass core `619/619`, integrity `39/39`, package closure `175`, scanner clean, package `2/2`, runtime probe `20,686`, Node 22 performance, and real offline install/version/uninstall. Next: publish 0.6.3, then `CFG-001` only.
+Control and MCP commands are journaled, MCP generations publish atomically through one router, and native mounted off-host backups passed a two-runner restore drill. Raw Bash/provider side effects move to EVID-002 because the host hook cannot replay a recorded result. Next: `CFG-001` only.
 
 ## Boundaries
 
