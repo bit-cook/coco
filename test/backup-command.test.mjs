@@ -77,3 +77,12 @@ test("CLI main constructs a mounted filesystem store without key arguments", asy
   assert.equal(JSON.parse(output).ok, true);
   assert.equal((await lstat(join(storeRoot, "backup-cli"))).isDirectory(), true);
 });
+
+test("CLI main parses retention and operational state types", async (t) => {
+  const temporary = await mkdtemp(join(tmpdir(), "coco-backup-cli-create-"));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const source = join(temporary, "source"), offsite = join(temporary, "offsite"); await mkdir(source); await mkdir(offsite); await writeFile(join(source, "file"), "data\n");
+  let output = "";
+  const code = await main(["create", "--source-dir", source, "--offsite-dir", offsite, "--operational-state", '{"scope":"test"}', "--retention-days", "30"], environment, { write(value) { output += value; return true; } });
+  assert.equal(code, 0); assert.equal(JSON.parse(output).ok, true);
+});

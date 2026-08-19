@@ -86,7 +86,8 @@ function argumentsToRequest(argv) {
     const match = /^--([a-z-]+)$/.exec(args[index]);
     if (!match || args[index + 1] === undefined) throw failure("BACKUP_USAGE");
     const name = match[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-    request[name] = ["expectedPaths"].includes(name) ? JSON.parse(args[++index]) : args[++index];
+    const value = args[++index];
+    request[name] = ["expectedPaths", "operationalState"].includes(name) ? JSON.parse(value) : name === "retentionDays" ? Number(value) : value;
   }
   return request;
 }

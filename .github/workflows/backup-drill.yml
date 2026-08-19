@@ -31,11 +31,14 @@ jobs:
           mkdir -p "$RUNNER_TEMP/source" "$RUNNER_TEMP/offhost"
           git bundle create "$RUNNER_TEMP/source/repository.bundle" --all
           npm pack --pack-destination "$RUNNER_TEMP/source" >/dev/null
-          node scripts/backup-command.mjs create \
-            --source-dir "$RUNNER_TEMP/source" \
-            --offsite-dir "$RUNNER_TEMP/offhost" \
-            --operational-state '{"scope":"backup-drill"}' \
-            --retention-days 30 > "$RUNNER_TEMP/create.json"
+          if ! node scripts/backup-command.mjs create \
+              --source-dir "$RUNNER_TEMP/source" \
+              --offsite-dir "$RUNNER_TEMP/offhost" \
+              --operational-state '{"scope":"backup-drill"}' \
+              --retention-days 30 > "$RUNNER_TEMP/create.json"; then
+            jq -r '.error.code // "BACKUP_DRILL_CREATE_FAILED"' "$RUNNER_TEMP/create.json" >&2
+            exit 1
+          fi
           if ! jq -e '.ok==true and .operation=="create"' "$RUNNER_TEMP/create.json" >/dev/null; then
             jq -r '.error.code // "BACKUP_DRILL_CREATE_FAILED"' "$RUNNER_TEMP/create.json" >&2
             exit 1
