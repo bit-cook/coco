@@ -45,4 +45,4 @@ Disable reload and retain the last known good startup generation.
 
 ## Evidence
 
-Initial publisher and last-good generation implementation is present with focused pagination, collision, fault, migration, and restart tests. Runtime registry integration remains for the next integration batch.
+Publisher, runtime registry, and host extension adapter are present with focused generation, collision, rollback, and shutdown tests. Pi currently lacks unregister or generation-commit APIs, so production extension activation is blocked fail-closed instead of claiming atomic registration.

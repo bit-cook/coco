@@ -45,4 +45,4 @@ Never delete the last verified local set while migrating storage.
 
 ## Evidence
 
-Initial authenticated rotation, encrypted state, retention, tamper, wrong-key, and restore-drill implementation is present with focused tests. A real off-host adapter and credential rotation runbook remain for integration.
+Authenticated rotation, encrypted state, retention, command API, credential-free store contract, and atomic filesystem test backend are present. A provider-specific immutable off-host adapter and credential rotation runbook remain.

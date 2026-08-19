@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { backupCommand } from "../scripts/backup-command.mjs";
+import { createFilesystemBackupStore } from "../scripts/backup-filesystem-store.mjs";
 
 const authKey = Buffer.alloc(32, 7);
 const stateKey = Buffer.alloc(32, 8);
@@ -50,4 +51,19 @@ test("errors use stable codes and never accept missing or wrong keys", async (t)
   assert.equal(wrong.ok, false);
   assert.equal(wrong.error.code, "BACKUP_OPERATION_FAILED");
   await assert.rejects(() => stat(join(f.offsiteDir, "not-a-key")), { code: "ENOENT" });
+});
+
+test("command API publishes and fetches through a credential-free store adapter", async (t) => {
+  const temporary = await mkdtemp(join(tmpdir(), "coco-backup-command-store-"));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const source = join(temporary, "source"), storeRoot = join(temporary, "store"), destination = join(temporary, "fetched");
+  await mkdir(source); await mkdir(storeRoot); await writeFile(join(source, "manifest.json"), "{}\n");
+  const dependencies = { store: createFilesystemBackupStore({ root: storeRoot }) };
+  assert.equal((await backupCommand({ operation: "store-publish", id: "backup-command", sourceDir: source }, {}, dependencies)).ok, true);
+  assert.deepEqual((await backupCommand({ operation: "store-list" }, {}, dependencies)).result.ids, ["backup-command"]);
+  assert.equal((await backupCommand({ operation: "store-fetch", id: "backup-command", destinationDir: destination }, {}, dependencies)).ok, true);
+  assert.equal(await readFile(join(destination, "manifest.json"), "utf8"), "{}\n");
+  assert.equal((await backupCommand({ operation: "store-remove", id: "backup-command" }, {}, dependencies)).ok, true);
+  const missing = await backupCommand({ operation: "store-list" }, {}, {});
+  assert.equal(missing.ok, false); assert.equal(missing.error.code, "BACKUP_STORE_INVALID");
 });

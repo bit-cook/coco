@@ -47,4 +47,4 @@ Unknown records remain uncertain; downgrade must never turn them into retryable 
 
 ## Evidence
 
-Initial journal implementation is present with focused crash and idempotency tests. Control/provider/Bash/MCP integration remains for the next integration batch. No external code was copied.
+The journal and reusable mutation wrapper are present. Control task creation uses the wrapper and focused duplicate/conflict/concurrency/uncertain tests pass. Remaining Control routes and provider/Bash/MCP effects are not yet integrated. No external code was copied.

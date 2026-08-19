@@ -1,8 +1,9 @@
 import { fileURLToPath } from "node:url";
 
 import { pruneBackups, restoreDrill, rotateBackup, verifyBackup } from "./backup-rotation.mjs";
+import { assertBackupStore } from "./backup-store-contract.mjs";
 
-const OPERATIONS = new Set(["create", "verify", "restore-drill", "prune"]);
+const OPERATIONS = new Set(["create", "verify", "restore-drill", "prune", "store-publish", "store-fetch", "store-list", "store-remove"]);
 
 function failure(code, message = code) {
   const error = new Error(message);
@@ -39,13 +40,19 @@ function normalizedError(error) {
   return failure("BACKUP_OPERATION_FAILED", error?.message ?? "backup operation failed");
 }
 
-export async function backupCommand(input, environment = process.env) {
+export async function backupCommand(input, environment = process.env, dependencies = {}) {
   const request = input ?? {};
   try {
     const operation = request.operation ?? request.action;
     if (!OPERATIONS.has(operation)) throw failure("BACKUP_USAGE");
     let result;
-    if (operation === "create") {
+    if (operation.startsWith("store-")) {
+      const store = assertBackupStore(dependencies.store);
+      if (operation === "store-publish") result = await store.publish({ id: required(request, "id"), sourceDir: required(request, "sourceDir") });
+      else if (operation === "store-fetch") result = await store.fetch({ id: required(request, "id"), destinationDir: required(request, "destinationDir") });
+      else if (operation === "store-list") result = { ids: await store.list() };
+      else result = await store.remove({ id: required(request, "id") });
+    } else if (operation === "create") {
       result = await rotateBackup({
         sourceDir: required(request, "sourceDir"), offsiteDir: required(request, "offsiteDir"),
         authKey: inputKey(request, "auth", environment), stateKey: inputKey(request, "state", environment),

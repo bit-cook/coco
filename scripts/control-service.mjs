@@ -7,6 +7,7 @@ import { extname, join, resolve } from "node:path";
 
 import { canonicalJson } from "./canonical-json.mjs";
 import { createCommandRecoveryJournal } from "./command-recovery-journal.mjs";
+import { runControlCommandMutation } from "./control-command-recovery.mjs";
 import { StateError } from "./state-schema.mjs";
 import { agentDirectory, ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { acquireStateLock, atomicReplace } from "./state-transaction.mjs";
@@ -218,29 +219,12 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
           const task = await store.create({ cwd: input.cwd, initialStatus: input.approved === false ? "blocked" : "queued", prompt: input.prompt, trigger: "manual", worktree: input.worktree !== false });
           if (task.status === "queued") await startDetachedRunner({ agentDir, root }); return json(response, 201, { task: taskDto(task) });
         }
-        let command;
-        try { command = await commands.receive({ commandId, effectGeneration: 1, operationId: "control.tasks.create", request: { input, method: request.method, path: url.pathname } }); }
-        catch (error) { if (error?.message === "COMMAND_DIGEST_CONFLICT") return json(response, 409, { error: "IDEMPOTENCY_KEY_CONFLICT" }); throw error; }
-        if (command.status === "result") return json(response, command.response.status, command.response.body);
-        if (command.status === "uncertain") return json(response, 409, { error: "COMMAND_OUTCOME_UNCERTAIN", status: "uncertain" });
-        if (command.status === "executing") return json(response, 409, { error: "COMMAND_IN_PROGRESS", status: "executing" });
-        try { await commands.beginExecution(commandId); }
-        catch (error) {
-          if (error?.message !== "COMMAND_STATE_INVALID") throw error;
-          const current = await commands.read(commandId);
-          if (current?.status === "result") return json(response, current.response.status, current.response.body);
-          if (current?.status === "uncertain") return json(response, 409, { error: "COMMAND_OUTCOME_UNCERTAIN", status: "uncertain" });
-          return json(response, 409, { error: "COMMAND_IN_PROGRESS", status: "executing" });
-        }
-        try {
+        const result = await runControlCommandMutation({ commandId, effectGeneration: 1, journal: commands, operationId: "control.tasks.create", request: { input, method: request.method, path: url.pathname }, effect: async () => {
           const task = await store.create({ cwd: input.cwd, initialStatus: input.approved === false ? "blocked" : "queued", prompt: input.prompt, trigger: "manual", worktree: input.worktree !== false });
           if (task.status === "queued") await startDetachedRunner({ agentDir, root });
-          const recorded = await commands.recordResult(commandId, { body: { task: taskDto(task) }, status: 201 });
-          return json(response, recorded.response.status, recorded.response.body);
-        } catch {
-          await commands.markUncertain(commandId);
-          return json(response, 409, { error: "COMMAND_OUTCOME_UNCERTAIN", status: "uncertain" });
-        }
+          return { body: { task: taskDto(task) }, status: 201 };
+        } });
+        return json(response, result.status, result.body);
       }
       const approve = /^\/v1\/tasks\/([a-z0-9_-]{12})\/approve$/.exec(url.pathname);
       if (request.method === "POST" && approve) {

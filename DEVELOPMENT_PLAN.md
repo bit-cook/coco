@@ -71,7 +71,7 @@ The published `v0.6.2` passed:
 - Real delegated-cgroup detached setsid/double-fork test
 - GitHub private-draft release lifecycle and nine-asset verification
 
-The first 0.6.3 integration batch added Control idempotency, MCP runtime registry, and the backup command API. Focused integration is `34/34`; after build regeneration, core is `595/595`, package closure is `175`, scanner is clean, and the runtime probe is `20,681`. These adapters still need production rollout review before the work items can be marked completed.
+The first two 0.6.3 integration waves added Control idempotency and a shared wrapper, MCP generation/host adapters, and a credential-free backup store. Focused integration is `48/48`; the frozen batch passes core `609/609`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,685`. Pi lacks an atomic tool registration API, so MCP activation remains fail-closed. These work items remain in progress until remaining effect routes and a real off-host backend are integrated.
 
 ## Boundaries
 
