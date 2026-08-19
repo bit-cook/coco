@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.3] - 2026-08-19
+
+### Reliability
+
+- Added durable command recovery for Control and MCP effects, including replayable results and explicit uncertain outcomes.
+- Added atomic MCP generation publication through one stable router tool.
+- Added authenticated backup rotation, native mounted off-host store commands, and a verified two-runner restore drill.
+
+### Operations
+
+- Added the manual Backup Drill workflow and simplified the AI Agent development plan and handoff rules.
+
 ## [0.6.2] - 2026-08-18
 
 ### Security

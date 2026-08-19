@@ -23,7 +23,7 @@ The first parallel implementation pass is complete; coordinator integration is n
 | `CFG-000` | Publish complete MCP/config generations or keep last-good | completed |
 | `BKP-001` | Rotate an authenticated off-host backup and prove one restore | completed |
 
-The three-item 0.6.3 wave is complete. The next single item is `CFG-001` provider/MCP generation binding; do not start the rest of 0.7.0 at once.
+The three-item 0.6.3 wave is complete and release gates are current. Publish 0.6.3 before starting `CFG-001`; do not start the rest of 0.7.0 at once.
 
 ## Agent Workflow
 
@@ -71,7 +71,7 @@ The published `v0.6.2` passed:
 - Real delegated-cgroup detached setsid/double-fork test
 - GitHub private-draft release lifecycle and nine-asset verification
 
-The 0.6.3 wave is complete: Control and MCP commands are journaled, MCP generations publish atomically through one router, and native mounted off-host backups passed a two-runner restore drill. Raw Bash/provider side effects move to EVID-002 because the host hook cannot replay a recorded result. The frozen batch passes core `619/619`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. Next: `CFG-001` only.
+The 0.6.3 wave is complete: Control and MCP commands are journaled, MCP generations publish atomically through one router, and native mounted off-host backups passed a two-runner restore drill. Raw Bash/provider side effects move to EVID-002 because the host hook cannot replay a recorded result. Final 0.6.3 gates pass core `619/619`, integrity `39/39`, package closure `175`, scanner clean, package `2/2`, runtime probe `20,686`, Node 22 performance, and real offline install/version/uninstall. Next: publish 0.6.3, then `CFG-001` only.
 
 ## Boundaries
 
