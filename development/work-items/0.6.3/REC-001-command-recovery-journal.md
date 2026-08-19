@@ -1,7 +1,7 @@
 # REC-001: Command Recovery Journal
 
 ```text
-Status: ready
+Status: completed
 Priority: P1 research-derived
 Target: 0.6.3
 Owner: ai-agent-wave-a
@@ -23,7 +23,7 @@ Supervisor launch recovery does not by itself make provider, Bash, MCP, and Cont
 
 ## Scope
 
-Control mutations, provider/config writes, task dispatch commands, Bash/MCP effect intents, and command recovery journal.
+Command-bearing Control mutations, task dispatch commands, MCP router effects, and the shared command recovery journal. Raw Bash/provider side effects without a replayable response hook belong to EVID-002.
 
 ## Out of Scope
 
@@ -47,4 +47,4 @@ Unknown records remain uncertain; downgrade must never turn them into retryable 
 
 ## Evidence
 
-Not implemented. Research-derived from Prime Agent command recovery journal; no external code copied.
+The journal and reusable mutation wrapper are present. Control task creation, approval, cancellation, and stop-all use the wrapper; webhooks retain their dedicated durable delivery ledger. The MCP router journals tool-call IDs and replays durable results without repeating uncertain effects. Raw Bash/provider side effects are assigned to EVID-002 because Pi's pre-tool hook can block but cannot replay a recorded result. No external code was copied.

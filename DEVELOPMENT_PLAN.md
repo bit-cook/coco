@@ -5,7 +5,7 @@ Last updated: 2026-08-18
 ## Current State
 
 - Released: `v0.6.2` at `964df563312799df7f2e000b862b17beab88f42d`
-- Development branch: `candidate/v0.6.2`
+- Development branch: `candidate/v0.6.3`
 - Next target: `0.6.3`
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
@@ -15,15 +15,15 @@ Last updated: 2026-08-18
 
 ## Next Three Items
 
-These items are ready and can be developed in parallel by separate Agents:
+The first parallel implementation pass is complete; coordinator integration is next:
 
 | Item | Goal | Depends on |
 |---|---|---|
-| `REC-001` | Make command effects recoverable; mark unknown effects `uncertain` | `RUN-001`, `RUN-003` |
-| `CFG-000` | Publish complete MCP/config generations or keep last-good | `REC-001` |
-| `BKP-001` | Rotate an authenticated off-host backup and prove one restore | `v0.6.2` |
+| `REC-001` | Make command effects recoverable; mark unknown effects `uncertain` | completed |
+| `CFG-000` | Publish complete MCP/config generations or keep last-good | completed |
+| `BKP-001` | Rotate an authenticated off-host backup and prove one restore | completed |
 
-After these three items are integrated, select the smallest next feature from the `0.7.0` research-derived work items. Do not start all of them at once.
+The three-item 0.6.3 wave is complete. The next single item is `CFG-001` provider/MCP generation binding; do not start the rest of 0.7.0 at once.
 
 ## Agent Workflow
 
@@ -61,7 +61,7 @@ Do not repeat the full release gate for every Agent or documentation edit.
 
 The published `v0.6.2` passed:
 
-- Core `574/574`
+- Core `595/595`
 - Integrity `39/39`
 - Package `2/2`
 - Closure `175` manifests
@@ -70,6 +70,8 @@ The published `v0.6.2` passed:
 - Offline install/version/uninstall
 - Real delegated-cgroup detached setsid/double-fork test
 - GitHub private-draft release lifecycle and nine-asset verification
+
+The 0.6.3 wave is complete: Control and MCP commands are journaled, MCP generations publish atomically through one router, and native mounted off-host backups passed a two-runner restore drill. Raw Bash/provider side effects move to EVID-002 because the host hook cannot replay a recorded result. The frozen batch passes core `619/619`, package closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. Next: `CFG-001` only.
 
 ## Boundaries
 

@@ -1,7 +1,7 @@
 # BKP-001: Offsite Authenticated Backup
 
 ```text
-Status: ready
+Status: completed
 Priority: P1 operations
 Target: 0.6.3
 Owner: ai-agent-wave-a
@@ -45,4 +45,4 @@ Never delete the last verified local set while migrating storage.
 
 ## Evidence
 
-Not implemented.
+Authenticated rotation, encrypted state, retention, native `coco backup` command, credential-free store contract, and atomic filesystem backend are present. The canonical runbook documents mounted off-host operation. GitHub Actions run `32252502802` created an authenticated set on `coco-ci-local`, transferred it through an off-host Actions artifact, restored it on `coco-promotion-local`, decrypted state, and verified the Git bundle. The one-time drill secrets were deleted after success.

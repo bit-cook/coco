@@ -2115,3 +2115,37 @@ The authorized isolated GitHub exercise created and then removed temporary tag `
 The later authorized release completed `v0.6.2` at `964df56`, and the research pages were deployed in Pages run `32188532292`. The old pre-release plan is preserved at `development/history/DEVELOPMENT_PLAN-0.6.2-pre-release.md`; the exact earlier text remains available with `git show 0b9f857:DEVELOPMENT_PLAN.md`.
 
 The active plan is now deliberately short: `REC-001`, `CFG-000`, and `BKP-001` are ready for parallel AI Agents. Each Agent owns one work item and exact files, runs focused tests, and hands back a concise result. Full gates run only after integration or before a release. The onboarding rules are in `development/AGENT_BRIEF.md` and the short cadence is in `development/AI_AGENT_EXECUTION_PLAN.md`.
+
+## 2026-08-18: First 0.6.3 AI Agent Wave
+
+Three Agents worked in parallel on non-overlapping file scopes from `candidate/v0.6.3` at `881d0ac`:
+
+- REC-001 added a command recovery journal with durable receipt/result, idempotent command IDs, digest conflict rejection, and uncertain recovery.
+- CFG-000 added MCP candidate publication with validation, collision checks, generation/revision state, last-good retention, and legacy migration.
+- BKP-001 added authenticated manifest rotation, encrypted operational state, retention, tamper detection, and restore drill helpers.
+
+Focused results: `13/13` combined tests passed, syntax checks passed, and diff check passed. These are initial modules, not yet wired into Control/provider/MCP runtime or a real off-host storage adapter. Leases were cleared after the focused handoff; coordinator integration is the next small batch.
+
+One upstream Agent prompt was rejected by the model provider's prompt filter. No code or repository operation failed. Subsequent coordination uses short prompts with file paths and local deterministic tests instead of repeating long research/security text.
+
+The second short-prompt wave wired REC-001 into idempotent Control task creation, added a generation-safe MCP runtime registry adapter, and added a stable backup command API. Combined focused integration passed `34/34`, feature typecheck passed, and no prompt filter error recurred. Full generated/package/runtime gates are deferred to this frozen integrated batch rather than repeated per Agent.
+
+The frozen first integration batch regenerated runtime/package assets and passed: core `595/595`, package closure `175`, scanner clean, runtime probe `20,681`, real package contract `2/2`, and focused integration `34/34`. The adapters remain isolated until a subsequent production rollout review; no release or npm action is planned for this development batch.
+
+The next adapter wave added a reusable Control mutation wrapper, a fail-closed MCP host adapter, and a credential-free backup store contract/filesystem backend. REC task creation now uses the shared wrapper; backup commands can publish/fetch/list/remove through an injected store. Pi currently exposes only sequential `registerTool` with no unregister or generation commit API, so the production MCP extension was intentionally not switched; the adapter rejects unsupported hosts before registration. Combined focused integration passed `48/48` and feature typecheck passed.
+
+After batch freeze and generated-asset regeneration, complete core passed `609/609`; package closure remained `175`, scanner was clean, package contracts passed `2/2`, and runtime probe approved `20,685` entries. No npm or release action was performed.
+
+REC-001 then extended the shared mutation wrapper to Control approve, cancel, and stop-all while preserving no-key compatibility. Webhooks continue to use the existing durable delivery ledger. Focused Control recovery passed `23/23`; after regeneration, complete core passed `610/610`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,685`.
+
+CFG-000 resolved the Pi host limitation without adding an upstream patch: the production extension now registers one stable `mcp` router tool only after a complete generation has been discovered and prepared. Routing binds each call to the current generation. MCP focused tests passed `18/18`; after regeneration, complete core passed `613/613`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. CFG-000 is complete.
+
+BKP-001 then exposed the filesystem store through the native `coco backup` command and documented mounted NFS/SSHFS/object-store operation with environment-managed keys. This avoids cloud SDK and credential coupling. After the CLI and runbook update, complete core passed `614/614`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. A deployment-specific off-host restore drill remains.
+
+REC-001 then journaled MCP router calls by stable tool-call ID, bounded durable responses to 1 MiB, and refused replay after an uncertain effect. Pi's built-in tool hook can block but cannot return a recorded result, so raw Bash/provider side effects are explicitly assigned to EVID-002 instead of duplicating an incomplete recovery protocol. REC-001 is complete within the replayable command boundary.
+
+After final REC/CFG/BKP regeneration, complete core passed `617/617`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. REC-001 and CFG-000 are complete; BKP-001 is code-complete but retains one deployment-specific off-host restore drill.
+
+The deployment-specific backup drill completed in Actions run `32252502802`: `coco-ci-local` created the authenticated set, GitHub stored it as artifact `coco-offhost-backup-32252502802`, and `coco-promotion-local` downloaded, authenticated, decrypted, restored, and verified the Git bundle. Both jobs succeeded. The one-time repository secrets were deleted immediately after the run. BKP-001 is complete, closing the three-item 0.6.3 wave.
+
+After CLI type parsing and workflow cleanup, the final frozen 0.6.3 wave passed complete core `619/619`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. The backup drill workflow returned to manual-only dispatch after the proof.

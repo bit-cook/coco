@@ -172,6 +172,49 @@ COCO_SCANNER_TMPDIR=/root/coco-tmp npm run verify:secrets
 
 Before publishing or resuming P0 implementation, also run the current focused tests and complete gates defined in `DEVELOPMENT_PLAN.md` and `development/GENERATED_ASSETS.md`.
 
+## Off-Host Rotation for 0.6.3
+
+Mount an independently administered NFS, SSHFS, or object-storage filesystem at a private path. CoCo treats that mount as a credential-free store; mount credentials remain in the operating system and are never passed to CoCo.
+
+Provide the authentication and state-encryption keys through the process environment, preferably from the service manager or a secret manager:
+
+```bash
+export COCO_BACKUP_AUTH_KEY='<base64 HMAC key>'
+export COCO_BACKUP_STATE_KEY='<base64 32-byte AES key>'
+```
+
+Create the authenticated backup set locally, then publish the completed set atomically to the mounted off-host store:
+
+```bash
+coco backup create \
+  --source-dir /root/coco-tmp/coco-backups/current \
+  --offsite-dir /root/coco-tmp/coco-backups/rotation \
+  --retention-days 30
+
+coco backup store-publish \
+  --store-root /mnt/coco-offsite \
+  --id backup-20260818T230000Z \
+  --source-dir /root/coco-tmp/coco-backups/rotation/backup-20260818T230000Z
+```
+
+List and fetch a set for an isolated restore drill:
+
+```bash
+coco backup store-list --store-root /mnt/coco-offsite
+coco backup store-fetch \
+  --store-root /mnt/coco-offsite \
+  --id backup-20260818T230000Z \
+  --destination-dir /root/coco-tmp/coco-offsite-restore
+
+coco backup restore-drill \
+  --backup-dir /root/coco-tmp/coco-offsite-restore \
+  --destination-dir /root/coco-tmp/coco-restore-drill
+```
+
+The store publishes through an incomplete private directory and exposes the final backup ID only after the copy is complete. It rejects overwrite, symlink, special-file, traversal, and partial-object cases. Do not mount the off-host store inside the source tree.
+
+The manual `Backup Drill` workflow performs the same authentication and restore check across two isolated GitHub-hosted jobs. The first job uploads a one-day Actions artifact; the second downloads and verifies it before restoring the Git bundle. Its two repository secrets are drill-only keys and should be removed after the run.
+
 ## Recovery Decision Tree
 
 - Deleted or damaged worktree, Git history intact elsewhere: clone the bundle.

@@ -6,6 +6,8 @@ import { createServer } from "node:http";
 import { extname, join, resolve } from "node:path";
 
 import { canonicalJson } from "./canonical-json.mjs";
+import { createCommandRecoveryJournal } from "./command-recovery-journal.mjs";
+import { runControlCommandMutation } from "./control-command-recovery.mjs";
 import { StateError } from "./state-schema.mjs";
 import { agentDirectory, ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { acquireStateLock, atomicReplace } from "./state-transaction.mjs";
@@ -54,6 +56,16 @@ function webhookAuthorized(request, bytes, task) {
     return signature.length === expected.length && timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
   }
   return false;
+}
+function idempotencyKey(request) {
+  const value = request.headers["idempotency-key"];
+  return typeof value === "string" && /^[A-Za-z0-9._:-]{1,200}$/.test(value) ? value : null;
+}
+async function recoverableMutation({ commands, effect, operationId, request, requestValue }) {
+  const commandId = idempotencyKey(request);
+  if (!commandId && request.headers["idempotency-key"] !== undefined) return { body: { error: "IDEMPOTENCY_KEY_INVALID" }, status: 400 };
+  if (!commandId) return effect();
+  return runControlCommandMutation({ commandId, effect, effectGeneration: 1, journal: commands, operationId, request: { method: request.method, path: new URL(request.url ?? "/", "http://localhost").pathname, value: requestValue } });
 }
 const PUBLIC_ERRORS = new Map([
   ["REQUEST_TOO_LARGE", 413],
@@ -129,6 +141,7 @@ export async function stopControl(agentDir) {
 export async function runControlServer({ agentDir, host, port, root, signal }) {
   requireLoopback(host);
   await ensureAgentDirectory(agentDir);
+  const commands = createCommandRecoveryJournal({ directory: join(agentDir, "command-recovery", "control") });
   const token = randomBytes(32).toString("base64url");
   const store = createTaskStore({ agentDir }); const events = createTaskEventStore({ agentDir }); const logs = createTaskLogStore({ agentDir }); const receipts = createTaskReceiptStore({ agentDir }); const publicRoot = join(root, "control", "public");
   const deliveries = createWebhookDeliveryStore({ agentDir });
@@ -206,24 +219,43 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
       if (request.method === "POST" && url.pathname === "/v1/tasks") {
         let input; try { input = JSON.parse((await body(request)).toString("utf8")); } catch { fail("REQUEST_PAYLOAD_INVALID"); }
         if (typeof input.prompt !== "string" || !input.prompt.trim() || typeof input.cwd !== "string") return json(response, 400, { error: "TASK_INVALID" });
-        const task = await store.create({ cwd: input.cwd, initialStatus: input.approved === false ? "blocked" : "queued", prompt: input.prompt, trigger: "manual", worktree: input.worktree !== false });
-        if (task.status === "queued") await startDetachedRunner({ agentDir, root }); return json(response, 201, { task: taskDto(task) });
+        const commandId = idempotencyKey(request);
+        if (!commandId && request.headers["idempotency-key"] !== undefined) return json(response, 400, { error: "IDEMPOTENCY_KEY_INVALID" });
+        if (!commandId) {
+          const task = await store.create({ cwd: input.cwd, initialStatus: input.approved === false ? "blocked" : "queued", prompt: input.prompt, trigger: "manual", worktree: input.worktree !== false });
+          if (task.status === "queued") await startDetachedRunner({ agentDir, root }); return json(response, 201, { task: taskDto(task) });
+        }
+        const result = await runControlCommandMutation({ commandId, effectGeneration: 1, journal: commands, operationId: "control.tasks.create", request: { input, method: request.method, path: url.pathname }, effect: async () => {
+          const task = await store.create({ cwd: input.cwd, initialStatus: input.approved === false ? "blocked" : "queued", prompt: input.prompt, trigger: "manual", worktree: input.worktree !== false });
+          if (task.status === "queued") await startDetachedRunner({ agentDir, root });
+          return { body: { task: taskDto(task) }, status: 201 };
+        } });
+        return json(response, result.status, result.body);
       }
       const approve = /^\/v1\/tasks\/([a-z0-9_-]{12})\/approve$/.exec(url.pathname);
       if (request.method === "POST" && approve) {
-        await store.update(async (value) => { if (await readRunnerStoppingState(agentDir)) fail("RUNNER_STOPPING"); const task = value.tasks.find(({ id }) => id === approve[1]); if (!task || task.status !== "blocked" || task.trigger !== "manual") fail("TASK_NOT_APPROVABLE"); task.status = "queued"; task.updatedAt = new Date().toISOString(); return value; });
-        await startDetachedRunner({ agentDir, root }); return json(response, 202, { approved: true });
+        const result = await recoverableMutation({ commands, operationId: "control.tasks.approve", request, requestValue: { taskId: approve[1] }, effect: async () => {
+          await store.update(async (value) => { if (await readRunnerStoppingState(agentDir)) fail("RUNNER_STOPPING"); const task = value.tasks.find(({ id }) => id === approve[1]); if (!task || task.status !== "blocked" || task.trigger !== "manual") fail("TASK_NOT_APPROVABLE"); task.status = "queued"; task.updatedAt = new Date().toISOString(); return value; });
+          await startDetachedRunner({ agentDir, root }); return { body: { approved: true }, status: 202 };
+        } });
+        return json(response, result.status, result.body);
       }
       const cancel = /^\/v1\/tasks\/([a-z0-9_-]{12})\/cancel$/.exec(url.pathname);
       if (request.method === "POST" && cancel) {
-        const snapshot = await store.load(); const task = snapshot.tasks.find(({ id }) => id === cancel[1]); if (!task) fail("TASK_NOT_FOUND");
-         const cancelled = await cancelTask(store, task.id);
-         return json(response, 200, { cancelled: cancelled.status === "cancelled", outcome: cancelled.status === "cancelled" ? "cancelled" : "terminal-won", task: taskDto(cancelled) });
+        const result = await recoverableMutation({ commands, operationId: "control.tasks.cancel", request, requestValue: { taskId: cancel[1] }, effect: async () => {
+          const snapshot = await store.load(); const task = snapshot.tasks.find(({ id }) => id === cancel[1]); if (!task) fail("TASK_NOT_FOUND");
+          const cancelled = await cancelTask(store, task.id);
+          return { body: { cancelled: cancelled.status === "cancelled", outcome: cancelled.status === "cancelled" ? "cancelled" : "terminal-won", task: taskDto(cancelled) }, status: 200 };
+        } });
+        return json(response, result.status, result.body);
       }
       if (request.method === "POST" && url.pathname === "/v1/tasks/stop-all") {
-        const result = await stopRunner(agentDir);
-        if (result.status !== "stopped") return json(response, 500, { error: "TASK_PROCESS_STILL_ALIVE" });
-        return json(response, 200, { status: "terminated", stopped: result.stopped ?? 0 });
+        const result = await recoverableMutation({ commands, operationId: "control.tasks.stop-all", request, requestValue: {}, effect: async () => {
+          const stopped = await stopRunner(agentDir);
+          if (stopped.status !== "stopped") return { body: { error: "TASK_PROCESS_STILL_ALIVE" }, status: 500 };
+          return { body: { status: "terminated", stopped: stopped.stopped ?? 0 }, status: 200 };
+        } });
+        return json(response, result.status, result.body);
       }
       return json(response, 404, { error: "NOT_FOUND" });
     } catch (error) { const failure = httpError(error); return json(response, failure.status, { error: failure.code }); }
@@ -233,6 +265,7 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
   try {
     const previous = await state(agentDir);
     if (previous?.processIdentity && await processMatches(previous.pid, previous.processIdentity)) fail("CONTROL_ALREADY_RUNNING");
+    await commands.recover();
     await new Promise((done, reject) => { server.once("error", reject); server.listen(port, host, done); });
     const address = server.address(); selectedPort = typeof address === "object" && address ? address.port : port;
     await atomicReplace({ agentDir, containsSecret: true, path: statePaths(agentDir).control, bytes: canonicalJson({ host, ownerId: ownership.ownerId, pid: process.pid, port: selectedPort, processIdentity: await processIdentity(process.pid), runtimeKey: process.env.COCO_RUNTIME_KEY ?? null, runtimeRoot: process.env.COCO_RUNTIME_ROOT ?? null, schemaVersion: 1, startedAt: new Date().toISOString(), token }) });

@@ -8,7 +8,7 @@ import { COCO_VERSION, CORE_NAME, CORE_VERSION } from "./coco-runtime-identity.m
 import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
 
 const MANAGED_PROVIDERS = new Set(MANAGED_PROVIDER_IDS);
-const NATIVE_COMMANDS = new Set(["manage", "doctor", "core", "task", "runner", "control", "mcp"]);
+const NATIVE_COMMANDS = new Set(["manage", "doctor", "core", "task", "runner", "control", "mcp", "backup"]);
 
 function help() {
   process.stdout.write(`CoCo ${COCO_VERSION}
@@ -31,6 +31,7 @@ Usage:
   coco runner start|status|stop|run [--once]
   coco control start|status|token|stop [--host <address>] [--port <port>]
   coco mcp add <name> -- <command> [args...] | list | approve|ask|deny|remove <name>
+  coco backup create|verify|restore-drill|prune|store-publish|store-fetch|store-list|store-remove [options]
 
 Interactive goals:
   /goal [status]            Show goal and step progress
@@ -231,6 +232,10 @@ async function native(argv, root) {
   if (argv[0] === "control") {
     try { const { agentDirectory } = await import("./state-paths.mjs"); return await (await import("./control-service.mjs")).controlCommand(argv.slice(1), { agentDir: agentDirectory(), root }); }
     catch (error) { return failure(error instanceof Error && "code" in error ? error.code : "CONTROL_COMMAND_FAILED"); }
+  }
+  if (argv[0] === "backup") {
+    try { const exitCode = await (await import("./backup-command.mjs")).main(argv.slice(1)); return { exitCode, kind: "native" }; }
+    catch (error) { return failure(error instanceof Error && "code" in error ? error.code : "BACKUP_COMMAND_FAILED"); }
   }
   if (argv[0] === "doctor") {
     const { doctor } = await import("./diagnostics.mjs");
