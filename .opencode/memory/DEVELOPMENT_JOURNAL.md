@@ -2145,3 +2145,7 @@ BKP-001 then exposed the filesystem store through the native `coco backup` comma
 REC-001 then journaled MCP router calls by stable tool-call ID, bounded durable responses to 1 MiB, and refused replay after an uncertain effect. Pi's built-in tool hook can block but cannot return a recorded result, so raw Bash/provider side effects are explicitly assigned to EVID-002 instead of duplicating an incomplete recovery protocol. REC-001 is complete within the replayable command boundary.
 
 After final REC/CFG/BKP regeneration, complete core passed `617/617`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. REC-001 and CFG-000 are complete; BKP-001 is code-complete but retains one deployment-specific off-host restore drill.
+
+The deployment-specific backup drill completed in Actions run `32252502802`: `coco-ci-local` created the authenticated set, GitHub stored it as artifact `coco-offhost-backup-32252502802`, and `coco-promotion-local` downloaded, authenticated, decrypted, restored, and verified the Git bundle. Both jobs succeeded. The one-time repository secrets were deleted immediately after the run. BKP-001 is complete, closing the three-item 0.6.3 wave.
+
+After CLI type parsing and workflow cleanup, the final frozen 0.6.3 wave passed complete core `619/619`, closure `175`, scanner clean, package `2/2`, and runtime probe `20,686`. The backup drill workflow returned to manual-only dispatch after the proof.

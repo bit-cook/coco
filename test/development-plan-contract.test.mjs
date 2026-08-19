@@ -41,7 +41,7 @@ test("active development plan exposes the small, agent-ready 0.6.3 wave", async 
   const byName = Object.fromEntries(await Promise.all(files.map(async (file) => [file, await readFile(join(workItems, file), "utf8")])));
   assert.match(byName["REC-001-command-recovery-journal.md"], /Status: completed/);
   assert.match(byName["CFG-000-mcp-atomic-publication.md"], /Status: completed/);
-  assert.match(byName["BKP-001-offsite-authenticated-backup.md"], /Status: in_progress/);
+  assert.match(byName["BKP-001-offsite-authenticated-backup.md"], /Status: completed/);
 
   for (const preserved of [
     "documentation/en/docs/development-migration-journal.md",
