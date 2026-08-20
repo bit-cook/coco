@@ -3,6 +3,7 @@ import { lstat, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { canonicalJson } from "./canonical-json.mjs";
+import { reconstructModelInput } from "./model-input-events.mjs";
 import { inspectRegular } from "./state-paths.mjs";
 import { applyStateTransaction } from "./state-transaction.mjs";
 
@@ -32,6 +33,10 @@ export function createModelInputLedger({ agentDir }) {
     async recordProviderRequest(requestId, { generationId, model, payload }) {
       if (!model || typeof model.provider !== "string") fail("MODEL_INPUT_PROVIDER_INVALID");
       return this.record(requestId, { generationId, messages: payload?.messages ?? payload?.input ?? [], provider: model.provider, systemPrompt: payload?.system ?? payload?.instructions ?? null, tools: payload?.tools ?? [] });
+    },
+    async recordEvents(requestId, events, generationId) {
+      const result = reconstructModelInput(events, { generationId, requestId });
+      return this.record(requestId, result.projection);
     },
     async record(requestId, value) {
       const request = id(requestId), { bytes, value: normalized } = projection(value), requestSha256 = digest(bytes), path = pathFor(request);

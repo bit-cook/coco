@@ -2172,4 +2172,6 @@ EVID-001 initial ledger now records final provider request inputs from the provi
 
 The ledger now also rejects corrupt and symlinked records. The final initial EVID-001 batch passed complete core `641/641`, closure `172`, scanner clean, public package contract, and runtime probe `21,355`. Session-event reconstruction remains the next refinement.
 
+EVID-001 added a strict session-event stream for generation, system, message, and tool facts. Sequences must be contiguous and request-bound; missing, reordered, duplicate, unknown, or cross-request events fail closed. Reconstructed projections can be written through the same private ledger. Complete core passed `645/645`, closure `172`, scanner clean, public package contract, and runtime probe `21,356`. Real session context hook wiring remains.
+
 The ledger now serializes concurrent writes and covers normal, compacted, resumed, and tool projection variants. The frozen initial EVID-001 batch passed complete core `640/640`, closure `172`, scanner clean, public package contract, and runtime probe `21,355`. Session-event reconstruction remains, and the implementation lease was cleared.

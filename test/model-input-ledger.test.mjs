@@ -35,3 +35,9 @@ test("compacted, resumed, and tool projections remain distinct and bounded", asy
   assert.equal(new Set(values.map(({ requestSha256 }) => requestSha256)).size, 3);
   for (const id of ["compact", "resume", "tool"]) assert.equal((await ledger.read(id)).projection.provider, "local");
 });
+
+test("ledger records reconstructed session events with the same canonical projection", async (t) => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-model-input-events-")); t.after(() => rm(agentDir, { recursive: true, force: true })); const ledger = createModelInputLedger({ agentDir });
+  const events = [{ at: "2026-08-20T00:00:00.000Z", payload: { generationId: "generation-3", provider: "local" }, requestId: "event-request", seq: 0, type: "generation" }, { at: "2026-08-20T00:00:00.000Z", payload: "system", requestId: "event-request", seq: 1, type: "system" }, { at: "2026-08-20T00:00:00.000Z", payload: { role: "user", content: "hello" }, requestId: "event-request", seq: 2, type: "message" }];
+  const result = await ledger.recordEvents("event-request", events, "generation-1"); assert.equal(result.generationId, "generation-3"); assert.equal((await ledger.read("event-request")).projection.messages[0].content, "hello");
+});
