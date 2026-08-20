@@ -63,4 +63,4 @@ Version intents and retain safe reading of existing records; never downgrade unc
 
 ## Evidence
 
-Research only. Inspired by DeepSeek Harness session checkpoint policy and Prime Agent command recovery journal. No external code copied.
+Initial durability fence is present over REC-001's command/effect protocol instead of introducing a second state machine. It persists intent before effect, records result before response, replays durable results, and returns uncertain on unconfirmed effects. MCP router uses the fence; provider/Bash rollout remains. No external code copied.
