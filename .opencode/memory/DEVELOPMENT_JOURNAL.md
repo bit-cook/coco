@@ -2170,4 +2170,6 @@ The missing Pi lifecycle correlation contract was tracked at `https://github.com
 
 EVID-001 initial ledger now records final provider request inputs from the provider lifecycle extension: messages/input, system/instructions, tools, provider, and generation ID. It is bounded at 4 MiB, idempotent by request ID and digest, private, and rejects changed projections. Focused ledger tests pass; compact/resume/tool-specific projection coverage remains.
 
+The ledger now also rejects corrupt and symlinked records. The final initial EVID-001 batch passed complete core `641/641`, closure `172`, scanner clean, public package contract, and runtime probe `21,355`. Session-event reconstruction remains the next refinement.
+
 The ledger now serializes concurrent writes and covers normal, compacted, resumed, and tool projection variants. The frozen initial EVID-001 batch passed complete core `640/640`, closure `172`, scanner clean, public package contract, and runtime probe `21,355`. Session-event reconstruction remains, and the implementation lease was cleared.
