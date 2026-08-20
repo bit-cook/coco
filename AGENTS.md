@@ -5,9 +5,9 @@ Read this file before changing the repository.
 ## Current Truth
 
 - Worktree: `/root/coco-tmp/coco-v053-migration`
-- Current branch: `candidate/v0.7.1`
+- Current branch: `candidate/v0.7.2`
 - Released version: `0.6.3`
-- Current target: `0.7.0` (`CFG-001` only)
+- Current target: `0.7.0` (`EVID-002` complete; `TOOL-001` next)
 - Active plan: `DEVELOPMENT_PLAN.md`
 - Work items: `development/work-items/0.7.0/`
 - Execution journal: `.opencode/memory/DEVELOPMENT_JOURNAL.md`

@@ -1,7 +1,7 @@
 # EVID-002: Durability Fence Before External Effects
 
 ```text
-Status: pending
+Status: completed
 Priority: P1 research-derived
 Target: 0.7.0
 Owner: unassigned
@@ -63,4 +63,4 @@ Version intents and retain safe reading of existing records; never downgrade unc
 
 ## Evidence
 
-Initial durability fence is present over REC-001's command/effect protocol instead of introducing a second state machine. It persists intent before effect, records result before response, replays durable results, and returns uncertain on unconfirmed effects. MCP router uses the fence; provider/Bash rollout remains. No external code copied.
+The durability fence reuses REC-001's command/effect protocol instead of introducing a second state machine. Control, MCP, provider, and Bash persist intent before external calls; durable results replay where the host can return them; unknown outcomes become uncertain and never auto-replay. Provider stream acknowledgement is persisted before content consumption, and Bash result persistence failure replaces the tool result with an explicit uncertain error. No external code copied.

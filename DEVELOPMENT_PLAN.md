@@ -5,8 +5,8 @@ Last updated: 2026-08-18
 ## Current State
 
 - Released: `v0.6.3` at `016597c95efa511c861ed651b1ded9e56c9ed22c`
-- Development branch: `candidate/v0.7.1`
-- Next target: `0.7.0`, starting with `EVID-001` only
+- Development branch: `candidate/v0.7.2`
+- Next target: `0.7.0`, starting with `TOOL-001` only after EVID-002 merge
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
 - Research pages: `/research.html` and `/research-zh-CN.html`
@@ -85,6 +85,6 @@ Control and MCP commands are journaled, MCP generations publish atomically throu
 
 Prime Agent and DeepSeek Harness were reviewed at fixed commits. Their useful ideas are summarized on the public research pages and mapped to future work items; neither runtime is being imported wholesale.
 
-CFG-001 generation work is complete on `candidate/v0.7.0` and merged into main at `bb3a62a`. EVID-001 session-event reconstruction is complete at the final provider-request seam. EVID-002 initial durability fence is now integrated for MCP effects; provider/Bash rollout remains. Other 0.7.0 items remain pending.
+CFG-001 and EVID-001 are complete and merged to main. EVID-002 now fences Control, MCP, provider, and Bash effects on `candidate/v0.7.2`. The next dependency-unblocked item is TOOL-001; ORCH-001 remains pending.
 
-EVID-002 initial evidence: durable fence focused tests pass, complete core `647/647`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,357`. MCP effect intent now reuses REC-001 journal; provider/Bash rollout remains.
+EVID-002 evidence: durability focused tests pass, complete core `650/650`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,358`. Control, MCP, provider, and Bash share the REC-001 effect protocol.
