@@ -9,6 +9,16 @@ function modelSource(model, headers) {
   const headerShape = Object.fromEntries(Object.entries(headers).sort(([left], [right]) => left.localeCompare(right)).map(([name, value]) => [name.toLowerCase(), createHash("sha256").update(String(value ?? "")).digest("hex")]));
   return { mcp: {}, provider: { api: model?.api ?? null, baseUrl: model?.baseUrl ?? null, headerShape, id: model?.id ?? null, provider: model?.provider ?? null } };
 }
+function requestProjection(generationId, model, payload) {
+  const messages = Array.isArray(payload?.messages) ? payload.messages : Array.isArray(payload?.input) ? payload.input : payload?.input === undefined ? [] : [payload.input];
+  const tools = Array.isArray(payload?.tools) ? payload.tools : [];
+  return { generationId, messages, provider: model?.provider ?? null, systemPrompt: payload?.system ?? payload?.instructions ?? null, tools };
+}
+function requestEvents(requestId, projection) {
+  const values = [{ generationId: projection.generationId, provider: projection.provider }, projection.systemPrompt, ...projection.messages, ...projection.tools];
+  const types = ["generation", "system", ...projection.messages.map(() => "message"), ...projection.tools.map(() => "tool")];
+  return values.map((value, seq) => ({ at: new Date().toISOString(), payload: value, requestId, seq, type: types[seq] }));
+}
 
 export default function cocoProviderGeneration(pi, options = {}) {
   let service, fingerprint = null, ledger;
@@ -20,7 +30,7 @@ export default function cocoProviderGeneration(pi, options = {}) {
     await service.initialize(); fingerprint = canonicalJson(initial);
   });
   pi.on("before_provider_request", async (event, ctx) => {
-    try { if (!ledger) throw new Error("MODEL_INPUT_LEDGER_UNAVAILABLE"); await ledger.recordProviderRequest(event.requestId, { generationId: leases.get(event.requestId)?.generationId ?? "unbound", model: ctx.model, payload: event.payload }); }
+    try { if (!ledger) throw new Error("MODEL_INPUT_LEDGER_UNAVAILABLE"); const generationId = leases.get(event.requestId)?.generationId ?? "unbound", projection = requestProjection(generationId, ctx.model, event.payload); await ledger.recordEvents(event.requestId, requestEvents(event.requestId, projection), generationId); await ledger.verify(event.requestId, projection); }
     catch (error) { ctx.abort(); throw error; }
   });
   pi.on("before_provider_headers", async (event, ctx) => {

@@ -13,10 +13,10 @@ test("provider lifecycle binds one generation and releases every terminal outcom
   await handlers.get("session_start")({}, context);
   const headers = { authorization: "Bearer private" }; await handlers.get("before_provider_headers")({ attempt: 1, headers, requestId: "request-1" }, context);
   assert.deepEqual(headers, { authorization: "Bearer private" });
-  await handlers.get("before_provider_request")({ payload: { messages: [], tools: [], system: "system" }, requestId: "request-1" }, context);
+  await handlers.get("before_provider_request")({ payload: { messages: [{ role: "user", content: "hello" }], tools: [{ name: "read" }], system: "system" }, requestId: "request-1" }, context);
   handlers.get("after_provider_response")({ attempt: 1, headers: {}, requestId: "request-1", status: 200 }, context);
   await handlers.get("provider_request_end")({ attempt: 1, outcome: "done", requestId: "request-1" });
-  await handlers.get("session_shutdown")(); assert.deepEqual(aborted, []); assert.equal(JSON.parse(await readFile(join(agentDir, "model-input-ledger", "request-1.json"))).generationId, "generation-2"); await rm(agentDir, { recursive: true, force: true });
+  await handlers.get("session_shutdown")(); assert.deepEqual(aborted, []); const record = JSON.parse(await readFile(join(agentDir, "model-input-ledger", "request-1.json"))); assert.equal(record.generationId, "generation-2"); assert.equal(record.projection.messages[0].content, "hello"); assert.equal(record.projection.tools[0].name, "read"); await rm(agentDir, { recursive: true, force: true });
 });
 
 test("provider lifecycle aborts missing and duplicate correlation", async () => {

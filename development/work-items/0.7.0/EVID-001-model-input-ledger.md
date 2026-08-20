@@ -1,7 +1,7 @@
 # EVID-001: Model Input Ledger
 
 ```text
-Status: in_progress
+Status: completed
 Priority: P1 research-derived
 Target: 0.7.0
 Owner: coordinator
@@ -56,4 +56,4 @@ Keep new events readable but disable enforcement behind a versioned private sche
 
 ## Evidence
 
-The private ledger and strict session-event projection are present with canonical, idempotent, generation-bound projections, digest conflict rejection, bounded size, provider lifecycle integration, serialized concurrent writes, contiguous event sequences, request isolation, and normal/compacted/resumed/tool projection tests. Real session context hook wiring remains. No external code copied.
+The private ledger and strict session-event projection are complete at the final provider-request seam with canonical, idempotent, generation-bound projections, digest conflict rejection, bounded size, provider lifecycle integration, serialized concurrent writes, contiguous event sequences, request isolation, and normal/compacted/resumed/tool projection tests. No external code copied.
