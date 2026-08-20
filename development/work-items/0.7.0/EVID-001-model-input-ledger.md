@@ -1,10 +1,10 @@
 # EVID-001: Model Input Ledger
 
 ```text
-Status: pending
+Status: completed
 Priority: P1 research-derived
 Target: 0.7.0
-Owner: unassigned
+Owner: coordinator
 Depends on: CFG-001, RUN-001, RUN-005
 Blocks: EVID-002
 Sources: DeepSeek Harness 99f6f02f
@@ -56,4 +56,4 @@ Keep new events readable but disable enforcement behind a versioned private sche
 
 ## Evidence
 
-Research only. Inspired by DeepSeek Harness `docs/architecture.md:92-96` and its session/request projection implementation. No external code copied.
+The private ledger and strict session-event projection are complete at the final provider-request seam with canonical, idempotent, generation-bound projections, digest conflict rejection, bounded size, provider lifecycle integration, serialized concurrent writes, contiguous event sequences, request isolation, and normal/compacted/resumed/tool projection tests. No external code copied.

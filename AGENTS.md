@@ -5,7 +5,7 @@ Read this file before changing the repository.
 ## Current Truth
 
 - Worktree: `/root/coco-tmp/coco-v053-migration`
-- Current branch: `candidate/v0.7.0`
+- Current branch: `candidate/v0.7.1`
 - Released version: `0.6.3`
 - Current target: `0.7.0` (`CFG-001` only)
 - Active plan: `DEVELOPMENT_PLAN.md`
