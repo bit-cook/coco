@@ -15,6 +15,7 @@ function content(result) {
 
 export function createMcpRouterTool({ journal, registry }) {
   if (!registry || typeof registry.current !== "function") fail("MCP_ROUTER_REGISTRY_INVALID");
+  const fence = journal ? createDurableEffectFence({ journal }) : null;
   return Object.freeze({
     description: "Call one tool from the current verified MCP generation.",
     label: "MCP",
@@ -35,33 +36,12 @@ export function createMcpRouterTool({ journal, registry }) {
       if (!entry) fail("MCP_TOOL_NOT_FOUND");
       const invoke = () => entry.client.callTool({ arguments: input.arguments, name: entry.tool.name }, undefined, { signal });
       let result;
-      if (journal) {
-        const request = { arguments: input.arguments, server: input.server, tool: input.tool };
-        let record;
-        try { record = await journal.receive({ commandId: _id, effectGeneration: generation.generation, operationId: "mcp.tool.call", request }); }
-        catch (error) { if (error?.message === "COMMAND_DIGEST_CONFLICT") fail("MCP_COMMAND_CONFLICT"); throw error; }
-        if (record.status === "result") result = record.response;
-        else {
-          if (record.status === "uncertain") fail("MCP_OUTCOME_UNCERTAIN");
-          if (record.status === "executing") fail("MCP_COMMAND_IN_PROGRESS");
-          try { await journal.beginExecution(_id); }
-          catch (error) {
-            if (error?.message !== "COMMAND_STATE_INVALID") throw error;
-            const current = await journal.read(_id);
-            if (current?.status === "result") result = current.response;
-            else fail(current?.status === "uncertain" ? "MCP_OUTCOME_UNCERTAIN" : "MCP_COMMAND_IN_PROGRESS");
-          }
-          if (result === undefined) {
-            try { result = await invoke(); await journal.recordResult(_id, result); }
-            catch {
-              const terminal = await journal.markUncertain(_id, "mcp-effect-unconfirmed");
-              if (terminal.status === "result") result = terminal.response;
-              else fail("MCP_OUTCOME_UNCERTAIN");
-            }
-          }
-        }
+      if (fence) {
+        try { result = (await fence.run({ commandId: _id, effect: invoke, effectGeneration: generation.generation, operationId: "mcp.tool.call", request: { arguments: input.arguments, server: input.server, tool: input.tool } })).response; }
+        catch (error) { if (error?.message === "COMMAND_DIGEST_CONFLICT") fail("MCP_COMMAND_CONFLICT"); if (error?.code === "DURABLE_EFFECT_UNCERTAIN") fail("MCP_OUTCOME_UNCERTAIN"); if (error?.code === "DURABLE_EFFECT_IN_PROGRESS") fail("MCP_COMMAND_IN_PROGRESS"); throw error; }
       } else result = await invoke();
       return { content: content(result), details: { generation: generation.generation, server: entry.serverName, tool: entry.tool.name }, isError: result?.isError === true };
     },
   });
 }
+import { createDurableEffectFence } from "./durable-effect-fence.mjs";

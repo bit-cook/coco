@@ -85,6 +85,6 @@ Control and MCP commands are journaled, MCP generations publish atomically throu
 
 Prime Agent and DeepSeek Harness were reviewed at fixed commits. Their useful ideas are summarized on the public research pages and mapped to future work items; neither runtime is being imported wholesale.
 
-CFG-001 generation work is complete on `candidate/v0.7.0` and merged into main at `bb3a62a`. EVID-001 session-event reconstruction is complete at the final provider-request seam. Other 0.7.0 items remain pending.
+CFG-001 generation work is complete on `candidate/v0.7.0` and merged into main at `bb3a62a`. EVID-001 session-event reconstruction is complete at the final provider-request seam. EVID-002 initial durability fence is now integrated for MCP effects; provider/Bash rollout remains. Other 0.7.0 items remain pending.
 
-EVID-001 current evidence: complete core `645/645`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,356`.
+EVID-002 initial evidence: durable fence focused tests pass, complete core `647/647`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,357`. MCP effect intent now reuses REC-001 journal; provider/Bash rollout remains.
