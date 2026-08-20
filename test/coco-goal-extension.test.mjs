@@ -139,6 +139,7 @@ test("dispatcher installs CoCo native extensions ahead of Pi arguments and keeps
     process.argv = ["node", "coco"];
     const forwarded = await dispatchCoco({ argv: ["--model", "test-model"], root: "/root/coco" });
     assert.deepEqual(forwarded, {
+      generations: join("/root/coco", "resources", "coco-provider-generation.mjs"),
       goal: join("/root/coco", "resources", "coco-goal.mjs"),
       guard: join("/root/coco", "resources", "coco-guard.mjs"),
       kind: "forward",
@@ -152,6 +153,7 @@ test("dispatcher installs CoCo native extensions ahead of Pi arguments and keeps
       "-e", join("/root/coco", "resources", "coco-guard.mjs"),
       "-e", join("/root/coco", "resources", "coco-goal.mjs"),
       "-e", join("/root/coco", "resources", "coco-loop.mjs"),
+      "-e", join("/root/coco", "resources", "coco-provider-generation.mjs"),
       "-e", join("/root/coco", "resources", "coco-mcp.mjs"),
       "-e", join("/root/coco", "examples", "extensions", "subagent", "index.ts"),
       "--model", "test-model",

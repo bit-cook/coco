@@ -1,10 +1,10 @@
 # CFG-001: Provider and MCP Generations
 
 ```text
-Status: pending
+Status: completed
 Priority: P1 research-derived
 Target: 0.7.0
-Owner: unassigned
+Owner: coordinator
 Depends on: CFG-000, REL-004, RUN-001
 Blocks: EVID-001
 Sources: DeepSeek Harness 99f6f02f
@@ -57,4 +57,4 @@ Retain last-good generation and allow explicit operator rollback by generation I
 
 ## Evidence
 
-Research only. Inspired by DeepSeek Harness LLM, MCP, settings, and settings-file generation patterns. No external code copied.
+The runtime generation registry, composition layer, consumer boundary, service facade, non-secret restart metadata, and production provider lifecycle extension are present with revision-CAS publication, immutable in-flight leases, provider/MCP all-or-none preparation, last-good retention, bounded history, rollback-by-source, stale-generation rejection, provider preflight binding, concurrent writer tests, peer cleanup, exception-safe lease release, response-loss recovery, predecessor disposal, monotonic restart counters, and provider request/header/response/terminal correlation. Pi correlation is supplied by the pinned selective candidate `coco-v0.82.1-coco.6`; its candidate build and CoCo gates pass. No external code was copied.

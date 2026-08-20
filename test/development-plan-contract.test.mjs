@@ -16,7 +16,7 @@ test("active development plan preserves the completed 0.6.3 wave and one 0.7.0 t
     readdir(workItems),
   ]);
 
-  assert.match(agents, /Current branch: `candidate\/v0\.6\.3`/);
+  assert.match(agents, /Current branch: `candidate\/v0\.7\.0`/);
   assert.match(agents, /DEVELOPMENT_PLAN\.md/);
   assert.match(agents, /HISTORICAL_DOCUMENTS\.md/);
   assert.match(agents, /Released version: `0\.6\.3`/);

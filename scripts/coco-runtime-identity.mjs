@@ -28,8 +28,13 @@ export async function resolveCocoRuntime({ root }) {
     const coco = await packageJson(join(canonicalRoot, "package.json"));
     const piRoot = join(canonicalRoot, "node_modules", ...CORE_NAME.split("/"));
     const pi = await packageJson(join(piRoot, "package.json"));
+    const baseline = await packageJson(join(canonicalRoot, "resources", "upstream-baseline.v1.json"));
+    const candidate = await packageJson(join(canonicalRoot, "resources", "provider-correlation-candidate.v1.json"));
     if (coco.name !== PRODUCT_NAME || coco.version !== PRODUCT_VERSION || coco.piConfig?.name !== PRODUCT_COMMAND || coco.piConfig?.configDir !== PRODUCT_CONFIG_DIR) return rejected("RUNTIME_COCO_IDENTITY_INVALID");
-    if (coco.dependencies?.[CORE_NAME] !== CORE_VERSION || pi.name !== CORE_NAME || pi.version !== CORE_VERSION) return rejected("RUNTIME_CORE_VERSION_MISMATCH");
+    const dependency = coco.dependencies?.[CORE_NAME];
+    const candidateIdentity = pi.cocoCandidate;
+    const candidateBound = dependency === baseline.package?.resolved && candidateIdentity?.repository === candidate.candidate?.repository && candidateIdentity?.sourceCommit === candidate.candidate?.sourceCommit && candidateIdentity?.sourceTag === candidate.candidate?.sourceTag && candidateIdentity?.baseCommit === candidate.base?.sourceCommit && candidateIdentity?.baseTag === candidate.base?.tag;
+    if (![CORE_VERSION, baseline.package?.resolved].includes(dependency) || dependency !== CORE_VERSION && !candidateBound || pi.name !== CORE_NAME || pi.version !== CORE_VERSION) return rejected("RUNTIME_CORE_VERSION_MISMATCH");
     const cli = join(piRoot, "dist", "cli.js");
     const cliInfo = await lstat(cli);
     if (!cliInfo.isFile() || cliInfo.isSymbolicLink()) return rejected("RUNTIME_CORE_MISSING");

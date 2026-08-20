@@ -5,7 +5,7 @@ Last updated: 2026-08-18
 ## Current State
 
 - Released: `v0.6.3` at `016597c95efa511c861ed651b1ded9e56c9ed22c`
-- Development branch: `candidate/v0.6.3`
+- Development branch: `candidate/v0.7.0`
 - Next target: `0.7.0`, starting with `CFG-001` only
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
@@ -84,3 +84,5 @@ Control and MCP commands are journaled, MCP generations publish atomically throu
 ## External Research
 
 Prime Agent and DeepSeek Harness were reviewed at fixed commits. Their useful ideas are summarized on the public research pages and mapped to future work items; neither runtime is being imported wholesale.
+
+CFG-001 generation evidence is current on `candidate/v0.7.0`: focused generation/state/service/consumer tests `18/18`, complete core `637/637`, package closure `172`, scanner clean, package `2/2`, and runtime probe `21,354`. Registry, composition, consumer, service, restart metadata, and the provider lifecycle extension are integrated. The pinned clean Pi candidate `coco-v0.82.1-coco.6` passed its candidate workflow, focused correlation tests, package smoke, and offline install. Other 0.7.0 items remain pending.
