@@ -27,12 +27,15 @@ export function createModelInputLedger({ agentDir }) {
     async record(requestId, value) {
       const request = id(requestId), { bytes, value: normalized } = projection(value), requestSha256 = digest(bytes), path = pathFor(request);
       await mkdir(root, { recursive: true, mode: 0o700 }); let result;
-      await applyStateTransaction({ agentDir, operations: async () => {
-        const current = await read(request);
-        if (current) { if (current.requestSha256 !== requestSha256) fail("MODEL_INPUT_DIGEST_CONFLICT"); result = structuredClone(current); return [{ bytes: Buffer.from(canonicalJson(current)), path }]; }
-        result = { generationId: normalized.generationId, recordedAt: new Date().toISOString(), requestId: request, requestSha256, schemaVersion: 1, projection: normalized };
-        return [{ bytes: Buffer.from(canonicalJson(result)), path }];
-      } });
+      for (let attempt = 0; attempt < 100; attempt += 1) try {
+        await applyStateTransaction({ agentDir, operations: async () => {
+          const current = await read(request);
+          if (current) { if (current.requestSha256 !== requestSha256) fail("MODEL_INPUT_DIGEST_CONFLICT"); result = structuredClone(current); return [{ bytes: Buffer.from(canonicalJson(current)), path }]; }
+          result = { generationId: normalized.generationId, recordedAt: new Date().toISOString(), requestId: request, requestSha256, schemaVersion: 1, projection: normalized };
+          return [{ bytes: Buffer.from(canonicalJson(result)), path }];
+        } });
+        break;
+      } catch (error) { if (error?.code !== "STATE_LOCKED" || attempt === 99) throw error; await new Promise((done) => setTimeout(done, 10)); }
       return { generationId: result.generationId, requestId: result.requestId, requestSha256: result.requestSha256, schemaVersion: 1 };
     },
     read,

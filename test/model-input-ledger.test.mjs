@@ -20,3 +20,11 @@ test("model input ledger rejects oversized projections", async (t) => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-model-input-large-")); t.after(() => rm(agentDir, { recursive: true, force: true })); const ledger = createModelInputLedger({ agentDir });
   await assert.rejects(ledger.record("large", { ...input(), messages: [{ role: "user", content: "x".repeat(4 * 1024 * 1024) }] }), { code: "MODEL_INPUT_TOO_LARGE" });
 });
+
+test("compacted, resumed, and tool projections remain distinct and bounded", async (t) => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-model-input-variants-")); t.after(() => rm(agentDir, { recursive: true, force: true })); const ledger = createModelInputLedger({ agentDir });
+  const compacted = { ...input(), messages: [{ role: "summary", content: "compacted" }] }, resumed = { ...input(), messages: [{ role: "user", content: "resumed" }] }, tool = { ...input(), tools: [{ name: "mcp", schema: { type: "object" } }] };
+  const values = await Promise.all([ledger.record("compact", compacted), ledger.record("resume", resumed), ledger.record("tool", tool)]);
+  assert.equal(new Set(values.map(({ requestSha256 }) => requestSha256)).size, 3);
+  for (const id of ["compact", "resume", "tool"]) assert.equal((await ledger.read(id)).projection.provider, "local");
+});
