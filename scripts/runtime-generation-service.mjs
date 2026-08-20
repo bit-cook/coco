@@ -14,6 +14,10 @@ export function createRuntimeGenerationService(options = {}) {
   return Object.freeze({
     close: () => registry.close(),
     initialize: () => registry.initialize(),
+    lease: () => {
+      const lease = registry.acquire();
+      return Object.freeze({ generationId: lease.generationId, release: lease.release, revision: lease.revision, schemaVersion: 1 });
+    },
     mcp: (request) => consumer.mcp(request),
     provider: (request) => consumer.provider(request),
     reload: (source, expectedRevision) => registry.publish(source, { expectedRevision }),
@@ -40,6 +44,7 @@ export async function openRuntimeGenerationService({ state, ...options }) {
   await persist(service.initialize);
   return Object.freeze({
     close: service.close,
+    lease: () => { ensure(); return service.lease(); },
     mcp: (request) => { ensure(); return service.mcp(request); },
     provider: (request) => { ensure(); return service.provider(request); },
     reload: (source, expectedRevision) => persist(() => service.reload(source, expectedRevision)),

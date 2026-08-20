@@ -1,7 +1,7 @@
 # CFG-001: Provider and MCP Generations
 
 ```text
-Status: blocked
+Status: completed
 Priority: P1 research-derived
 Target: 0.7.0
 Owner: coordinator
@@ -57,4 +57,4 @@ Retain last-good generation and allow explicit operator rollback by generation I
 
 ## Evidence
 
-The runtime generation registry, composition layer, consumer boundary, service facade, and non-secret restart metadata are present with revision-CAS publication, immutable in-flight leases, provider/MCP all-or-none preparation, last-good retention, bounded history, rollback-by-source, stale-generation rejection, provider preflight binding, concurrent writer tests, peer cleanup, exception-safe lease release, response-loss recovery, predecessor disposal, and monotonic restart counters. Concrete Pi provider wiring is blocked because the current provider request/response hooks expose no shared request correlation ID, so a lease cannot be retained and released reliably across one streamed request. Upstream request: `earendil-works/pi#8380`. No external code was copied.
+The runtime generation registry, composition layer, consumer boundary, service facade, non-secret restart metadata, and production provider lifecycle extension are present with revision-CAS publication, immutable in-flight leases, provider/MCP all-or-none preparation, last-good retention, bounded history, rollback-by-source, stale-generation rejection, provider preflight binding, concurrent writer tests, peer cleanup, exception-safe lease release, response-loss recovery, predecessor disposal, monotonic restart counters, and provider request/header/response/terminal correlation. Pi correlation is supplied by the pinned selective candidate `coco-v0.82.1-coco.6`; its candidate build and CoCo gates pass. No external code was copied.

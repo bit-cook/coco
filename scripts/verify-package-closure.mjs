@@ -7,6 +7,8 @@ import { join, relative } from "node:path";
 import { promisify } from "node:util";
 
 const PI = "@earendil-works/pi-coding-agent";
+const PI_SOURCE = "https://github.com/bit-cook/pi-selective-fork/releases/download/coco-v0.82.1-coco.6/earendil-works-pi-coding-agent-0.82.1-coco.6.tgz";
+const PI_DEPENDENCIES = new Set(["0.82.1", PI_SOURCE]);
 const TUI = "@earendil-works/pi-tui";
 const MCP = "@modelcontextprotocol/sdk";
 const exec = promisify(execFile);
@@ -75,7 +77,7 @@ async function manifests(root, current = root) {
 async function metadata(root) {
   await physicalPath(root, root);
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
-  if (packageJson.packageManager !== "npm@11.18.0" || packageJson.dependencies?.[PI] !== "0.82.1" || packageJson.dependencies?.[TUI] !== "0.82.1" || packageJson.dependencies?.[MCP] !== "1.30.0" || packageJson.devDependencies?.npm !== "11.18.0" || JSON.stringify(packageJson.bundledDependencies) !== JSON.stringify([PI, TUI, MCP])) throw new Error("PACKAGE_METADATA_INVALID");
+  if (packageJson.packageManager !== "npm@11.18.0" || !PI_DEPENDENCIES.has(packageJson.dependencies?.[PI]) || packageJson.dependencies?.[TUI] !== "0.82.1" || packageJson.dependencies?.[MCP] !== "1.30.0" || packageJson.devDependencies?.npm !== "11.18.0" || JSON.stringify(packageJson.bundledDependencies) !== JSON.stringify([PI, TUI, MCP])) throw new Error("PACKAGE_METADATA_INVALID");
   let lockBytes;
   try {
     lockBytes = await readFile(join(root, "package-lock.json"), "utf8");
@@ -85,10 +87,11 @@ async function metadata(root) {
   }
   let lock;
   try { lock = JSON.parse(lockBytes); } catch { throw new Error("PACKAGE_LOCK_INVALID"); }
-  if (lock.lockfileVersion !== 3 || lock.packages?.[""]?.dependencies?.[PI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[TUI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[MCP] !== "1.30.0") throw new Error("PACKAGE_LOCK_INVALID");
+  if (lock.lockfileVersion !== 3 || !PI_DEPENDENCIES.has(lock.packages?.[""]?.dependencies?.[PI]) || lock.packages?.[""]?.dependencies?.[TUI] !== "0.82.1" || lock.packages?.[""]?.dependencies?.[MCP] !== "1.30.0") throw new Error("PACKAGE_LOCK_INVALID");
   for (const [name, version, label] of [[PI, "0.82.1", "PI"], [TUI, "0.82.1", "TUI"], [MCP, "1.30.0", "MCP"]]) {
     const entry = lock.packages?.[`node_modules/${name}`];
-    if (entry?.version !== version || typeof entry.resolved !== "string" || !entry.resolved.startsWith("https://registry.npmjs.org/") || !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(entry.integrity ?? "")) throw new Error("PACKAGE_LOCK_INVALID");
+    const resolved = name === PI ? entry?.resolved === PI_SOURCE || typeof entry?.resolved === "string" && entry.resolved.startsWith("https://registry.npmjs.org/") : typeof entry?.resolved === "string" && entry.resolved.startsWith("https://registry.npmjs.org/");
+    if (entry?.version !== version || !resolved || !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(entry.integrity ?? "")) throw new Error("PACKAGE_LOCK_INVALID");
     let installedBytes;
     try {
       const manifestPath = join(root, "node_modules", name, "package.json");
@@ -211,7 +214,11 @@ export async function verifyTarballClosure({ root, tarball }) {
       if (!packagedInfo.isFile() || packagedInfo.isSymbolicLink() || source.mode !== packagedMode || !source.bytes.equals(packaged)) return rejected("PACKAGE_TARBALL_SOURCE_MISMATCH");
     }
     const actual = await manifests(join(packagedRoot, "node_modules", PI));
-    if (JSON.stringify(expected) !== JSON.stringify(actual)) return rejected("PACKAGE_TARBALL_CLOSURE_INVALID");
+    const exactClosure = JSON.stringify(expected) === JSON.stringify(actual);
+    const candidateClosure = JSON.parse(await readFile(join(root, "package.json"), "utf8")).dependencies?.[PI] === PI_SOURCE
+      && actual.every((entry) => expected.includes(entry))
+      && ["@earendil-works/pi-agent-core", "@earendil-works/pi-ai", "@earendil-works/pi-tui"].every((name) => paths.has(`${prefix}/node_modules/${name}/package.json`));
+    if (!exactClosure && !candidateClosure) return rejected("PACKAGE_TARBALL_CLOSURE_INVALID");
     const finalExpectedFiles = await expectedPackageFiles(root);
     if (JSON.stringify([...finalExpectedFiles].sort()) !== JSON.stringify([...expectedFiles].sort())) return rejected("PACKAGE_SOURCE_RACE");
     for (const file of expectedFiles) {

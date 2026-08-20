@@ -37,7 +37,7 @@ export async function verifyArchitectureContracts() {
   includes(installer, `COCO_VERSION="\${COCO_VERSION:-${version}}"`, "INSTALLER_VERSION_DRIFT");
 
   const upstream = manifest.upstream;
-  if (pkg.dependencies?.[upstream.package] !== upstream.version || baseline.package.name !== upstream.package || baseline.package.version !== upstream.version || inventory.upstreamVersion !== upstream.version) fail("UPSTREAM_VERSION_DRIFT");
+  if (![upstream.version, baseline.package.resolved].includes(pkg.dependencies?.[upstream.package]) || baseline.package.name !== upstream.package || baseline.package.version !== upstream.version || inventory.upstreamVersion !== upstream.version) fail("UPSTREAM_VERSION_DRIFT");
   const locked = lock.packages?.[`node_modules/${upstream.package}`];
   if (locked?.version !== upstream.version || locked?.integrity !== baseline.package.integrity || locked?.resolved !== baseline.package.resolved) fail("UPSTREAM_LOCK_DRIFT");
   includes(patcher, `expectedVersion = "${upstream.version}"`, "PATCHER_VERSION_DRIFT");

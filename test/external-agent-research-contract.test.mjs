@@ -29,7 +29,7 @@ test("only CFG-001 is active and research work does not authorize external runti
   const directory = join(root, "development/work-items/0.7.0");
   for (const name of await readdir(directory)) {
     const value = await readFile(join(directory, name), "utf8");
-    assert.match(value, name.startsWith("CFG-001") ? /Status: blocked/ : /Status: pending/); assert.match(value, /Research only|研究|No external code was copied/);
+    assert.match(value, name.startsWith("CFG-001") ? /Status: completed/ : /Status: pending/); assert.match(value, /Research only|研究|No external code was copied/);
     for (const section of ["Problem", "Required Invariants", "Scope", "Out of Scope", "Design", "Acceptance Tests", "Verification", "Rollback", "Evidence"]) assert.match(value, new RegExp(`^## ${section}$`, "m"), name);
   }
   const [cfg, evid1, evid2, tool, orch] = await Promise.all([

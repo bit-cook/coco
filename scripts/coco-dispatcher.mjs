@@ -342,8 +342,9 @@ export async function dispatchCoco({ argv = process.argv.slice(2), root }) {
   const goal = join(root, "resources", "coco-goal.mjs");
   const loop = join(root, "resources", "coco-loop.mjs");
   const mcp = join(root, "resources", "coco-mcp.mjs");
+  const generations = join(root, "resources", "coco-provider-generation.mjs");
   const subagents = join(root, "examples", "extensions", "subagent", "index.ts");
   if (argv.includes("--help") || argv.includes("-h")) process.stderr.write("coco: CoCo safety guardrails are best-effort and not a sandbox.\n");
-  process.argv.splice(2, process.argv.length - 2, "-e", language, "-e", guard, "-e", goal, "-e", loop, "-e", mcp, "-e", subagents, ...argv);
-  return { goal, guard, kind: "forward", language, loop, mcp, subagents };
+  process.argv.splice(2, process.argv.length - 2, "-e", language, "-e", guard, "-e", goal, "-e", loop, "-e", generations, "-e", mcp, "-e", subagents, ...argv);
+  return { generations, goal, guard, kind: "forward", language, loop, mcp, subagents };
 }

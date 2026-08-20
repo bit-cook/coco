@@ -98,7 +98,7 @@
     "verify:secrets": "node scripts/publication-secret-scanner.mjs ."
   },
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "0.82.1",
+    "@earendil-works/pi-coding-agent": "https://github.com/bit-cook/pi-selective-fork/releases/download/coco-v0.82.1-coco.6/earendil-works-pi-coding-agent-0.82.1-coco.6.tgz",
     "@earendil-works/pi-tui": "0.82.1",
     "@modelcontextprotocol/sdk": "1.30.0"
   },
