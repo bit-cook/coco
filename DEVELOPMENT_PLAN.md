@@ -85,4 +85,6 @@ Control and MCP commands are journaled, MCP generations publish atomically throu
 
 Prime Agent and DeepSeek Harness were reviewed at fixed commits. Their useful ideas are summarized on the public research pages and mapped to future work items; neither runtime is being imported wholesale.
 
-CFG-001 generation work is complete on `candidate/v0.7.0` and merged into main at `bb3a62a`. EVID-001 initial model-input projection is now integrated on `candidate/v0.7.1`; the next step is to extend it across compact/resume/tool projections. Other 0.7.0 items remain pending.
+CFG-001 generation work is complete on `candidate/v0.7.0` and merged into main at `bb3a62a`. EVID-001 initial model-input projection is integrated on `candidate/v0.7.1` with normal, compacted, resumed, and tool projection tests. The next step is durable session-event reconstruction. Other 0.7.0 items remain pending.
+
+EVID-001 current evidence: complete core `640/640`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,355`. Projection is bounded, private, canonical, idempotent, and generation-bound.

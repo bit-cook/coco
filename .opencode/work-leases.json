@@ -1,1 +1,1 @@
-{"leases":[{"baseCommit":"bb3a62af3143fddf1019c52b127cb0975f999ee4","expiresAt":"2026-08-23T23:59:59Z","files":["scripts/model-input-ledger.mjs","test/model-input-ledger.test.mjs"],"owner":"evid-001-coordinator","workItem":"EVID-001"}],"schemaVersion":1}
+{"leases":[],"schemaVersion":1}

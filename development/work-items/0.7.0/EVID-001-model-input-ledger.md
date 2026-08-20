@@ -56,4 +56,4 @@ Keep new events readable but disable enforcement behind a versioned private sche
 
 ## Evidence
 
-Initial private projection ledger implementation is present with canonical, idempotent, generation-bound projections, digest conflict rejection, bounded size, and provider lifecycle integration. Compact/resume/tool-path coverage remains. No external code copied.
+Initial private projection ledger implementation is present with canonical, idempotent, generation-bound projections, digest conflict rejection, bounded size, provider lifecycle integration, serialized concurrent writes, and normal/compacted/resumed/tool projection tests. Session-event reconstruction remains. No external code copied.
