@@ -85,4 +85,4 @@ Control and MCP commands are journaled, MCP generations publish atomically throu
 
 Prime Agent and DeepSeek Harness were reviewed at fixed commits. Their useful ideas are summarized on the public research pages and mapped to future work items; neither runtime is being imported wholesale.
 
-CFG-001 generation work is complete on `candidate/v0.7.0` and merged into main at `bb3a62a`. The next single item is EVID-001 model-input projection. Other 0.7.0 items remain pending.
+CFG-001 generation work is complete on `candidate/v0.7.0` and merged into main at `bb3a62a`. EVID-001 initial model-input projection is now integrated on `candidate/v0.7.1`; the next step is to extend it across compact/resume/tool projections. Other 0.7.0 items remain pending.

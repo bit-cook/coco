@@ -20,6 +20,10 @@ export function createModelInputLedger({ agentDir }) {
   const pathFor = (requestId) => join(root, `${id(requestId)}.json`);
   async function read(requestId) { try { return JSON.parse(await readFile(pathFor(requestId), "utf8")); } catch (error) { if (error?.code === "ENOENT") return null; throw error; } }
   return Object.freeze({
+    async recordProviderRequest(requestId, { generationId, model, payload }) {
+      if (!model || typeof model.provider !== "string") fail("MODEL_INPUT_PROVIDER_INVALID");
+      return this.record(requestId, { generationId, messages: payload?.messages ?? payload?.input ?? [], provider: model.provider, systemPrompt: payload?.system ?? payload?.instructions ?? null, tools: payload?.tools ?? [] });
+    },
     async record(requestId, value) {
       const request = id(requestId), { bytes, value: normalized } = projection(value), requestSha256 = digest(bytes), path = pathFor(request);
       await mkdir(root, { recursive: true, mode: 0o700 }); let result;
