@@ -60,4 +60,4 @@ Set pool size to one while preserving metadata and event schema.
 
 ## Evidence
 
-Initial ordered-pool implementation is present with a trusted classifier, bounded concurrency/call/result/time limits, exclusive barriers, ordered terminal results, cancellation, timeout, failure, and pre-admission rejection tests. Production Pi tool-loop integration remains. No external code copied.
+Initial ordered-pool implementation is present with a trusted classifier, bounded concurrency/call/result/time limits, exclusive barriers, ordered terminal results, cancellation, timeout, failure, and pre-admission rejection tests. Production Pi tool-loop integration is blocked by the absence of a batch admission/result hook; upstream request is tracked separately. No external code copied.

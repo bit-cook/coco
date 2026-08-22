@@ -87,4 +87,4 @@ Prime Agent and DeepSeek Harness were reviewed at fixed commits. Their useful id
 
 CFG-001, EVID-001, and EVID-002 are complete and merged to main. TOOL-001 initial ordered pool is implemented on `candidate/v0.7.4`; production Pi tool-loop integration remains. ORCH-001 remains pending.
 
-TOOL-001 initial evidence: focused pool/fence tests pass, complete core `654/654`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,359`. Parallel-safe segments overlap, exclusive calls form barriers, and results commit in request order.
+TOOL-001 initial evidence: focused pool/fence tests pass, complete core `654/654`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,359`. Parallel-safe segments overlap, exclusive calls form barriers, and results commit in request order. Pi tool-loop integration is blocked pending a batch hook.
