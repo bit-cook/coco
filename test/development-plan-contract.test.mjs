@@ -16,11 +16,11 @@ test("active development plan preserves the completed 0.6.3 wave and one 0.7.0 t
     readdir(workItems),
   ]);
 
-  assert.match(agents, /Current branch: `candidate\/v0\.7\.2`/);
+  assert.match(agents, /Current branch: `candidate\/v0\.7\.4`/);
   assert.match(agents, /DEVELOPMENT_PLAN\.md/);
   assert.match(agents, /HISTORICAL_DOCUMENTS\.md/);
   assert.match(agents, /Released version: `0\.6\.3`/);
-  assert.match(plan, /Next target: `0\.7\.0`, starting with `TOOL-001` only after EVID-002 merge/);
+  assert.match(plan, /Next target: `0\.7\.0`, starting with `TOOL-001` only/);
   assert.match(plan, /Completed 0\.6\.3 Wave/);
   assert.equal(leases.schemaVersion, 1);
   assert.equal(Array.isArray(leases.leases), true);
