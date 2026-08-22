@@ -5,8 +5,8 @@ Last updated: 2026-08-18
 ## Current State
 
 - Released: `v0.6.3` at `016597c95efa511c861ed651b1ded9e56c9ed22c`
-- Development branch: `candidate/v0.7.2`
-- Next target: `0.7.0`, starting with `TOOL-001` only after EVID-002 merge
+- Development branch: `candidate/v0.7.4`
+- Next target: `0.7.0`, starting with `TOOL-001` only
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
 - Research pages: `/research.html` and `/research-zh-CN.html`
@@ -85,6 +85,6 @@ Control and MCP commands are journaled, MCP generations publish atomically throu
 
 Prime Agent and DeepSeek Harness were reviewed at fixed commits. Their useful ideas are summarized on the public research pages and mapped to future work items; neither runtime is being imported wholesale.
 
-CFG-001 and EVID-001 are complete and merged to main. EVID-002 now fences Control, MCP, provider, and Bash effects on `candidate/v0.7.2`. The next dependency-unblocked item is TOOL-001; ORCH-001 remains pending.
+CFG-001, EVID-001, and EVID-002 are complete and merged to main. TOOL-001 initial ordered pool is implemented on `candidate/v0.7.4`; production Pi tool-loop integration remains. ORCH-001 remains pending.
 
-EVID-002 evidence: durability focused tests pass, complete core `650/650`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,358`. Control, MCP, provider, and Bash share the REC-001 effect protocol.
+TOOL-001 initial evidence: focused pool/fence tests pass, complete core `654/654`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,359`. Parallel-safe segments overlap, exclusive calls form barriers, and results commit in request order.

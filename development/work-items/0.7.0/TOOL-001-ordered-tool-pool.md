@@ -1,10 +1,10 @@
 # TOOL-001: Ordered Bounded Tool Pool
 
 ```text
-Status: pending
+Status: in_progress
 Priority: P1 prototype
 Target: 0.7.0
-Owner: unassigned
+Owner: coordinator
 Depends on: EVID-002, CON-002
 Blocks: none
 Sources: DeepSeek Harness 99f6f02f
@@ -60,4 +60,4 @@ Set pool size to one while preserving metadata and event schema.
 
 ## Evidence
 
-Research only. Inspired by DeepSeek Harness `packages/core/agent-loop/src/tool-calls.ts`. No external code copied.
+Initial ordered-pool implementation is present with a trusted classifier, bounded concurrency/call/result/time limits, exclusive barriers, ordered terminal results, cancellation, timeout, failure, and pre-admission rejection tests. Production Pi tool-loop integration remains. No external code copied.
