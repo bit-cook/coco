@@ -22,3 +22,18 @@ export function createDurableEffectFence({ journal }) {
     },
   });
 }
+
+export function createDurableEffectLifecycle({ journal }) {
+  if (!journal || typeof journal.receive !== "function" || typeof journal.beginExecution !== "function" || typeof journal.recordResult !== "function" || typeof journal.markUncertain !== "function") fail("DURABLE_EFFECT_JOURNAL_INVALID");
+  return Object.freeze({
+    async begin({ commandId, effectGeneration, operationId, request }) {
+      const record = await journal.receive({ commandId, effectGeneration, operationId, request });
+      if (record.status === "result") return { response: record.response, status: "replayed" };
+      if (record.status === "uncertain") fail("DURABLE_EFFECT_UNCERTAIN");
+      if (record.status === "executing") fail("DURABLE_EFFECT_IN_PROGRESS");
+      await journal.beginExecution(commandId); return { status: "prepared" };
+    },
+    async complete(commandId, response) { const record = await journal.recordResult(commandId, response); return { response: record.response, status: "completed" }; },
+    async uncertain(commandId, reason = "effect-result-unconfirmed") { const record = await journal.markUncertain(commandId, reason); if (record.status === "result") return { response: record.response, status: "replayed" }; return { status: "uncertain" }; },
+  });
+}
