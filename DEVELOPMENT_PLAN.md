@@ -5,7 +5,7 @@ Last updated: 2026-08-18
 ## Current State
 
 - Released: `v0.6.3` at `016597c95efa511c861ed651b1ded9e56c9ed22c`
-- Development branch: `candidate/v0.7.6`
+- Development branch: `candidate/v0.7.10`
 - Next target: `0.7.0`, starting with `ORCH-001 integration` only
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
