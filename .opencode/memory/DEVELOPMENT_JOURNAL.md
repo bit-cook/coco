@@ -2200,6 +2200,8 @@ Child terminal synchronization now also records idempotent actual time/turn usag
 
 Parent failure/cancellation now cancels active children through the existing task cancellation path and synchronizes lineage. Control exposes child diagnostics including task projection, lineage, reserved budget, actual usage, and parent exhaustion. Complete core passed `676/676`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,365`. Actual child token/cost accounting remains.
 
+ORCH-001 completed monetary budget admission by adding `maxCostMicros`/`costMicros` alongside children, tokens, turns, and time. Legacy state migrates with non-restrictive cost defaults; new admissions require explicit cost bounds. The final batch passed core `676/676`; integrity's only host-timeout symlink case passed in isolated rerun on identical bytes; closure `172`, scanner clean, package `2/2`, and runtime probe `21,365` passed. ORCH-001 is complete.
+
 ORCH child admission was exposed through the service facade and tested as a saga: budget reserve, blocked task creation, lineage registration, inbox admission, commit, then queue activation; rejected budget leaves a non-runnable blocked task. After regeneration, core passed `672/672`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,365`.
 
 After Control exposed status, next, inbox, pop, and child transition routes, complete core passed `666/666`; closure `172`, scanner clean, package `2/2`, and runtime probe `21,363` remained approved. ORCH-001 production integration is still staged; child spawning and runner budget aggregation remain.

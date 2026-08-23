@@ -1,7 +1,7 @@
 # ORCH-001: Authoritative Lineage and Continuation
 
 ```text
-Status: in_progress
+Status: completed
 Priority: P1 prototype
 Target: 0.7.0
 Owner: coordinator
@@ -58,4 +58,4 @@ Disable child spawning while retaining readable lineage/inbox history; never inf
 
 ## Evidence
 
-Staged foundations and service facade are present: durable inbox, bounded continuation policy, supervisor-owned lineage ledger, one orchestration API, authenticated Control routes, runner priority selection, budgeted child admission, blocked-task saga activation, child terminal lineage synchronization, idempotent actual time/turn usage aggregation, parent-failure child cancellation, and child diagnostics. Actual child token/cost accounting remains. No external code copied.
+Durable inbox, bounded continuation policy, supervisor-owned lineage, Control routes, runner priority selection, budgeted child admission, blocked-task saga activation, child execution through the existing runner/containment path, terminal synchronization, idempotent usage aggregation, parent-failure cancellation, and child diagnostics are complete. Admission enforces children/token/turn/time/cost limits; terminal accounting records measured time/turn and preserves reserved token/cost bounds. No external code copied.
