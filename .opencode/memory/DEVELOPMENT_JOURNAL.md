@@ -2184,4 +2184,6 @@ EVID-002 then integrated the same split lifecycle into provider and Bash hooks. 
 
 TOOL-001 initial ordered pool now accepts only trusted `parallel-safe` or `exclusive` classifications, runs contiguous safe segments with bounded workers, inserts exclusive barriers, and returns one ordered terminal result for completion, failure, timeout, or cancellation. Invalid classifications fail before any call starts. Focused pool/fence tests pass; complete core `654/654`, closure `172`, scanner clean, package contract, and runtime probe `21,359` pass. Production Pi tool-loop integration remains.
 
+ORCH-001 staged foundations added a durable inbox with four categories and priority ordering, bounded continuation sessions with turn/token/time budgets, and a supervisor-owned lineage ledger with duplicate/cycle protection and durable child status. Focused ORCH tests pass; after regeneration, complete core passed `663/663`, closure `172`, scanner clean, package contract, and runtime probe `21,362`. Production runner/Control integration remains.
+
 Pi currently exposes individual tool-call hooks but no batch admission/result hook, so TOOL-001 cannot be wired into the production loop without racing the host scheduler. The pool remains an approved adapter with a clear upstream integration boundary; no heuristic tool-name parallelism was added.

@@ -7,7 +7,7 @@ Read this file before changing the repository.
 - Worktree: `/root/coco-tmp/coco-v053-migration`
 - Current branch: `candidate/v0.7.4`
 - Released version: `0.6.3`
-- Current target: `0.7.0` (`TOOL-001` only)
+- Current target: `0.7.0` (`ORCH-001` staged foundations)
 - Active plan: `DEVELOPMENT_PLAN.md`
 - Work items: `development/work-items/0.7.0/`
 - Execution journal: `.opencode/memory/DEVELOPMENT_JOURNAL.md`

@@ -1,10 +1,10 @@
 # ORCH-001: Authoritative Lineage and Continuation
 
 ```text
-Status: pending
+Status: in_progress
 Priority: P1 prototype
 Target: 0.7.0
-Owner: unassigned
+Owner: coordinator
 Depends on: RUN-001, RUN-002, RUN-003, CON-002, REC-001, EVID-002
 Blocks: none
 Sources: Prime Agent 849c9211
@@ -58,4 +58,4 @@ Disable child spawning while retaining readable lineage/inbox history; never inf
 
 ## Evidence
 
-Research only. Inspired by Prime Agent steering/follow-up queues, host continuation policy, command journal, and RLM ledger. No external code copied.
+Staged foundations are present: durable inbox, bounded continuation policy, and supervisor-owned lineage ledger with focused restart, priority, budget, duplicate, cycle, and status tests. Production runner/Control integration remains. No external code copied.
