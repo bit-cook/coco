@@ -2186,4 +2186,6 @@ TOOL-001 initial ordered pool now accepts only trusted `parallel-safe` or `exclu
 
 ORCH-001 staged foundations added a durable inbox with four categories and priority ordering, bounded continuation sessions with turn/token/time budgets, and a supervisor-owned lineage ledger with duplicate/cycle protection and durable child status. Focused ORCH tests pass; after regeneration, complete core passed `663/663`, closure `172`, scanner clean, package contract, and runtime probe `21,362`. Production runner/Control integration remains.
 
+ORCH-001 added the `orch-service` facade combining inbox, continuation, and lineage operations. The foundation batch passes core `665/665`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,363`. Production runner/Control integration and child budget aggregation remain.
+
 Pi currently exposes individual tool-call hooks but no batch admission/result hook, so TOOL-001 cannot be wired into the production loop without racing the host scheduler. The pool remains an approved adapter with a clear upstream integration boundary; no heuristic tool-name parallelism was added.

@@ -58,4 +58,4 @@ Disable child spawning while retaining readable lineage/inbox history; never inf
 
 ## Evidence
 
-Staged foundations are present: durable inbox, bounded continuation policy, and supervisor-owned lineage ledger with focused restart, priority, budget, duplicate, cycle, and status tests. Production runner/Control integration remains. No external code copied.
+Staged foundations and service facade are present: durable inbox, bounded continuation policy, supervisor-owned lineage ledger, and one orchestration API. Production runner/Control integration and child budget aggregation remain. No external code copied.
