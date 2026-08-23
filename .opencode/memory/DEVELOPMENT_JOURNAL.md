@@ -2202,6 +2202,8 @@ Parent failure/cancellation now cancels active children through the existing tas
 
 ORCH-001 completed monetary budget admission by adding `maxCostMicros`/`costMicros` alongside children, tokens, turns, and time. Legacy state migrates with non-restrictive cost defaults; new admissions require explicit cost bounds. The final batch passed core `676/676`; integrity's only host-timeout symlink case passed in isolated rerun on identical bytes; closure `172`, scanner clean, package `2/2`, and runtime probe `21,365` passed. ORCH-001 is complete.
 
+PR verification exposed an unrelated same-process TaskLogStore lock race. A shared per-agent in-process queue now serializes stores before the existing cross-process file lock. The focused global-lock test passed five consecutive runs; complete core `676/676`, integrity `39/39`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,365` passed after regeneration.
+
 ORCH child admission was exposed through the service facade and tested as a saga: budget reserve, blocked task creation, lineage registration, inbox admission, commit, then queue activation; rejected budget leaves a non-runnable blocked task. After regeneration, core passed `672/672`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,365`.
 
 After Control exposed status, next, inbox, pop, and child transition routes, complete core passed `666/666`; closure `172`, scanner clean, package `2/2`, and runtime probe `21,363` remained approved. ORCH-001 production integration is still staged; child spawning and runner budget aggregation remain.

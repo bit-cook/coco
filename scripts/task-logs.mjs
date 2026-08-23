@@ -13,6 +13,7 @@ const STREAMS = new Set(["stdout", "stderr", "diagnostic"]);
 const MAX_RECORD = 16 * 1024, MAX_RECORDS = 4096, MAX_BYTES = 4 * 1024 * 1024;
 const MAX_ENCODED_RECORD = MAX_RECORD * 6 + 2048;
 const LOCK_RETRIES = 100, LOCK_DELAY_MS = 10;
+const LOCAL_QUEUES = new Map();
 const fail = (code) => { throw new StateError(code); };
 const iso = (value) => typeof value === "string" && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(value) && new Date(value).toISOString() === value;
 
@@ -224,12 +225,17 @@ export function createTaskLogStore({ agentDir, now = () => new Date() } = {}) {
   const root = statePaths(directoryRoot).taskLogs;
 
   async function lock(operation) {
-    for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
-      const held = await acquireStateLock(directoryRoot).catch((error) => error?.code === "STATE_LOCKED" ? null : Promise.reject(error));
-      if (!held) { await new Promise((done) => setTimeout(done, LOCK_DELAY_MS)); continue; }
-      try { return await operation(); } finally { await held.release(); }
-    }
-    fail("STATE_LOCKED");
+    const previous = LOCAL_QUEUES.get(directoryRoot) ?? Promise.resolve();
+    const result = previous.then(async () => {
+      for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
+        const held = await acquireStateLock(directoryRoot).catch((error) => error?.code === "STATE_LOCKED" ? null : Promise.reject(error));
+        if (!held) { await new Promise((done) => setTimeout(done, LOCK_DELAY_MS)); continue; }
+        try { return await operation(); } finally { await held.release(); }
+      }
+      fail("STATE_LOCKED");
+    });
+    const settled = result.catch(() => {}); LOCAL_QUEUES.set(directoryRoot, settled);
+    try { return await result; } finally { if (LOCAL_QUEUES.get(directoryRoot) === settled) LOCAL_QUEUES.delete(directoryRoot); }
   }
 
   async function append({ taskId, runId, stream, data, at = now().toISOString() }) {
