@@ -571,6 +571,13 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
       return state;
     });
     await flushPending(id);
+    await syncChildLineage((await store.load()).tasks.find((entry) => entry.id === id));
+  }
+  async function syncChildLineage(task) {
+    if (task?.trigger !== "child") return;
+    if (task.status === "completed") await orchestration.completeChild(task.id);
+    else if (task.status === "failed") await orchestration.failChild(task.id);
+    else if (task.status === "cancelled") await orchestration.cancelChild(task.id);
   }
 
   async function runOne(task, { inboxItem = null } = {}) {
@@ -867,6 +874,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
         return state;
       });
       for (const task of (await store.load()).tasks) if (task.pendingRunEvent?.type === "run.abandoned") await flushPending(task.id);
+      for (const task of (await store.load()).tasks) await syncChildLineage(task);
       do {
         await acknowledgeDispatches(ownerId, runnerGeneration);
         await reconcileSupervisedRuns();
