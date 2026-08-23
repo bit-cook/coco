@@ -2188,4 +2188,6 @@ ORCH-001 staged foundations added a durable inbox with four categories and prior
 
 ORCH-001 added the `orch-service` facade combining inbox, continuation, and lineage operations. The foundation batch passes core `665/665`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,363`. Production runner/Control integration and child budget aggregation remain.
 
+After Control exposed status, next, inbox, pop, and child transition routes, complete core passed `666/666`; closure `172`, scanner clean, package `2/2`, and runtime probe `21,363` remained approved. ORCH-001 production integration is still staged; child spawning and runner budget aggregation remain.
+
 Pi currently exposes individual tool-call hooks but no batch admission/result hook, so TOOL-001 cannot be wired into the production loop without racing the host scheduler. The pool remains an approved adapter with a clear upstream integration boundary; no heuristic tool-name parallelism was added.
