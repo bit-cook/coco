@@ -575,9 +575,11 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
   }
   async function syncChildLineage(task) {
     if (task?.trigger !== "child") return;
+    const relation = await orchestration.parent(task.id);
     if (task.status === "completed") await orchestration.completeChild(task.id);
     else if (task.status === "failed") await orchestration.failChild(task.id);
     else if (task.status === "cancelled") await orchestration.cancelChild(task.id);
+    if (relation && ["completed", "failed", "cancelled"].includes(task.status)) await orchestration.recordChildUsage(relation.parentId, task.id, { timeMs: Math.max(0, Date.parse(task.finishedAt ?? task.updatedAt) - Date.parse(task.startedAt ?? task.createdAt)), tokens: 0, turns: 1 });
   }
 
   async function runOne(task, { inboxItem = null } = {}) {
