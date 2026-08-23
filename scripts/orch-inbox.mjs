@@ -97,6 +97,17 @@ export function createOrchInbox({ agentDir }) {
       return result;
     },
 
+    async removeSource(source) {
+      if (typeof source !== "string" || source.length === 0) fail("ORCH_INBOX_SOURCE_INVALID");
+      let removed = 0;
+      await applyStateTransaction({ agentDir, operations: async () => {
+        const state = await load(), before = state.items.length;
+        state.items = state.items.filter((item) => item.source !== source); removed = before - state.items.length;
+        return [{ bytes: canonicalJson(state), path }];
+      } });
+      return removed;
+    },
+
     async list() {
       const state = await load();
       return structuredClone(state.items);
