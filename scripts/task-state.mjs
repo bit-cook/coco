@@ -12,7 +12,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const EVENT_TYPES = new Set(["run.started", "run.finished", "run.abandoned"]);
 const OUTCOMES = new Set([null, "completed", "failed", "abandoned"]);
 const STATUSES = new Set(["queued", "provisioning", "running", "blocked", "completed", "failed", "cancelled"]);
-const TRIGGERS = new Set(["manual", "schedule", "webhook", "github"]);
+const TRIGGERS = new Set(["child", "manual", "schedule", "webhook", "github"]);
 const STOP_BARRIER = Symbol("stopBarrier");
 const iso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
 const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
