@@ -2194,6 +2194,8 @@ ORCH-001 added child admission with parent budgets, reserve/commit/release state
 
 After the final child admission saga and compensation tests, complete core passed `673/673`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,365`. Child execution remains staged behind shared task authorization and containment.
 
+Child tasks now execute through the existing runner and synchronize completed/failed/cancelled terminal status back into the durable lineage ledger. Focused child/runner tests pass; complete core passed `674/674`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,365`. Aggregate actual-usage accounting remains.
+
 ORCH child admission was exposed through the service facade and tested as a saga: budget reserve, blocked task creation, lineage registration, inbox admission, commit, then queue activation; rejected budget leaves a non-runnable blocked task. After regeneration, core passed `672/672`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,365`.
 
 After Control exposed status, next, inbox, pop, and child transition routes, complete core passed `666/666`; closure `172`, scanner clean, package `2/2`, and runtime probe `21,363` remained approved. ORCH-001 production integration is still staged; child spawning and runner budget aggregation remain.
