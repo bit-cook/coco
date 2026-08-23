@@ -28,6 +28,7 @@ export function createOrchService({ agentDir, childAdmission, continuation, inbo
     removeSource: (source) => workInbox.removeSource(source),
     registerChild: (parentId, childId) => workLineage.register(parentId, childId),
     recordTurn: (sessionId, tokens) => workContinuation.recordTurn(sessionId, tokens),
+    recordChildUsage: (parentId, childId, actual) => { if (!workChildAdmission) throw new Error("ORCH_CHILD_ADMISSION_UNAVAILABLE"); return workChildAdmission.recordUsage(parentId, childId, actual); },
     startContinuation: (sessionId, policy) => workContinuation.start(sessionId, policy),
     async status() { return { activeContinuations: (await workContinuation.list()).filter(({ status }) => status === "active").length, inboxSize: await workInbox.size(), lineageSize: (await workLineage.list()).length, schemaVersion: 1 }; },
   });

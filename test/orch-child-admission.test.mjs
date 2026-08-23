@@ -19,3 +19,10 @@ test("child admission rejects over-budget or unconfigured parents", async (t) =>
   const agentDir = await mkdtemp(join(tmpdir(), "coco-orch-child-budget-")); t.after(() => rm(agentDir, { recursive: true, force: true })); const admission = createOrchChildAdmission({ agentDir });
   await assert.rejects(admission.reserve("missing", "child", cost), { code: "ORCH_PARENT_NOT_CONFIGURED" }); await admission.configure("parent", { ...policy, maxChildren: 1, maxTokens: 100 }); await admission.reserve("parent", "child-1", cost); await assert.rejects(admission.reserve("parent", "child-2", cost), { code: "ORCH_CHILD_LIMIT_EXCEEDED" });
 });
+
+test("actual child usage is idempotent and can exhaust the parent", async (t) => {
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-orch-child-usage-")); t.after(() => rm(agentDir, { recursive: true, force: true })); const admission = createOrchChildAdmission({ agentDir });
+  await admission.configure("parent", { ...policy, maxTimeMs: 100 }); await admission.reserve("parent", "child", { ...cost, timeMs: 50 }); await admission.commit("parent", "child");
+  assert.equal((await admission.recordUsage("parent", "child", { timeMs: 150, tokens: 100, turns: 1 })).exhausted, true); assert.equal((await admission.recordUsage("parent", "child", { timeMs: 150, tokens: 100, turns: 1 })).exhausted, true);
+  await assert.rejects(admission.recordUsage("parent", "child", { timeMs: 151, tokens: 100, turns: 1 }), { code: "ORCH_CHILD_USAGE_CONFLICT" }); await assert.rejects(admission.reserve("parent", "next", cost), { code: "ORCH_PARENT_BUDGET_EXHAUSTED" });
+});
