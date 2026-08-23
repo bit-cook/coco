@@ -5,7 +5,7 @@ Last updated: 2026-08-18
 ## Current State
 
 - Released: `v0.6.3` at `016597c95efa511c861ed651b1ded9e56c9ed22c`
-- Development branch: `candidate/v0.7.6`
+- Development branch: `candidate/v0.7.10`
 - Next target: `0.7.0`, starting with `ORCH-001 integration` only
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
@@ -89,4 +89,4 @@ CFG-001, EVID-001, and EVID-002 are complete and merged to main. TOOL-001 initia
 
 TOOL-001 initial evidence: focused pool/fence tests pass, complete core `663/663`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,362`. Parallel-safe segments overlap, exclusive calls form barriers, and results commit in request order. Pi tool-loop integration is blocked pending a batch hook.
 
-ORCH-001 staged foundations, service facade, Control routes, runner inbox priority selection, and child admission budget checks are now present: durable inbox with priority/admission, bounded continuation policy, and supervisor-owned parent/child lineage. Focused ORCH tests pass; the frozen batch passes core `672/672`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,365`. Child spawning and budget aggregation remain.
+ORCH-001 staged foundations, service facade, Control routes, runner inbox priority selection, and child admission budget checks are now present: durable inbox with priority/admission, bounded continuation policy, and supervisor-owned parent/child lineage. Focused ORCH tests pass; the frozen batch passes core `673/673`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,365`. Child spawning and budget aggregation remain.

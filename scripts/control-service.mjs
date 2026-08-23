@@ -9,6 +9,7 @@ import { canonicalJson } from "./canonical-json.mjs";
 import { createCommandRecoveryJournal } from "./command-recovery-journal.mjs";
 import { runControlCommandMutation } from "./control-command-recovery.mjs";
 import { createOrchService } from "./orch-service.mjs";
+import { createOrchChildService } from "./orch-child-service.mjs";
 import { StateError } from "./state-schema.mjs";
 import { agentDirectory, ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { acquireStateLock, atomicReplace } from "./state-transaction.mjs";
@@ -147,6 +148,7 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
   const store = createTaskStore({ agentDir }); const events = createTaskEventStore({ agentDir }); const logs = createTaskLogStore({ agentDir }); const receipts = createTaskReceiptStore({ agentDir }); const publicRoot = join(root, "control", "public");
   const deliveries = createWebhookDeliveryStore({ agentDir });
   const orchestration = createOrchService({ agentDir });
+  const childOrchestration = createOrchChildService({ agentDir, orchestration, root, startRunner: ({ agentDir: directory, root: runtimeRoot }) => startDetachedRunner({ agentDir: directory, root: runtimeRoot }), taskStore: store });
   const server = createServer(async (request, response) => {
     response.setHeader("content-security-policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'");
     response.setHeader("referrer-policy", "no-referrer");
@@ -178,6 +180,7 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
        if (request.method === "GET" && url.pathname === "/v1/orchestration/next") return json(response, 200, { item: await orchestration.next() });
        if (request.method === "POST" && url.pathname === "/v1/orchestration/inbox") { let input; try { input = JSON.parse(await body(request)); } catch { return json(response, 400, { error: "ORCH_PAYLOAD_INVALID" }); } return json(response, 202, await orchestration.admit(input)); }
        if (request.method === "POST" && url.pathname === "/v1/orchestration/pop") return json(response, 200, { item: await orchestration.pop() });
+       if (request.method === "POST" && url.pathname === "/v1/orchestration/children") { let input; try { input = JSON.parse(await body(request)); } catch { return json(response, 400, { error: "ORCH_CHILD_PAYLOAD_INVALID" }); } return json(response, 202, await childOrchestration.createChild(input)); }
        const orchChild = /^\/v1\/orchestration\/children\/([A-Za-z0-9._:-]{1,200})\/(complete|fail|cancel)$/.exec(url.pathname);
        if (request.method === "POST" && orchChild) { const operation = orchChild[2] === "complete" ? orchestration.completeChild : orchChild[2] === "fail" ? orchestration.failChild : orchestration.cancelChild; return json(response, 200, await operation(orchChild[1])); }
        if (request.method === "GET" && url.pathname === "/v1/tasks") return json(response, 200, { tasks: (await store.load()).tasks.map(taskDto) });
