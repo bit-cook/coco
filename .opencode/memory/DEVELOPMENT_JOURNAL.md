@@ -2192,6 +2192,8 @@ ORCH-001 now bridges the durable inbox into runner selection: an inbox item sele
 
 ORCH-001 added child admission with parent budgets, reserve/commit/release states, duplicate child protection, and budget exhaustion checks. The frozen batch passed core `670/670`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,364`. Child spawning itself remains staged behind shared task authorization/containment integration.
 
+ORCH child admission was exposed through the service facade and tested as a saga: budget reserve, blocked task creation, lineage registration, inbox admission, commit, then queue activation; rejected budget leaves a non-runnable blocked task. After regeneration, core passed `672/672`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,365`.
+
 After Control exposed status, next, inbox, pop, and child transition routes, complete core passed `666/666`; closure `172`, scanner clean, package `2/2`, and runtime probe `21,363` remained approved. ORCH-001 production integration is still staged; child spawning and runner budget aggregation remain.
 
 Pi currently exposes individual tool-call hooks but no batch admission/result hook, so TOOL-001 cannot be wired into the production loop without racing the host scheduler. The pool remains an approved adapter with a clear upstream integration boundary; no heuristic tool-name parallelism was added.

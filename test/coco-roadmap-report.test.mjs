@@ -26,7 +26,7 @@ test("current plan, strategy, and historical research remain public, distinct, r
   assert.match(plan, /CoCo v0\.6\.3/);
   assert.match(plan, /Release baseline: v0\.6\.3 \/ next: CFG-001/);
   for (const release of ["v0.6.3", "v0.7.0"]) assert.match(plan, new RegExp(release));
-  for (const concept of ["Durable inbox", "Continuation", "lineage service", "小批次，短交接", "ORCH-001", "core 666/666"]) assert.match(plan, new RegExp(concept));
+  for (const concept of ["Child admission", "Shared execution", "小批次，短交接", "ORCH-001", "预算"]) assert.match(plan, new RegExp(concept));
   for (const evidence of ["619/619", "39/39", "9个资产完整"]) assert.match(plan, new RegExp(evidence.replace("/", "\\/")));
   assert.match(plan, /#f7fbff/i);
   assert.match(plan, /@media\(max-width:/);
