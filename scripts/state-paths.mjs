@@ -21,7 +21,7 @@ export function statePaths(agentDir) {
     mcp: join(root, "mcp.json"),
     models: join(root, "models.json"),
     ownership: join(root, "ownership.json"),
-    runner: join(root, "runner.json"),
+    runner: join(root, "runner.json"),    orchChildAdmission: join(root, "orch-child-admission.json"),
     orchContinuation: join(root, "orch-continuation.json"),
     orchInbox: join(root, "orch-inbox.json"),
     orchLineage: join(root, "orch-lineage.json"),

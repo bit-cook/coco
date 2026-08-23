@@ -2190,6 +2190,8 @@ ORCH-001 added the `orch-service` facade combining inbox, continuation, and line
 
 ORCH-001 now bridges the durable inbox into runner selection: an inbox item selects only its matching queued task, is popped only after the task claim succeeds, and a stale/non-queued inbox item cannot block ordinary runnable work. Focused ORCH/runner tests pass; complete core `668/668`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,363` pass.
 
+ORCH-001 added child admission with parent budgets, reserve/commit/release states, duplicate child protection, and budget exhaustion checks. The frozen batch passed core `670/670`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,364`. Child spawning itself remains staged behind shared task authorization/containment integration.
+
 After Control exposed status, next, inbox, pop, and child transition routes, complete core passed `666/666`; closure `172`, scanner clean, package `2/2`, and runtime probe `21,363` remained approved. ORCH-001 production integration is still staged; child spawning and runner budget aggregation remain.
 
 Pi currently exposes individual tool-call hooks but no batch admission/result hook, so TOOL-001 cannot be wired into the production loop without racing the host scheduler. The pool remains an approved adapter with a clear upstream integration boundary; no heuristic tool-name parallelism was added.
