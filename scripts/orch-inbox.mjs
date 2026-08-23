@@ -83,6 +83,20 @@ export function createOrchInbox({ agentDir }) {
       return item;
     },
 
+    async popExpected(id) {
+      if (typeof id !== "string" || id.length === 0) fail("ORCH_INBOX_ID_INVALID");
+      let result = false;
+      for (let attempt = 0; attempt < 100; attempt += 1) try {
+        await applyStateTransaction({ agentDir, operations: async () => {
+          const state = await load();
+          if (state.items[0]?.source !== id) return [{ bytes: canonicalJson(state), path }];
+          state.items.shift(); result = true; return [{ bytes: canonicalJson(state), path }];
+        } });
+        break;
+      } catch (error) { if (error?.code !== "STATE_LOCKED" || attempt === 99) throw error; await new Promise((done) => setTimeout(done, 10)); }
+      return result;
+    },
+
     async list() {
       const state = await load();
       return structuredClone(state.items);

@@ -14,6 +14,7 @@ import { createTaskReceiptStore } from "./task-receipts.mjs";
 import { processAlive, processIdentity, processMatches, terminateProcessTree } from "./task-process.mjs";
 import { createTaskRunSupervisorStore } from "./task-run-supervisor.mjs";
 import { createWebhookDeliveryStore } from "./webhook-deliveries.mjs";
+import { createOrchService } from "./orch-service.mjs";
 import { createTaskStore, readRunnerStoppingState, readTaskState, selectRunnableTask } from "./task-state.mjs";
 import { ensureTaskWorktree, isRetryableWorktreeError, isUnrecoverableWorktreeError, planTaskWorktree, repositoryRoot } from "./worktree-tasks.mjs";
 import { resolveRuntimeRoot } from "./runtime-root.mjs";
@@ -353,6 +354,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
   const receipts = receiptStore ?? createTaskReceiptStore({ agentDir });
   const supervisors = supervisorStore ?? createTaskRunSupervisorStore({ agentDir });
   const deliveries = dispatchStore ?? createWebhookDeliveryStore({ agentDir });
+  const orchestration = createOrchService({ agentDir });
   const ensureWorktree = worktreeOperations.ensure ?? ensureTaskWorktree, planWorktree = worktreeOperations.plan ?? planTaskWorktree, resolveRepository = worktreeOperations.repositoryRoot ?? repositoryRoot;
   const dispatchClaims = new Map();
   let activeRunnerOwnerId = null;
@@ -571,7 +573,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
     await flushPending(id);
   }
 
-  async function runOne(task) {
+  async function runOne(task, { inboxItem = null } = {}) {
     let worktree = null;
     let claimed = false;
     let provisioningStarted = false;
@@ -597,6 +599,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
        const candidate = (await store.load()).tasks.find(({ id }) => id === task.id);
        if (candidate?.attempts >= 1000) { try { if ((await deliveries.disposeAttemptLimited({ taskId: candidate.id })).length > 0) return; } catch (error) { if (error?.code !== "WEBHOOK_DISPATCH_ATTEMPT_LIMIT_INVALID") throw error; } }
        const currentTask = await claim(task.id, worktree); claimed = true; claimedRunId = currentTask.activeRunId;
+       if (inboxItem) await orchestration.popExpected(task.id);
        if (currentTask.status === "failed" && currentTask.lastError === "TASK_ATTEMPT_LIMIT_REACHED") return;
        if (!currentTask.activeRunId) fail("TASK_DISPATCH_CLAIM_INVALID");
        await flushPending(task.id); started = true;
@@ -868,9 +871,11 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
         await acknowledgeDispatches(ownerId, runnerGeneration);
         await reconcileSupervisedRuns();
         const state = await store.load();
-        const task = selectRunnableTask(state);
+        const inboxItem = await orchestration.next();
+        const inboxTask = inboxItem ? state.tasks.find((entry) => entry.id === inboxItem.source && entry.status === "queued") : null;
+        const task = inboxTask ?? selectRunnableTask(state);
         if (task) {
-          const outcome = await runOne(task);
+          const outcome = await runOne(task, { inboxItem: inboxTask ? inboxItem : null });
           if (once && outcome !== "blocked") break;
         } else {
           if (!once) await delay(1000);
