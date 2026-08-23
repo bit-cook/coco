@@ -8,6 +8,7 @@ import { extname, join, resolve } from "node:path";
 import { canonicalJson } from "./canonical-json.mjs";
 import { createCommandRecoveryJournal } from "./command-recovery-journal.mjs";
 import { runControlCommandMutation } from "./control-command-recovery.mjs";
+import { createOrchService } from "./orch-service.mjs";
 import { StateError } from "./state-schema.mjs";
 import { agentDirectory, ensureAgentDirectory, inspectRegular, statePaths } from "./state-paths.mjs";
 import { acquireStateLock, atomicReplace } from "./state-transaction.mjs";
@@ -145,6 +146,7 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
   const token = randomBytes(32).toString("base64url");
   const store = createTaskStore({ agentDir }); const events = createTaskEventStore({ agentDir }); const logs = createTaskLogStore({ agentDir }); const receipts = createTaskReceiptStore({ agentDir }); const publicRoot = join(root, "control", "public");
   const deliveries = createWebhookDeliveryStore({ agentDir });
+  const orchestration = createOrchService({ agentDir });
   const server = createServer(async (request, response) => {
     response.setHeader("content-security-policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'");
     response.setHeader("referrer-policy", "no-referrer");
@@ -170,8 +172,14 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
             if (!delivery.accepted) return json(response, 202, { accepted: false, dispatch: delivery.intent ?? null, reason: delivery.duplicate ? "duplicate" : delivery.reason, taskId: task.id });
            try { await startDetachedRunner({ agentDir, root }); } catch {} return json(response, 202, { accepted: true, dispatch: delivery.intent, taskId: task.id });
        }
-      if (!authorized(request, token)) return json(response, 401, { error: "UNAUTHORIZED" });
-      if (request.method === "GET" && url.pathname === "/v1/health") return json(response, 200, { schemaVersion: 1, status: "ok" });
+       if (!authorized(request, token)) return json(response, 401, { error: "UNAUTHORIZED" });
+       if (request.method === "GET" && url.pathname === "/v1/health") return json(response, 200, { schemaVersion: 1, status: "ok" });
+       if (request.method === "GET" && url.pathname === "/v1/orchestration/status") return json(response, 200, await orchestration.status());
+       if (request.method === "GET" && url.pathname === "/v1/orchestration/next") return json(response, 200, { item: await orchestration.next() });
+       if (request.method === "POST" && url.pathname === "/v1/orchestration/inbox") { let input; try { input = JSON.parse(await body(request)); } catch { return json(response, 400, { error: "ORCH_PAYLOAD_INVALID" }); } return json(response, 202, await orchestration.admit(input)); }
+       if (request.method === "POST" && url.pathname === "/v1/orchestration/pop") return json(response, 200, { item: await orchestration.pop() });
+       const orchChild = /^\/v1\/orchestration\/children\/([A-Za-z0-9._:-]{1,200})\/(complete|fail|cancel)$/.exec(url.pathname);
+       if (request.method === "POST" && orchChild) { const operation = orchChild[2] === "complete" ? orchestration.completeChild : orchChild[2] === "fail" ? orchestration.failChild : orchestration.cancelChild; return json(response, 200, await operation(orchChild[1])); }
        if (request.method === "GET" && url.pathname === "/v1/tasks") return json(response, 200, { tasks: (await store.load()).tasks.map(taskDto) });
        if (request.method === "GET" && url.pathname === "/v1/dispatch-pending") return json(response, 200, { dispatchPending: await deliveries.listPending() });
       const detail = /^\/v1\/tasks\/([a-z0-9_-]{12})$/.exec(url.pathname);
