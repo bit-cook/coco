@@ -9,7 +9,7 @@ import { createOrchService } from "../scripts/orch-service.mjs";
 import { createTaskStore } from "../scripts/task-state.mjs";
 import { createTaskRunner } from "../scripts/task-runner.mjs";
 
-const budget = { maxChildren: 1, maxTimeMs: 1000, maxTokens: 1000, maxTurns: 10 }, cost = { timeMs: 100, tokens: 100, turns: 1 };
+const budget = { maxChildren: 1, maxCostMicros: 1000, maxTimeMs: 1000, maxTokens: 1000, maxTurns: 10 }, cost = { costMicros: 100, timeMs: 100, tokens: 100, turns: 1 };
 
 test("child saga creates blocked task, lineage, inbox, budget commit, then queues", async (t) => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-orch-child-service-")); t.after(() => rm(agentDir, { recursive: true, force: true })); const taskStore = createTaskStore({ agentDir }), orchestration = createOrchService({ agentDir });

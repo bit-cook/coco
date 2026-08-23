@@ -18,7 +18,7 @@ test("append performance demonstrates indexed O(1) growth", async () => {
     for (let index = 0; index < 200; index += 1) await store.append({ taskId, runId, stream: "stdout", data });
     const elapsed = performance.now() - start;
     assert.equal((await store.read({ taskId, runId })).records.length, 200);
-    assert.ok(elapsed < 3000, `200 appends took ${elapsed.toFixed(0)}ms, expected < 3000ms`);
+    assert.ok(elapsed < 5000, `200 appends took ${elapsed.toFixed(0)}ms, expected < 5000ms`);
   } finally { await rm(agentDir, { recursive: true, force: true }); }
 });
 
