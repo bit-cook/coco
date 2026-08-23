@@ -20,6 +20,7 @@ export function createOrchService({ agentDir, childAdmission, continuation, inbo
     cancelChild: (childId) => workLineage.cancel(childId),
     completeChild: (childId) => workLineage.complete(childId),
     completeContinuation: (sessionId) => workContinuation.complete(sessionId),
+    children: (parentId) => workLineage.children(parentId),
     failChild: (childId) => workLineage.fail(childId),
     next: () => workInbox.peek(),
     parent: (childId) => workLineage.parent(childId),
@@ -29,6 +30,7 @@ export function createOrchService({ agentDir, childAdmission, continuation, inbo
     registerChild: (parentId, childId) => workLineage.register(parentId, childId),
     recordTurn: (sessionId, tokens) => workContinuation.recordTurn(sessionId, tokens),
     recordChildUsage: (parentId, childId, actual) => { if (!workChildAdmission) throw new Error("ORCH_CHILD_ADMISSION_UNAVAILABLE"); return workChildAdmission.recordUsage(parentId, childId, actual); },
+    async childStatus(childId) { const relation = await workLineage.parent(childId); if (!relation) return null; const budget = workChildAdmission ? await workChildAdmission.get(relation.parentId) : null; return { budget, relation }; },
     startContinuation: (sessionId, policy) => workContinuation.start(sessionId, policy),
     async status() { return { activeContinuations: (await workContinuation.list()).filter(({ status }) => status === "active").length, inboxSize: await workInbox.size(), lineageSize: (await workLineage.list()).length, schemaVersion: 1 }; },
   });
