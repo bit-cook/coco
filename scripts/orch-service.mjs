@@ -17,6 +17,7 @@ export function createOrchService({ agentDir, continuation, inbox, lineage } = {
     failChild: (childId) => workLineage.fail(childId),
     next: () => workInbox.peek(),
     pop: () => workInbox.pop(),
+    popExpected: (id) => workInbox.popExpected(id),
     registerChild: (parentId, childId) => workLineage.register(parentId, childId),
     recordTurn: (sessionId, tokens) => workContinuation.recordTurn(sessionId, tokens),
     startContinuation: (sessionId, policy) => workContinuation.start(sessionId, policy),
