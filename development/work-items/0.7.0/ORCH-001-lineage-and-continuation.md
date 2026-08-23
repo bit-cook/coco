@@ -58,4 +58,4 @@ Disable child spawning while retaining readable lineage/inbox history; never inf
 
 ## Evidence
 
-Staged foundations and service facade are present: durable inbox, bounded continuation policy, supervisor-owned lineage ledger, one orchestration API, authenticated Control routes, runner priority selection, budgeted child admission, blocked-task saga activation, child terminal lineage synchronization, and idempotent actual time/turn usage aggregation. Parent-failure policy and full child diagnostics remain. No external code copied.
+Staged foundations and service facade are present: durable inbox, bounded continuation policy, supervisor-owned lineage ledger, one orchestration API, authenticated Control routes, runner priority selection, budgeted child admission, blocked-task saga activation, child terminal lineage synchronization, idempotent actual time/turn usage aggregation, parent-failure child cancellation, and child diagnostics. Actual child token/cost accounting remains. No external code copied.

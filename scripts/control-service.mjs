@@ -183,6 +183,8 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
        if (request.method === "POST" && url.pathname === "/v1/orchestration/children") { let input; try { input = JSON.parse(await body(request)); } catch { return json(response, 400, { error: "ORCH_CHILD_PAYLOAD_INVALID" }); } return json(response, 202, await childOrchestration.createChild(input)); }
        const orchChild = /^\/v1\/orchestration\/children\/([A-Za-z0-9._:-]{1,200})\/(complete|fail|cancel)$/.exec(url.pathname);
        if (request.method === "POST" && orchChild) { const operation = orchChild[2] === "complete" ? orchestration.completeChild : orchChild[2] === "fail" ? orchestration.failChild : orchestration.cancelChild; return json(response, 200, await operation(orchChild[1])); }
+       const orchChildStatus = /^\/v1\/orchestration\/children\/([A-Za-z0-9._:-]{1,200})$/.exec(url.pathname);
+       if (request.method === "GET" && orchChildStatus) { const child = await orchestration.childStatus(orchChildStatus[1]); if (!child) return json(response, 404, { error: "NOT_FOUND" }); const task = (await store.load()).tasks.find(({ id }) => id === orchChildStatus[1]); return json(response, 200, { child, task: task ? taskDto(task) : null }); }
        if (request.method === "GET" && url.pathname === "/v1/tasks") return json(response, 200, { tasks: (await store.load()).tasks.map(taskDto) });
        if (request.method === "GET" && url.pathname === "/v1/dispatch-pending") return json(response, 200, { dispatchPending: await deliveries.listPending() });
       const detail = /^\/v1\/tasks\/([a-z0-9_-]{12})$/.exec(url.pathname);

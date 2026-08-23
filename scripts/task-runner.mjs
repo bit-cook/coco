@@ -581,6 +581,14 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
     else if (task.status === "cancelled") await orchestration.cancelChild(task.id);
     if (relation && ["completed", "failed", "cancelled"].includes(task.status)) await orchestration.recordChildUsage(relation.parentId, task.id, { timeMs: Math.max(0, Date.parse(task.finishedAt ?? task.updatedAt) - Date.parse(task.startedAt ?? task.createdAt)), tokens: 0, turns: 1 });
   }
+  async function syncParentFailure(task) {
+    if (!task || !["failed", "cancelled"].includes(task.status)) return;
+    for (const relation of await orchestration.children(task.id)) {
+      if (relation.status !== "active") continue;
+      try { await cancelTask(store, relation.childId, { supervisorStore: supervisors }); } catch (error) { if (!/TASK_(?:NOT_CANCELLABLE|NOT_FOUND)/.test(error?.code ?? "")) throw error; }
+      await orchestration.cancelChild(relation.childId);
+    }
+  }
 
   async function runOne(task, { inboxItem = null } = {}) {
     let worktree = null;
@@ -877,6 +885,7 @@ export function createTaskRunner({ agentDir, captureFileOpen = open, heartbeatIn
       });
       for (const task of (await store.load()).tasks) if (task.pendingRunEvent?.type === "run.abandoned") await flushPending(task.id);
       for (const task of (await store.load()).tasks) await syncChildLineage(task);
+      for (const task of (await store.load()).tasks) await syncParentFailure(task);
       do {
         await acknowledgeDispatches(ownerId, runnerGeneration);
         await reconcileSupervisedRuns();
