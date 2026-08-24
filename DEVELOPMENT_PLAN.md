@@ -5,8 +5,8 @@ Last updated: 2026-08-18
 ## Current State
 
 - Released: `v0.6.3` at `016597c95efa511c861ed651b1ded9e56c9ed22c`
-- Development branch: `candidate/v0.7.0-release`
-- Next target: publish `v0.7.0`; TOOL-001 host integration remains blocked
+- Development branch: `candidate/v0.7.15`
+- Next target: complete `0.7.0`; all research-derived work items are implemented
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
 - Research pages: `/research.html` and `/research-zh-CN.html`
@@ -85,8 +85,8 @@ Control and MCP commands are journaled, MCP generations publish atomically throu
 
 Prime Agent and DeepSeek Harness were reviewed at fixed commits. Their useful ideas are summarized on the public research pages and mapped to future work items; neither runtime is being imported wholesale.
 
-CFG-001, EVID-001, and EVID-002 are complete and merged to main. TOOL-001 initial ordered pool is implemented on `candidate/v0.7.4`; production Pi tool-loop integration remains. ORCH-001 remains pending.
+CFG-001, EVID-001, EVID-002, TOOL-001, and ORCH-001 are complete. The initial TOOL-001 pool landed on `candidate/v0.7.4`; final production integration uses the pinned Pi candidate below.
 
-TOOL-001 initial evidence: focused pool/fence tests pass, complete core `663/663`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,362`. Parallel-safe segments overlap, exclusive calls form barriers, and results commit in request order. Pi tool-loop integration is blocked pending a batch hook.
+TOOL-001 historical initial evidence: focused pool/fence tests passed, complete core `663/663`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,362`. This preceded production Pi integration.
 
-ORCH-001 is complete: durable inbox, continuation policy, lineage, Control routes, runner priority selection, budgeted child admission, existing runner/containment execution, terminal synchronization, parent-failure cancellation, diagnostics, and children/token/turn/time/cost budget accounting. Final `v0.7.0` gates pass core `676/676`, integrity `39/39` (one host-timeout case rerun in isolation), closure `172`, scanner clean, package `2/2`, runtime probe `21,365`, Node 22 performance, and real offline tar byte equality/install/version/uninstall. TOOL-001 production integration remains blocked on the Pi batch hook.
+ORCH-001 is complete. TOOL-001 production integration is complete through pinned clean Pi candidate `coco-v0.82.1-coco.11`, which preserves ordered result commit across contiguous parallel-safe segments and sequential barriers. Candidate workflow `32685150665` verifies source behavior, archive bytes, manifest/shrinkwrap binding, package smoke, and empty-cache offline install. Final CoCo gates pass core `676/676`, integrity `39/39`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,368`.

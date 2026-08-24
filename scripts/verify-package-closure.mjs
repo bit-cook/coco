@@ -7,7 +7,7 @@ import { join, relative } from "node:path";
 import { promisify } from "node:util";
 
 const PI = "@earendil-works/pi-coding-agent";
-const PI_SOURCE = "https://github.com/bit-cook/pi-selective-fork/releases/download/coco-v0.82.1-coco.6/earendil-works-pi-coding-agent-0.82.1-coco.6.tgz";
+const PI_SOURCE = "https://github.com/bit-cook/pi-selective-fork/releases/download/coco-v0.82.1-coco.11/earendil-works-pi-coding-agent-0.82.1-coco.11.tgz";
 const PI_DEPENDENCIES = new Set(["0.82.1", PI_SOURCE]);
 const TUI = "@earendil-works/pi-tui";
 const MCP = "@modelcontextprotocol/sdk";
