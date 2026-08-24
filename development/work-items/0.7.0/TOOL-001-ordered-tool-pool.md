@@ -1,7 +1,7 @@
 # TOOL-001: Ordered Bounded Tool Pool
 
 ```text
-Status: in_progress
+Status: completed
 Priority: P1 prototype
 Target: 0.7.0
 Owner: coordinator
@@ -60,4 +60,4 @@ Set pool size to one while preserving metadata and event schema.
 
 ## Evidence
 
-Initial ordered-pool implementation is present with a trusted classifier, bounded concurrency/call/result/time limits, exclusive barriers, ordered terminal results, cancellation, timeout, failure, and pre-admission rejection tests. Production Pi tool-loop integration is blocked by the absence of a batch admission/result hook; upstream request is tracked separately. No external code copied.
+Ordered pool and production Pi integration are complete. Pi `coco-v0.82.1-coco.11` executes contiguous parallel-safe segments concurrently, treats `executionMode: sequential` tools as barriers, and preserves source-order terminal results. Its coding-agent manifest and shrinkwrap pin the matching core asset, and focused Pi agent-loop and CoCo pool tests pass. No external code copied.

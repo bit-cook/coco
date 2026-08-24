@@ -25,11 +25,11 @@ test("external research report preserves fixed sources and explicit adoption bou
   assert.deepEqual(items.filter((entry) => entry.isFile()).map((entry) => entry.name).toSorted(), ["CFG-001-provider-mcp-generations.md", "EVID-001-model-input-ledger.md", "EVID-002-durability-fence.md", "ORCH-001-lineage-and-continuation.md", "TOOL-001-ordered-tool-pool.md"]);
 });
 
-test("only CFG-001 is active and research work does not authorize external runtime adoption", async () => {
+test("research work items are complete without authorizing wholesale external runtime adoption", async () => {
   const directory = join(root, "development/work-items/0.7.0");
   for (const name of await readdir(directory)) {
     const value = await readFile(join(directory, name), "utf8");
-    assert.match(value, name.startsWith("CFG-001") || name.startsWith("EVID-001") || name.startsWith("EVID-002") || name.startsWith("ORCH-001") ? /Status: completed/ : name.startsWith("TOOL-001") ? /Status: in_progress/ : /Status: pending/); assert.match(value, /Research only|研究|No external code (?:was )?copied/);
+    assert.match(value, /Status: completed/); assert.match(value, /Research only|研究|No external code (?:was )?copied/);
     for (const section of ["Problem", "Required Invariants", "Scope", "Out of Scope", "Design", "Acceptance Tests", "Verification", "Rollback", "Evidence"]) assert.match(value, new RegExp(`^## ${section}$`, "m"), name);
   }
   const [cfg, evid1, evid2, tool, orch] = await Promise.all([

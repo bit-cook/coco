@@ -24,9 +24,9 @@ test("current plan, strategy, and historical research remain public, distinct, r
 
   assert.match(plan, /rel="canonical" href="https:\/\/bit-cook\.github\.io\/coco\/plan\.html"/);
   assert.match(plan, /CoCo v0\.7\.0/);
-  assert.match(plan, /Release baseline: v0\.7\.0 \/ TOOL-001 host hook pending/);
+  assert.match(plan, /Release baseline: v0\.7\.0 \/ all scoped work complete/);
   assert.match(plan, /v0\.7\.0/);
-  for (const concept of ["Child lifecycle", "Aggregate budgets", "小批次，短交接", "ORCH-001", "cost"]) assert.match(plan, new RegExp(concept));
+  for (const concept of ["Child lifecycle", "Ordered tool barriers", "小批次，短交接", "ORCH-001", "TOOL-001", "parallel-safe"]) assert.match(plan, new RegExp(concept));
   for (const evidence of ["676/676", "39/39", "9个资产完整"]) assert.match(plan, new RegExp(evidence.replace("/", "\\/")));
   assert.match(plan, /#f7fbff/i);
   assert.match(plan, /@media\(max-width:/);
