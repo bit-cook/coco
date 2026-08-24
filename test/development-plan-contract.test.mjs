@@ -16,11 +16,11 @@ test("active development plan preserves history and the focused 0.7.1 release ta
     readdir(workItems),
   ]);
 
-  assert.match(agents, /Current branch: `candidate\/v0\.7\.1-release`/);
+  assert.match(agents, /Current branch: `chore\/v0\.7\.1-release-closeout`/);
   assert.match(agents, /DEVELOPMENT_PLAN\.md/);
   assert.match(agents, /HISTORICAL_DOCUMENTS\.md/);
-  assert.match(agents, /Released version: `0\.7\.0`/);
-  assert.match(plan, /Next target: publish `v0\.7\.1`; all research-derived work items are implemented/);
+  assert.match(agents, /Released version: `0\.7\.1`/);
+  assert.match(plan, /Next target: post-release maintenance only; all research-derived work items are implemented/);
   assert.match(plan, /Completed 0\.6\.3 Wave/);
   assert.equal(leases.schemaVersion, 1);
   assert.equal(Array.isArray(leases.leases), true);
