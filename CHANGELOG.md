@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1] - 2026-08-24
+
+### Tool Execution
+
+- Completed production ordered-tool integration with contiguous parallel-safe segments, sequential barriers, and source-order terminal results.
+- Pinned the matching Pi coding-agent and agent-core candidate assets through manifest and shrinkwrap evidence so clean lock reconstruction preserves the production scheduler.
+
 ## [0.7.0] - 2026-08-23
 
 ### Evidence and Runtime
