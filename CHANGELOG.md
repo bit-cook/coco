@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0] - 2026-08-23
+
+### Evidence and Runtime
+
+- Added generation-bound provider/MCP configuration, restart metadata, and correlated provider lifecycle hooks.
+- Added a private model-input ledger with session-event reconstruction and durability fences for Control, MCP, provider, and Bash effects.
+
+### Orchestration
+
+- Added an ordered bounded tool pool with trusted capability classification and exclusive barriers.
+- Added durable orchestration inbox, bounded continuation, parent/child lineage, child admission saga, parent-failure policy, diagnostics, and aggregate children/token/turn/time/cost budgets.
+
 ## [0.6.3] - 2026-08-19
 
 ### Reliability
