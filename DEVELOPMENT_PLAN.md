@@ -5,8 +5,8 @@ Last updated: 2026-08-18
 ## Current State
 
 - Released: `v0.6.3` at `016597c95efa511c861ed651b1ded9e56c9ed22c`
-- Development branch: `candidate/v0.7.1-release`
-- Next target: publish `v0.7.1`; all research-derived work items are implemented
+- Development branch: `chore/v0.7.1-release-closeout`
+- Next target: post-release maintenance only; all research-derived work items are implemented
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
 - Research pages: `/research.html` and `/research-zh-CN.html`
@@ -91,4 +91,6 @@ TOOL-001 historical initial evidence: focused pool/fence tests passed, complete 
 
 ORCH-001 is complete. TOOL-001 production integration is complete through pinned clean Pi candidate `coco-v0.82.1-coco.11`, which preserves ordered result commit across contiguous parallel-safe segments and sequential barriers. Candidate workflow `32685150665` verifies source behavior, archive bytes, manifest/shrinkwrap binding, package smoke, and empty-cache offline install. Final CoCo gates pass core `676/676`, integrity `39/39`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,368`.
 
-The `v0.7.1` release candidate carries that final TOOL-001 integration. Version/release focused contracts pass `68/68`; core `676/676`, integrity `39/39`, closure `172`, scanner clean, package `2/2`, runtime probe `21,368`, and Node `22.19.0` startup performance pass. npm remains intentionally unpublished.
+The published `v0.7.1` carries that final TOOL-001 integration. Release workflow `32731763396` passed all four permission-isolated stages and published nine assets; post-release main CI `32738293959` passed. Version/release focused contracts pass `68/68`; core `676/676`, integrity `39/39`, closure `172`, scanner clean, package `2/2`, runtime probe `21,368`, and Node `22.19.0` startup performance pass. npm remains intentionally unpublished.
+
+Post-release public verification downloaded all nine assets, validated every entry named by `SHA256SUMS`, installed through the public `install.sh` into an isolated home, observed `coco --version` as `0.7.1`, and removed the isolated install, agent state, and launcher through the public uninstaller. No npm package was published.

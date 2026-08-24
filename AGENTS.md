@@ -5,9 +5,9 @@ Read this file before changing the repository.
 ## Current Truth
 
 - Worktree: `/root/coco-tmp/coco-v053-migration`
-- Current branch: `candidate/v0.7.1-release`
-- Released version: `0.7.0`
-- Current target: publish `0.7.1` with completed TOOL-001 production integration
+- Current branch: `chore/v0.7.1-release-closeout`
+- Released version: `0.7.1`
+- Current target: post-release maintenance only; no new research item is active
 - Active plan: `DEVELOPMENT_PLAN.md`
 - Work items: `development/work-items/0.7.0/`
 - Execution journal: `.opencode/memory/DEVELOPMENT_JOURNAL.md`
