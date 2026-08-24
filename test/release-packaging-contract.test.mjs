@@ -236,10 +236,10 @@ test("Given the release workflow, then four permission-isolated stages pass one 
   assert.match(publish, /\.draft==true/);
   assert.match(publish, /\.attempt==\$attempt and \.draftId==\$draft/);
   assert.match(publish, /\(\.assets\|length\)==9/);
-  assert.match(publish, /\{draft:true,prerelease:false,make_latest:"false",tag_name:\$tag,target_commitish:\$commit,name:\$name,body:\$body\}/);
+  assert.match(publish, /\{draft:false,prerelease:false,make_latest:true,tag_name:\$tag,target_commitish:\$commit,name:\$name,body:\$body\}/);
   assert.match(publish, /--request PATCH --data "\$payload"/);
   assert.match(publish, /final-release\.json/);
-  assert.match(publish, /\.draft==true and \.prerelease==false and \(\.assets\|length\)==9/);
+  assert.match(publish, /\.draft==false and \.prerelease==false and \(\.assets\|length\)==9/);
   for (const writeJob of [upload, publish]) {
     assert.doesNotMatch(writeJob, /actions\/checkout|actions\/setup-node|npm (?:ci|run)|node scripts\/|bash .*staged|bash .*remote/);
   }
