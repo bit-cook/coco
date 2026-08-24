@@ -156,13 +156,13 @@ test("Given release workflows, when GitHub Actions and execution controls are co
 
   assert.match(ciWorkflow, /concurrency:\n  group: ci-\$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n  cancel-in-progress: true/);
   assert.match(ciWorkflow, /verify-pr:[\s\S]*?if: github\.event_name == 'pull_request'[\s\S]*?runs-on: ubuntu-24\.04[\s\S]*?printf 'TMPDIR=%s\\n' "\$RUNNER_TEMP" >> "\$GITHUB_ENV"[\s\S]*?printf 'COCO_SCANNER_TMPDIR=%s\\n' "\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
-  assert.match(ciWorkflow, /verify-main:[\s\S]*?if: github\.event_name != 'pull_request'[\s\S]*?runs-on: \[self-hosted, Linux, X64, coco-ci\][\s\S]*?TMPDIR: \/root\/coco-tmp[\s\S]*?COCO_SCANNER_TMPDIR: \/root\/coco-tmp/);
+  assert.match(ciWorkflow, /verify-main:[\s\S]*?if: github\.event_name != 'pull_request'[\s\S]*?runs-on: ubuntu-24\.04[\s\S]*?printf 'TMPDIR=%s\\n' "\$RUNNER_TEMP" >> "\$GITHUB_ENV"[\s\S]*?printf 'COCO_SCANNER_TMPDIR=%s\\n' "\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
   assert.match(ciWorkflow, /npm run typecheck:model-panel/);
-  assert.equal((ciWorkflow.match(/runs-on: \[self-hosted, Linux, X64, coco-ci\]/g) ?? []).length, 1);
-  assert.equal((ciWorkflow.match(/runs-on: ubuntu-24\.04/g) ?? []).length, 1);
+  assert.equal((ciWorkflow.match(/runs-on: \[self-hosted, Linux, X64, coco-ci\]/g) ?? []).length, 0);
+  assert.equal((ciWorkflow.match(/runs-on: ubuntu-24\.04/g) ?? []).length, 2);
   assert.doesNotMatch(ciWorkflow, /needs: verify/);
   assert.match(ciWorkflow, /verify-main:[\s\S]*?timeout-minutes: 45/);
-  assert.match(ciWorkflow, /verify-main:[\s\S]*?\$RUNNER_TOOL_CACHE\/node\/22\.19\.0\/x64\/bin[\s\S]*?test "\$\(node --version\)" = "v22\.19\.0"/);
+  assert.match(ciWorkflow, /verify-main:[\s\S]*?actions\/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38[\s\S]*?node-version: 22\.19\.0/);
   assert.match(ciWorkflow, /verify-main:[\s\S]*?npm run test:core/);
   assert.match(ciWorkflow, /verify-main-integrity:[\s\S]*?runs-on: \[self-hosted, Linux, X64, coco-upstream\][\s\S]*?npm ci --ignore-scripts --no-audit --no-fund[\s\S]*?npm run build[\s\S]*?npm run test:integrity/);
   assert.equal((ciWorkflow.match(/npm run test:integrity/g) ?? []).length, 1);
@@ -285,8 +285,8 @@ test("Given release workflows, when tarball closure runs through the shell, then
   }
 });
 
-test("Given the v0.7.0 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
-  const version = "0.7.0";
+test("Given the v0.7.1 release contract, when public release surfaces are inspected, then every version and package artifact is consistent", async () => {
+  const version = "0.7.1";
   const [packageJson, packageLock, installer, readme, englishReadme, chineseReadme, ciWorkflow, releaseWorkflow] = await Promise.all([
     readFile(join(root, "package.json"), "utf8"),
     readFile(join(root, "package-lock.json"), "utf8"),

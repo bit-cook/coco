@@ -5,8 +5,8 @@ Last updated: 2026-08-18
 ## Current State
 
 - Released: `v0.6.3` at `016597c95efa511c861ed651b1ded9e56c9ed22c`
-- Development branch: `candidate/v0.7.15`
-- Next target: complete `0.7.0`; all research-derived work items are implemented
+- Development branch: `candidate/v0.7.1-release`
+- Next target: publish `v0.7.1`; all research-derived work items are implemented
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
 - Research pages: `/research.html` and `/research-zh-CN.html`
@@ -90,3 +90,5 @@ CFG-001, EVID-001, EVID-002, TOOL-001, and ORCH-001 are complete. The initial TO
 TOOL-001 historical initial evidence: focused pool/fence tests passed, complete core `663/663`, package closure `172`, scanner clean, public package contract passed, and runtime probe `21,362`. This preceded production Pi integration.
 
 ORCH-001 is complete. TOOL-001 production integration is complete through pinned clean Pi candidate `coco-v0.82.1-coco.11`, which preserves ordered result commit across contiguous parallel-safe segments and sequential barriers. Candidate workflow `32685150665` verifies source behavior, archive bytes, manifest/shrinkwrap binding, package smoke, and empty-cache offline install. Final CoCo gates pass core `676/676`, integrity `39/39`, closure `172`, scanner clean, package `2/2`, and runtime probe `21,368`.
+
+The `v0.7.1` release candidate carries that final TOOL-001 integration. Version/release focused contracts pass `68/68`; core `676/676`, integrity `39/39`, closure `172`, scanner clean, package `2/2`, runtime probe `21,368`, and Node `22.19.0` startup performance pass. npm remains intentionally unpublished.

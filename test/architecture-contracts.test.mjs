@@ -8,7 +8,7 @@ import { upstreamDashboard } from "../scripts/pi-upstream-dashboard.mjs";
 const root = new URL("..", import.meta.url);
 
 test("M0 architecture contracts approve the committed product, patch, capability, and upstream baseline", async () => {
-  assert.deepEqual(await verifyArchitectureContracts(), { capabilities: 22, patches: 8, providers: 5, status: "approved", upstream: "0.82.1", version: "0.7.0" });
+  assert.deepEqual(await verifyArchitectureContracts(), { capabilities: 22, patches: 8, providers: 5, status: "approved", upstream: "0.82.1", version: "0.7.1" });
 });
 
 test("an artifact patch function cannot be added without an inventory domain and removal contract", async () => {
