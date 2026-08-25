@@ -443,7 +443,9 @@ verify_config() {
 link_binary() {
   mkdir -p "$COCO_BIN_DIR"
   if [ -L "$COCO_BIN_DIR/coco" ] || [ -f "$COCO_BIN_DIR/coco" ]; then mv "$COCO_BIN_DIR/coco" "$PREVIOUS_LINK"; HAD_LINK=1; elif [ -e "$COCO_BIN_DIR/coco" ]; then die "Refusing non-regular binary link path"; fi
-  if [ -x "$COCO_INSTALL_DIR/runtime/node/bin/node" ]; then
+  if [ "$COCO_BIN_DIR" = "$(dirname "$COCO_INSTALL_DIR/bin/coco")" ]; then
+    install -m 755 "$COCO_INSTALL_DIR/bin/coco" "$COCO_BIN_DIR/coco"
+  elif [ -x "$COCO_INSTALL_DIR/runtime/node/bin/node" ]; then
     cat > "$COCO_BIN_DIR/coco" <<EOF
 #!/usr/bin/env bash
 exec "$COCO_INSTALL_DIR/runtime/node/bin/node" "$COCO_INSTALL_DIR/bin/coco" "\$@"
