@@ -13,15 +13,16 @@ function fail(code) {
 }
 
 export function parseCowebArgs(args) {
-  const options = { update: false };
-  const flags = { "--port": "port", "--hostname": "hostname", "--password": "password" };
+  const options = { update: false, allowHosts: [] };
+  const flags = { "--port": "port", "--hostname": "hostname", "--password": "password", "--allow-host": "allowHost" };
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--update") options.update = true;
     else if (flags[value]) {
       const next = args[index + 1];
       if (next === undefined || next.startsWith("--")) return { error: "COWEB_FLAG_VALUE_MISSING", flag: value };
-      options[flags[value]] = next;
+      if (flags[value] === "allowHost") options.allowHosts.push(next);
+      else options[flags[value]] = next;
       index += 1;
     } else return { error: "COWEB_UNKNOWN_ARGUMENT", value };
   }
@@ -37,7 +38,8 @@ export function envFor(options, agentDir) {
   if (options.port) env.PORT = String(options.port);
   if (options.hostname) env.PI_WEB_HOSTNAME = options.hostname;
   if (options.password) env.PI_WEB_PASSWORD = options.password;
-  delete env.PI_WEB_ALLOWED_HOSTS;
+  if (options.allowHosts?.length) env.PI_WEB_ALLOWED_HOSTS = options.allowHosts.join(",");
+  else delete env.PI_WEB_ALLOWED_HOSTS;
   return env;
 }
 
