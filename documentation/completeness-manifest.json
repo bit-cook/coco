@@ -68,9 +68,9 @@
       "path": "README.md",
       "category": "current-product-translated",
       "source": {
-        "bytes": 6689,
-        "lines": 116,
-        "sha256": "69fc05fa1be20215d9f15db12f9a8abde4bded10a6defacaed0b973cc098899a"
+        "bytes": 7341,
+        "lines": 123,
+        "sha256": "c45cf0167f5787bf25330de8a31993956dc796acded72dc81eed1279fa3164d0"
       },
       "locales": {
         "en": {
@@ -79,9 +79,9 @@
           "sha256": "8f4366c7ef5c0ffad78240cccd72a2a51637799983dcc3647118c604e746892f"
         },
         "zh-CN": {
-          "bytes": 5428,
-          "lines": 108,
-          "sha256": "5c2df989a918601ec917996b5d28a8dc33087cc732370bc4a944399260d4cd35"
+          "bytes": 6009,
+          "lines": 115,
+          "sha256": "02feb3edb65e0451ae405c39c357884102ce2f5b0947293f700128e695b8aed9"
         }
       }
     },

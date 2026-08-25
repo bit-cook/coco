@@ -37,6 +37,13 @@ coco -p "hello"
 coco --list-models
 ```
 
+## 亮点
+
+- **全面提速** —— 差分运行时校验与帧安全本地化缓存把交互首屏压缩到约2.5秒，并消除渲染循环内的磁盘IO。
+- **中文全覆盖** —— 状态消息、llama.cpp 本地模型扩展与斜杠命令描述全部本地化；用 `/language` 一键切换。
+- **Control 控制台** —— 运行 `coco control start`，在浏览器打开本地优先的网页控制台（127.0.0.1:3210），创建后台任务并查看 runner。
+- **全新标识** —— 终端箭头两侧相拥的圆环；CLI 启动、网站与favicon视觉统一。
+
 ## 文档
 
 - 用户手册：[简体中文](docs/manual.md) | [English](../en/docs/manual.md)

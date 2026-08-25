@@ -39,6 +39,13 @@ coco -p "hello"
 coco --list-models
 ```
 
+## Highlights
+
+- **Faster everywhere** — differential runtime verification and a frame-safe localization cache cut interactive first paint to about 2.5 seconds and remove render-loop disk IO.
+- **Complete Chinese TUI** — status messages, the llama.cpp local-model extension, and slash-command descriptions are fully localized; switch with `/language`.
+- **Control dashboard** — run `coco control start` and open the local-first web console (127.0.0.1:3210) to create background tasks and watch runners from a browser.
+- **A new mark** — two open rings around a terminal chevron; the identity now matches across CLI startup, site, and favicon.
+
 ## Documentation
 
 - User manual: [English](documentation/en/docs/manual.md) | [简体中文](documentation/zh-CN/docs/manual.md)
