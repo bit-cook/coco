@@ -1,1 +1,105 @@
-{"domains":[{"functions":["applyCocoIdentityPatch"],"id":"identity-startup-runtime","migrationTarget":"source-owned product identity and startup composition","owner":"coco-core","removalCondition":"identity, startup policy, model visibility and scrollback use supported source APIs","risk":"critical","tests":["test/coco-identity-patch.test.mjs","test/coco-offline-startup.test.mjs","test/visible-model-catalog.test.mjs"]},{"functions":["patchRuntimeDefaultTheme","patchBuiltinThemeRegistry"],"id":"themes","migrationTarget":"package-owned theme registry and settings default","owner":"coco-tui","removalCondition":"themes load without rewriting either runtime copy","risk":"high","tests":["test/coco-identity-patch.test.mjs","test/coco-solarized-themes.test.mjs","test/coco-installer.test.mjs"]},{"functions":["patchSecretExtensionInput"],"id":"secret-input","migrationTarget":"typed native secret input component","owner":"coco-security","removalCondition":"upstream input API masks and restores secrets without runtime patching","risk":"high","tests":["test/coco-identity-patch.test.mjs","test/custom-provider-setup.test.mjs"]},{"functions":["patchUiLanguage","patchSettingsValueDisplay","patchAutocompleteSourceLabels"],"id":"localization","migrationTarget":"stable-key typed localization service","owner":"coco-tui","removalCondition":"all user-visible strings resolve through source-level message keys","risk":"critical","tests":["test/coco-identity-patch.test.mjs","test/coco-language.test.mjs"]},{"functions":["patchTuiVisualSystem","patchInputPrompt"],"id":"visual-system","migrationTarget":"source-owned TUI primitives and semantic theme tokens","owner":"coco-tui","removalCondition":"border, footer, selection and prompt styles use supported component APIs","risk":"high","tests":["test/coco-identity-patch.test.mjs","test/coco-solarized-themes.test.mjs"]}],"implementationFunctions":["applyCocoIdentityPatch","patchAutocompleteSourceLabels","patchBuiltinThemeRegistry","patchInputPrompt","patchRuntimeDefaultTheme","patchSecretExtensionInput","patchSettingsValueDisplay","patchTuiVisualSystem","patchUiLanguage"],"policy":{"allowNewUnregisteredFunctions":false,"newStrategicFeaturesInMonolithicPatch":false,"requiredFields":["owner","tests","migrationTarget","removalCondition"]},"schemaVersion":1,"upstreamVersion":"0.82.1"}
+{
+  "domains": [
+    {
+      "functions": [
+        "applyCocoIdentityPatch"
+      ],
+      "id": "identity-startup-runtime",
+      "migrationTarget": "source-owned product identity and startup composition",
+      "owner": "coco-core",
+      "removalCondition": "identity, startup policy, model visibility and scrollback use supported source APIs",
+      "risk": "critical",
+      "tests": [
+        "test/coco-identity-patch.test.mjs",
+        "test/coco-offline-startup.test.mjs",
+        "test/visible-model-catalog.test.mjs"
+      ]
+    },
+    {
+      "functions": [
+        "patchRuntimeDefaultTheme",
+        "patchBuiltinThemeRegistry"
+      ],
+      "id": "themes",
+      "migrationTarget": "package-owned theme registry and settings default",
+      "owner": "coco-tui",
+      "removalCondition": "themes load without rewriting either runtime copy",
+      "risk": "high",
+      "tests": [
+        "test/coco-identity-patch.test.mjs",
+        "test/coco-solarized-themes.test.mjs",
+        "test/coco-installer.test.mjs"
+      ]
+    },
+    {
+      "functions": [
+        "patchSecretExtensionInput"
+      ],
+      "id": "secret-input",
+      "migrationTarget": "typed native secret input component",
+      "owner": "coco-security",
+      "removalCondition": "upstream input API masks and restores secrets without runtime patching",
+      "risk": "high",
+      "tests": [
+        "test/coco-identity-patch.test.mjs",
+        "test/custom-provider-setup.test.mjs"
+      ]
+    },
+    {
+      "functions": [
+        "patchUiLanguage",
+        "patchSettingsValueDisplay",
+        "patchAutocompleteSourceLabels",
+        "patchLlamaExtensionUi"
+      ],
+      "id": "localization",
+      "migrationTarget": "stable-key typed localization service",
+      "owner": "coco-tui",
+      "removalCondition": "all user-visible strings resolve through source-level message keys",
+      "risk": "critical",
+      "tests": [
+        "test/coco-identity-patch.test.mjs",
+        "test/coco-language.test.mjs"
+      ]
+    },
+    {
+      "functions": [
+        "patchTuiVisualSystem",
+        "patchInputPrompt"
+      ],
+      "id": "visual-system",
+      "migrationTarget": "source-owned TUI primitives and semantic theme tokens",
+      "owner": "coco-tui",
+      "removalCondition": "border, footer, selection and prompt styles use supported component APIs",
+      "risk": "high",
+      "tests": [
+        "test/coco-identity-patch.test.mjs",
+        "test/coco-solarized-themes.test.mjs"
+      ]
+    }
+  ],
+  "implementationFunctions": [
+    "applyCocoIdentityPatch",
+    "patchAutocompleteSourceLabels",
+    "patchBuiltinThemeRegistry",
+    "patchInputPrompt",
+    "patchLlamaExtensionUi",
+    "patchRuntimeDefaultTheme",
+    "patchSecretExtensionInput",
+    "patchSettingsValueDisplay",
+    "patchTuiVisualSystem",
+    "patchUiLanguage"
+  ],
+  "policy": {
+    "allowNewUnregisteredFunctions": false,
+    "newStrategicFeaturesInMonolithicPatch": false,
+    "requiredFields": [
+      "owner",
+      "tests",
+      "migrationTarget",
+      "removalCondition"
+    ]
+  },
+  "schemaVersion": 1,
+  "upstreamVersion": "0.82.1"
+}

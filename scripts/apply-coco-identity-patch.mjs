@@ -66,10 +66,10 @@ const responsiveStartupWordmark = `class ResponsiveStartupWordmark {
         }
         const padding = width >= 3 ? " " : "";
         const contentWidth = width - visibleWidth(padding) * 2;
-        const art = [" CCCC  ooo  CCCC  ooo", "C     o   o C     o   o", "C     o   o C     o   o", " CCCC  ooo  CCCC  ooo"];
+        const art = [" ██████╗ ██████╗  ██████╗ ██████╗ ", "██╔════╝██╔═══██╗██╔════╝██╔═══██╗", "██║     ██║   ██║██║     ██║   ██║", "██║     ██║   ██║██║     ██║   ██║", "╚██████╗╚██████╔╝╚██████╗╚██████╔╝", " ╚═════╝ ╚═════╝  ╚═════╝ ╚═════╝ "];
         const compact = "CoCo";
         const artWidth = Math.max(...art.map((line) => visibleWidth(line)));
-        const mark = contentWidth >= 64 && contentWidth >= artWidth ? art : [compact];
+        const mark = contentWidth >= 38 && contentWidth >= artWidth ? art : [compact];
         const lines = mark.map((line) => padding + truncateToWidth(theme.bold(theme.fg("accent", line)), contentWidth, "") + padding);
         const version = this.version ? theme.fg("dim", "  v" + this.version) : "";
         if (version && visibleWidth(mark[mark.length - 1]) + visibleWidth(version) <= contentWidth) {
@@ -86,6 +86,9 @@ const responsiveStartupWordmark = `class ResponsiveStartupWordmark {
 }`;
 const patchedExpandableText = `${expandableTextAnchor}
 ${responsiveStartupWordmark}`;
+const previousResponsiveStartupWordmark = responsiveStartupWordmark
+  .replace('[" ██████╗ ██████╗  ██████╗ ██████╗ ", "██╔════╝██╔═══██╗██╔════╝██╔═══██╗", "██║     ██║   ██║██║     ██║   ██║", "██║     ██║   ██║██║     ██║   ██║", "╚██████╗╚██████╔╝╚██████╗╚██████╔╝", " ╚═════╝ ╚═════╝  ╚═════╝ ╚═════╝ "]', '[" ██████    █████    ██████    █████", "██        ██   ██  ██        ██   ██", "██        ██   ██  ██        ██   ██", "██        ██   ██  ██        ██   ██", " ██████    █████    ██████    █████"]')
+  .replace('contentWidth >= 38', 'contentWidth >= 38');
 const headerAnchor = `this.builtInHeader = new ExpandableText(() => \`\${logo}\\n\${compactInstructions}\`, () => \`\${logo}\\n\${expandedInstructions}\`, this.getStartupExpansionState(), 1, 0);`;
 const compactOnboardingAnchor = `            const compactOnboarding = theme.fg("dim", \`Press \${keyText("app.tools.expand")} to show full startup help and loaded resources.\`);`;
 const onboardingAnchor = `            const onboarding = theme.fg("dim", \`Pi can explain its own features and look up its docs. Ask it how to use or extend CoCo.\`);`;
@@ -612,6 +615,35 @@ function replaceOwnedResponsiveStartupWordmark(source) {
   if (declarations === 1 && suffix.startsWith(currentBlock)) {
     return source;
   }
+  const swapWordmarkClass = () => {
+    const classStart = source.indexOf("class ResponsiveStartupWordmark {");
+    let depth = 0;
+    let classEnd = -1;
+    for (let index = source.indexOf("{", classStart); index < source.length; index += 1) {
+      if (source[index] === "{") depth += 1;
+      else if (source[index] === "}" && --depth === 0) {
+        classEnd = index + 1;
+        break;
+      }
+    }
+    if (classEnd < 0) throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
+    return `${source.slice(0, classStart)}${responsiveStartupWordmark}${source.slice(classEnd)}`;
+  };
+  const legacyArtMarkers = [
+    'const art = [" CCCC  ooo  CCCC  ooo"',
+    'const art = ["  CCCC    oooo    CCCC    oooo"',
+    'const art = ["  ####    ####    ####    ####"',
+    "▓▓▓▓▓▓",
+    'const art = [" ██████    █████    ██████    █████"',
+    'const capC = [',
+  ];
+  if (declarations === 1 && legacyArtMarkers.some((marker) => source.includes(marker))) {
+    return swapWordmarkClass();
+  }
+  const previousBlock = `\n${previousResponsiveStartupWordmark}`;
+  if (declarations === 1 && suffix.startsWith(previousBlock)) {
+    return source.slice(0, anchorEnd) + currentBlock + suffix.slice(previousBlock.length);
+  }
   if (declarations === 1) {
     throw patchError("COCO_PATCH_UNKNOWN_ANCHOR");
   }
@@ -730,6 +762,26 @@ async function patchSecretExtensionInput(projectRoot) {
   await writeFile(path, source, "utf8");
 }
 
+function reduceDoubleUiText(source) {
+  for (;;) {
+    const start = source.indexOf("uiText(uiText(");
+    if (start < 0) return source;
+    const innerHead = start + "uiText(".length;
+    let depth = 0;
+    let close = -1;
+    for (let index = innerHead + "uiText(".length - 1; index < source.length; index += 1) {
+      const character = source[index];
+      if (character === "(") depth += 1;
+      else if (character === ")") {
+        depth -= 1;
+        if (depth === 0) { close = index; break; }
+      }
+    }
+    if (close < 0) return source;
+    source = source.slice(0, innerHead) + source.slice(innerHead + "uiText(".length, close) + source.slice(close + 1);
+  }
+}
+
 async function patchUiLanguage(projectRoot) {
   const root = join(agentPath(projectRoot), "dist", "modes", "interactive");
   for (const [relative, importLine] of uiLanguageImports) {
@@ -737,10 +789,11 @@ async function patchUiLanguage(projectRoot) {
     let source;
     try { source = await readFile(path, "utf8"); }
     catch (error) { if (error?.code === "ENOENT" && relative !== "interactive-mode.js") continue; throw error; }
-    if (source.includes(importLine)) { if (relative === "components/model-selector.js") { const migrated = migrateModelPanelKeys(source); if (migrated !== source) await writeFile(path, migrated, "utf8"); } continue; }
-    const previousModelImport = `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`;
-    if (relative === "components/model-selector.js" && source.includes(previousModelImport)) { await writeFile(path, migrateModelPanelKeys(source.replace(previousModelImport, importLine)), "utf8"); continue; }
-    source = `${importLine}\n${source}`;
+    if (!source.includes(importLine)) {
+      const previousModelImport = `import { uiText } from "../../../../../../../resources/coco-ui-language.mjs";`;
+      if (relative === "components/model-selector.js" && source.includes(previousModelImport)) source = source.replace(previousModelImport, importLine);
+      else source = `${importLine}\n${source}`;
+    }
     source = source
       .replaceAll('"Sign in with an account"', 'uiText("Login with subscription")')
       .replaceAll('"Sign in with an API key"', 'uiText("Use API key")')
@@ -769,10 +822,14 @@ async function patchUiLanguage(projectRoot) {
         .replace('` ${description}`', '` ${uiText(description)}`');
     }
     if (relative === "components/settings-selector.js") {
+      if (!source.includes("function localizeItems(items)")) {
+        source = source.replace('const SETTINGS_SUBMENU_SELECT_LIST_LAYOUT = {', 'function localizeItems(items) { return items.map((item) => ({ ...item, label: uiText(item.label), description: item.description ? uiText(item.description) : item.description })); }\nconst SETTINGS_SUBMENU_SELECT_LIST_LAYOUT = {');
+      }
+      if (!source.includes('uiText("Settings")}`)), 0, 0));')) {
+        source = source.replace('// Add borders\n        this.addChild(new DynamicBorder());', '// Add borders\n        this.addChild(new DynamicBorder());\n        this.addChild(new Text(theme.bold(theme.fg("accent", `  ${uiText("Settings")}`)), 0, 0));');
+      }
       source = source
-        .replace('const SETTINGS_SUBMENU_SELECT_LIST_LAYOUT = {', 'function localizeItems(items) { return items.map((item) => ({ ...item, label: uiText(item.label), description: item.description ? uiText(item.description) : item.description })); }\nconst SETTINGS_SUBMENU_SELECT_LIST_LAYOUT = {')
         .replaceAll('new SettingsList(items,', 'new SettingsList(localizeItems(items),')
-        .replace('// Add borders\n        this.addChild(new DynamicBorder());', '// Add borders\n        this.addChild(new DynamicBorder());\n        this.addChild(new Text(theme.bold(theme.fg("accent", `  ${uiText("Settings")}`)), 0, 0));')
         .replace('this.selectList = new SelectList(options,', 'this.selectList = new SelectList(localizeItems(options),')
         .replace('theme.bold(theme.fg("accent", title))', 'theme.bold(theme.fg("accent", uiText(title)))')
         .replace('theme.fg("muted", description)', 'theme.fg("muted", uiText(description))')
@@ -830,16 +887,21 @@ async function patchUiLanguage(projectRoot) {
         .replace('keyHint("tui.select.cancel", "skip setup")', 'keyHint("tui.select.cancel", uiText("skip setup"))');
     }
     if (relative === "components/assistant-message.js") {
+      if (!source.includes('◇ ${uiText("CoCo")}')) {
+        source = source.replace('this.contentContainer.addChild(new Spacer(1));\n        }\n        // Render content in order', 'this.contentContainer.addChild(new Spacer(1));\n            this.contentContainer.addChild(new Text(theme.bold(theme.fg("accent", `◇ ${uiText("CoCo")}`)), this.outputPad, 0));\n        }\n        // Render content in order');
+      }
       source = source
         .replace('hiddenThinkingLabel = "Thinking..."', 'hiddenThinkingLabel = uiText("Thinking...")')
-        .replace('this.contentContainer.addChild(new Spacer(1));\n        }\n        // Render content in order', 'this.contentContainer.addChild(new Spacer(1));\n            this.contentContainer.addChild(new Text(theme.bold(theme.fg("accent", `◇ ${uiText("CoCo")}`)), this.outputPad, 0));\n        }\n        // Render content in order')
         .replace('"Operation aborted"', 'uiText("Operation aborted")')
         .replace('"Unknown error"', 'uiText("Unknown error")');
     }
     if (relative === "components/user-message.js") {
-      source = source
-        .replace('import { Box, Container, Markdown }', 'import { Box, Container, Markdown, Text }')
-        .replace('const contentBox = new Box(this.outputPad, 1, (content) => theme.bg("userMessageBg", content));', 'const contentBox = new Box(this.outputPad, 1, (content) => theme.bg("userMessageBg", content));\n        contentBox.addChild(new Text(theme.bold(theme.fg("accent", `◆ ${uiText("You")}`)), 0, 0));');
+      if (!source.includes('◆ ${uiText("You")}')) {
+        source = source.replace('import { Box, Container, Markdown }', 'import { Box, Container, Markdown, Text }').replace('const contentBox = new Box(this.outputPad, 1, (content) => theme.bg("userMessageBg", content));', 'const contentBox = new Box(this.outputPad, 1, (content) => theme.bg("userMessageBg", content));\n        contentBox.addChild(new Text(theme.bold(theme.fg("accent", `◆ ${uiText("You")}`)), 0, 0));');
+      }
+      if (!source.includes('import { Box, Container, Markdown, Text }')) {
+        source = source.replace('import { Box, Container, Markdown }', 'import { Box, Container, Markdown, Text }');
+      }
     }
     if (relative === "components/show-images-selector.js") {
       source = source
@@ -851,7 +913,9 @@ async function patchUiLanguage(projectRoot) {
     }
     if (relative === "interactive-mode.js") {
       source = source
-        .replace('description: command.description,', 'description: uiText(command.description),')
+        .replaceAll('description: command.description,', 'description: uiText(command.description),')
+        .replaceAll('description: this.prefixAutocompleteDescription(cmd.description, cmd.sourceInfo)', 'description: this.prefixAutocompleteDescription(uiText(cmd.description), cmd.sourceInfo)')
+        .replaceAll('description: this.prefixAutocompleteDescription(skill.description, skill.sourceInfo)', 'description: this.prefixAutocompleteDescription(uiText(skill.description), skill.sourceInfo)')
         .replace('new Text(theme.bold(theme.fg("accent", "What\'s New"))', 'new Text(theme.bold(theme.fg("accent", uiText("What\'s New")))')
         .replace('const text = new Text(theme.fg("dim", message), 1, 0);', 'const text = new Text(theme.fg("dim", uiText(message)), 1, 0);')
         .replace('`Error: ${errorMessage}`', '`${uiText("Error:")} ${uiText(errorMessage)}`')
@@ -862,6 +926,29 @@ async function patchUiLanguage(projectRoot) {
         .replaceAll('theme.fg("accent", "Keyboard Shortcuts")', 'theme.fg("accent", uiText("Keyboard Shortcuts"))')
         .replaceAll('this.showStatus("Forked to new session")', 'this.showStatus(uiText("Forked to new session"))')
         .replaceAll('this.showStatus("Navigated to selected point")', 'this.showStatus(uiText("Navigated to selected point"))')
+        .replaceAll('this.showStatus("Auto-compaction cancelled")', 'this.showStatus(uiText("Auto-compaction cancelled"))')
+        .replaceAll('this.showStatus("Already at this point")', 'this.showStatus(uiText("Already at this point"))')
+        .replaceAll('this.showStatus("Branch summarization cancelled")', 'this.showStatus(uiText("Branch summarization cancelled"))')
+        .replaceAll('this.showStatus("Cloned to new session")', 'this.showStatus(uiText("Cloned to new session"))')
+        .replaceAll('this.showStatus("Resume cancelled")', 'this.showStatus(uiText("Resume cancelled"))')
+        .replaceAll('this.showStatus("Resumed session in current cwd")', 'this.showStatus(uiText("Resumed session in current cwd"))')
+        .replaceAll('this.showStatus("No login methods available.")', 'this.showStatus(uiText("No login methods available."))')
+        .replaceAll('this.showStatus("Import cancelled")', 'this.showStatus(uiText("Import cancelled"))')
+        .replaceAll('this.showStatus("Share cancelled")', 'this.showStatus(uiText("Share cancelled"))')
+        .replaceAll('this.showStatus("Copied last agent message to clipboard")', 'this.showStatus(uiText("Copied last agent message to clipboard"))')
+        .replaceAll('this.showStatus("Suspend to background is not supported on Windows")', 'this.showStatus(uiText("Suspend to background is not supported on Windows"))')
+        .replaceAll('this.showStatus(`Session compacted ${times}`)', 'this.showStatus(uiText(`Session compacted ${times}`))')
+        .replaceAll('this.showStatus(`Restored ${restored} queued message${restored > 1 ? "s" : ""} to editor`)', 'this.showStatus(uiText(`Restored ${restored} queued message${restored > 1 ? "s" : ""} to editor`))')
+        .replaceAll('this.showStatus(`Thinking level: ${newLevel}`)', 'this.showStatus(uiText(`Thinking level: ${newLevel}`))')
+        .replaceAll('this.showStatus(`Switched to ${result.model.name || result.model.id}${thinkingStr}`)', 'this.showStatus(uiText(`Switched to ${result.model.name || result.model.id}${thinkingStr}`))')
+        .replaceAll('this.showStatus(`Thinking blocks: ${this.hideThinkingBlock ? "hidden" : "visible"}`)', 'this.showStatus(uiText(`Thinking blocks: ${this.hideThinkingBlock ? "hidden" : "visible"}`))')
+        .replaceAll('this.showStatus(`HTTP idle timeout: ${formatHttpIdleTimeoutMs(timeoutMs)}`)', 'this.showStatus(uiText(`HTTP idle timeout: ${formatHttpIdleTimeoutMs(timeoutMs)}`))')
+        .replaceAll('this.showStatus(`Model: ${model.id}`)', 'this.showStatus(uiText(`Model: ${model.id}`))')
+        .replaceAll('this.showStatus(`Saved trust decision: ${selection.trusted ? "trusted" : "untrusted"}. Restart pi for this to take effect.`)', 'this.showStatus(uiText(`Saved trust decision: ${selection.trusted ? "trusted" : "untrusted"}. Restart pi for this to take effect.`))')
+        .replaceAll('this.showStatus(`Session exported to: ${filePath}`)', 'this.showStatus(uiText(`Session exported to: ${filePath}`))')
+        .replaceAll('this.showStatus(`Session imported from: ${inputPath}`)', 'this.showStatus(uiText(`Session imported from: ${inputPath}`))')
+        .replaceAll('this.showStatus(`Share URL: ${previewUrl}\\nGist: ${gistUrl}`)', 'this.showStatus(uiText(`Share URL: ${previewUrl}\\nGist: ${gistUrl}`))')
+        .replace('const condensedText = `Updated to v${latestVersion}. Use ${theme.bold("/changelog")} to view full changelog.`;', 'const condensedText = uiText("Updated to v{version}. Use {command} to view full changelog.", { version: latestVersion, command: theme.bold("/changelog") });')
         .replaceAll('this.showWarning("A bash command is already running. Press Esc to cancel it first.")', 'this.showWarning(uiText("A bash command is already running. Press Esc to cancel it first."))');
     }
     if (relative === "components/footer.js") {
@@ -903,8 +990,10 @@ async function patchUiLanguage(projectRoot) {
         .replaceAll('uiText(uiText("cancel"))', 'uiText("cancel")');
     }
     if (relative === "components/model-selector.js") {
+      if (!source.includes('translate("modelPanel.title")}`))')) {
+        source = source.replace('// Add hint about model filtering', 'this.addChild(new Text(theme.bold(theme.fg("accent", `  ${translate("modelPanel.title")}`)), 0, 0));\n        // Add hint about model filtering');
+      }
       source = migrateModelPanelKeys(source)
-        .replace('// Add hint about model filtering', 'this.addChild(new Text(theme.bold(theme.fg("accent", `  ${translate("modelPanel.title")}`)), 0, 0));\n        // Add hint about model filtering')
         .replace('new Text(theme.fg("warning", hintText), 0, 0)', 'new Text(theme.fg("muted", hintText), 2, 0)')
         .replaceAll('theme.fg("accent", "all")', 'theme.fg("accent", uiText("all"))')
         .replaceAll('theme.fg("muted", "all")', 'theme.fg("muted", uiText("all"))')
@@ -923,6 +1012,8 @@ async function patchUiLanguage(projectRoot) {
     if (relative === "components/config-selector.js") {
       for (const label of ["Extensions", "Skills", "Prompts", "Themes", "User", "Project", "User settings", "Project settings", "Project Local Resources", "Global Resources", "No resources found", "switch mode", "toggle", "close"]) source = source.replaceAll(`"${label}"`, `uiText("${label}")`);
     }
+    if (relative === "components/model-selector.js") source = migrateModelPanelKeys(source);
+    source = reduceDoubleUiText(source);
     await writeFile(path, source, "utf8");
   }
 }
@@ -931,7 +1022,7 @@ async function patchAutocompleteSourceLabels(projectRoot) {
   const path = join(agentPath(projectRoot), "dist", "modes", "interactive", "interactive-mode.js");
   const importLine = `import { uiText } from "../../../../../../resources/coco-ui-language.mjs";`;
   let source = await readFile(path, "utf8");
-  if (source.includes('return sourceInfo.scope === "user" ? uiText("User")')) return;
+  if (source.includes('return sourceInfo.scope === "user" ? uiText("User") : sourceInfo.scope === "project" ? uiText("Project") : undefined')) return;
   const oldMethod = `    getAutocompleteSourceTag(sourceInfo) {
         if (!sourceInfo) {
             return undefined;
@@ -967,7 +1058,7 @@ async function patchAutocompleteSourceLabels(projectRoot) {
             const ref = gitSource.ref ? \`@\${gitSource.ref}\` : "";
             return \`Git:\${gitSource.host}/\${gitSource.path}\${ref}\`;
         }
-        return sourceInfo.scope === "user" ? uiText("User") : sourceInfo.scope === "project" ? uiText("Project") : uiText("CoCo");
+         return sourceInfo.scope === "user" ? uiText("User") : sourceInfo.scope === "project" ? uiText("Project") : undefined;
     }
     prefixAutocompleteDescription(description, sourceInfo) {
         const sourceTag = this.getAutocompleteSourceTag(sourceInfo);
@@ -1138,6 +1229,72 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root, support
   await patchSettingsValueDisplay(projectRoot);
   await patchTuiVisualSystem(projectRoot);
   await patchInputPrompt(projectRoot);
+  await patchLlamaExtensionUi(projectRoot);
+}
+
+const llamaImportLine = `import { uiText } from "../../../../../../resources/coco-ui-language.mjs";`;
+
+async function patchLlamaExtensionUi(projectRoot) {
+  const root = join(agentPath(projectRoot), "dist", "extensions", "llama");
+  for (const filename of ["ui.js", "index.js", "provider.js"]) {
+    const path = join(root, filename);
+    let source;
+    try { source = await readFile(path, "utf8"); }
+    catch (error) { if (error?.code === "ENOENT") continue; throw error; }
+    if (!source.includes(llamaImportLine)) source = `${llamaImportLine}\n${source}`;
+    source = source
+      .replaceAll('"Model name or owner/repository[:quant]"', 'uiText("Model name or owner/repository[:quant]")')
+      .replaceAll('"Hugging Face owner/repository[:quant]"', 'uiText("Hugging Face owner/repository[:quant]")')
+      .replaceAll('this.status = "Type at least 2 characters"', 'this.status = uiText("Type at least 2 characters")')
+      .replaceAll('"Searching Hugging Face…"', 'uiText("Searching Hugging Face…")')
+      .replaceAll('"No GGUF models found"', 'uiText("No GGUF models found")')
+      .replaceAll('`${compactCount(model.downloads)} downloads`', '`${compactCount(model.downloads)} ${uiText("downloads")}`')
+      .replaceAll('"Download model…"', 'uiText("Download model…")')
+      .replaceAll('"llama.cpp models"', 'uiText("llama.cpp models")')
+      .replaceAll('"Loading…"', 'uiText("Loading…")')
+      .replaceAll('details.push("loaded")', 'details.push(uiText("loaded"))')
+      .replaceAll('details.push(model.status.value)', 'details.push(uiText(model.status.value))')
+      .replace('`${context} context`', '`${context} ${uiText("context")}`')
+      .replaceAll('keyHint("tui.select.confirm", "select")', 'keyHint("tui.select.confirm", uiText("select"))')
+      .replaceAll('keyHint("tui.select.cancel", "cancel")', 'keyHint("tui.select.cancel", uiText("cancel"))')
+      .replaceAll('keyHint("tui.select.cancel", "close")', 'keyHint("tui.select.cancel", uiText("close"))')
+      .replaceAll('keyHint("tui.select.confirm", "load/unload/download")', 'keyHint("tui.select.confirm", uiText("load/unload/download"))')
+      .replaceAll('keyHint("tui.select.cancel", "back")', 'keyHint("tui.select.cancel", uiText("back"))')
+      .replaceAll('keyHint("tui.select.cancel", "stop")', 'keyHint("tui.select.cancel", uiText("stop"))')
+      .replaceAll('message: "API key (optional)"', 'message: uiText("API key (optional)")')
+      .replaceAll('message: "llama.cpp server URL"', 'message: uiText("llama.cpp server URL")')
+      .replaceAll('"Could not connect to the server."', 'uiText("Could not connect to the server.")')
+      .replaceAll('ctx.ui.notify(`Configure llama.cpp with /login ${LLAMA_PROVIDER_ID}`, "warning")', 'ctx.ui.notify(uiText(`Configure llama.cpp with /login ${LLAMA_PROVIDER_ID}`), "warning")')
+      .replaceAll('ui.select(`${loaded.length} model${loaded.length === 1 ? " is" : "s are"} loaded`, [', 'ui.select(uiText(`${loaded.length} model${loaded.length === 1 ? " is" : "s are"} loaded`), [')
+      .replaceAll('"Unload all and load"', 'uiText("Unload all and load")')
+      .replaceAll('"Keep loaded and load"', 'uiText("Keep loaded and load")')
+      .replaceAll('"Cancel"', 'uiText("Cancel")')
+      .replaceAll('choice === "Cancel"', 'choice === uiText("Cancel")')
+      .replaceAll('choice === "Unload all and load"', 'choice === uiText("Unload all and load")')
+      .replaceAll('ctx.ui.notify("Restoring previously loaded models")', 'ctx.ui.notify(uiText("Restoring previously loaded models"))')
+      .replaceAll('title: "Loading model"', 'title: uiText("Loading model")')
+      .replaceAll('initialMessage: "Starting…"', 'initialMessage: uiText("Starting…")')
+      .replaceAll('cancelTitle: "Stop loading?"', 'cancelTitle: uiText("Stop loading?")')
+      .replaceAll('loadedModel?.status.value === "loaded" ? `Loaded ${target.id}` : `Load started for ${target.id}`', 'loadedModel?.status.value === "loaded" ? uiText(`Loaded ${target.id}`) : uiText(`Load started for ${target.id}`)')
+      .replaceAll('ui.confirm("Unload model?", model.id)', 'ui.confirm(uiText("Unload model?"), model.id)')
+      .replaceAll('ctx.ui.notify(`Unloaded ${model.id}`)', 'ctx.ui.notify(uiText(`Unloaded ${model.id}`))')
+      .replaceAll('ui.showStatus("Loading model details", parsed.repository)', 'ui.showStatus(uiText("Loading model details"), parsed.repository)')
+      .replaceAll('? "Manual approval is required" : "Accept the access terms"', '? uiText("Manual approval is required") : uiText("Accept the access terms")')
+      .replaceAll('ui.select(`Hugging Face access required\\n${details.id}\\n\\n${approval} at:\\nhttps://huggingface.co/${details.id}\\n\\nThe llama.cpp server needs HF_TOKEN with access.`, ["Continue", "Back"])', 'ui.select(uiText(`Hugging Face access required\\n${details.id}\\n\\n${approval} at:\\nhttps://huggingface.co/${details.id}\\n\\nThe llama.cpp server needs HF_TOKEN with access.`), [uiText("Continue"), uiText("Back")])')
+      .replaceAll('choice !== "Continue"', 'choice !== uiText("Continue")')
+      .replaceAll('? "recommended" : undefined', '? uiText("recommended") : undefined')
+      .replaceAll('ui.select(`Select quantization\\n${details.id}`, options)', 'ui.select(uiText(`Select quantization\\n${details.id}`), options)')
+      .replaceAll('title: "Downloading model"', 'title: uiText("Downloading model")')
+      .replaceAll('cancelTitle: "Stop download?"', 'cancelTitle: uiText("Stop download?")')
+      .replaceAll('ctx.ui.notify(`Downloaded ${model}`)', 'ctx.ui.notify(uiText(`Downloaded ${model}`))');
+    if (filename === "provider.js") {
+      source = source
+        .replaceAll('message: "API key (optional)"', 'message: uiText("API key (optional)")')
+        .replaceAll('message: "llama.cpp server URL"', 'message: uiText("llama.cpp server URL")');
+    }
+    source = reduceDoubleUiText(source);
+    await writeFile(path, source, "utf8");
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

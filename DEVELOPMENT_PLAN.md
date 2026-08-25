@@ -4,9 +4,9 @@ Last updated: 2026-08-18
 
 ## Current State
 
-- Released: `v0.6.3` at `016597c95efa511c861ed651b1ded9e56c9ed22c`
-- Development branch: `chore/v0.7.1-release-closeout`
-- Next target: post-release maintenance only; all research-derived work items are implemented
+- Released: `v0.7.1` at `455bbaa42ae40e8abce6a1b2ff2f452e80e85245`
+- Development branch: `release/v0.7.2`
+- Next target: publish `v0.7.2`; performance, i18n completion, and the redesigned mark
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
 - Research pages: `/research.html` and `/research-zh-CN.html`

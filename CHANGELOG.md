@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.2] - 2026-08-24
+
+### Performance
+
+- Differential cold integrity verification re-hashes only files whose stat drifted, cutting post-update verification from 6.8s to about 4s.
+- Warm verification drops to a two-lstat metadata pair with allocation-free comparison; verified reads use five NOFOLLOW syscalls per file; runtime scans and cache collection run concurrently. Warm verification 2.8s to 1.3s; interactive first paint about 2.5s.
+- Frame-safe localization cache removes per-string blocking disk IO from the render loop (2.9x in a simulated frame load).
+
+### Internationalization
+
+- Completed Chinese coverage for interactive status messages, the llama.cpp extension UI, and slash-command autocomplete descriptions, with runtime syntax contracts guarding every localized file.
+
+### Interface
+
+- Redesigned the CoCo mark: two open rings with round caps around a terminal chevron, with gradients and a flat favicon variant.
+- Removed redundant CoCo prefixes from VS Code command titles.
+
 ## [0.7.1] - 2026-08-24
 
 ### Tool Execution

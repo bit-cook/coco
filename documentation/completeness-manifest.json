@@ -1,6 +1,6 @@
 {
   "schema": "coco-documentation-completeness-v2",
-  "product_version": "0.7.1",
+  "product_version": "0.7.2",
   "status": "complete",
   "complete": true,
   "generation": {
@@ -26,9 +26,9 @@
       "path": "CHANGELOG.md",
       "category": "historical-inherited",
       "source": {
-        "bytes": 496929,
-        "lines": 5413,
-        "sha256": "8c78c20d42390178c904f296d61ec5459530082b629cd60ecc1ec97f79041aa1"
+        "bytes": 497927,
+        "lines": 5430,
+        "sha256": "31bfa3f0a202b2c234300f03500ae387395fe513dc44368382d0195aa4450694"
       },
       "locales": {
         "en": {
@@ -70,18 +70,18 @@
       "source": {
         "bytes": 6689,
         "lines": 116,
-        "sha256": "cdb9477760a1bf151745af242c8dac297682cc02c971b702486aa2412c7dd2d5"
+        "sha256": "69fc05fa1be20215d9f15db12f9a8abde4bded10a6defacaed0b973cc098899a"
       },
       "locales": {
         "en": {
           "bytes": 4881,
           "lines": 99,
-          "sha256": "a0dd90d913e3670d872cf14c454735d5ab6145a760ea64b0a8a6bedf4362d4e6"
+          "sha256": "8f4366c7ef5c0ffad78240cccd72a2a51637799983dcc3647118c604e746892f"
         },
         "zh-CN": {
           "bytes": 5428,
           "lines": 108,
-          "sha256": "49e2c64fb835a66f8fac2302ad75ce2685f0ed95785597c6f6296604ee30be51"
+          "sha256": "5c2df989a918601ec917996b5d28a8dc33087cc732370bc4a944399260d4cd35"
         }
       }
     },
@@ -123,12 +123,12 @@
         "en": {
           "bytes": 7780,
           "lines": 130,
-          "sha256": "9497dc8342ee536ad01b73738bda9b4362dbab4509bc77e8575ae31875b27c49"
+          "sha256": "38e6c362920da4006a7df0200b0d4d4540d151d9c143fe22e809515edd5a2249"
         },
         "zh-CN": {
           "bytes": 7417,
           "lines": 130,
-          "sha256": "e9e2d48452703588e4f6a5e239205bf0fd58d4a2cbd50af2ebb98e78950d9e6f"
+          "sha256": "cb606ad02f3eaf6a3e9e9cbed4d16df57d04b6b73856b7fe9562b6fb13d42794"
         }
       }
     },
@@ -418,12 +418,12 @@
         "en": {
           "bytes": 32035,
           "lines": 812,
-          "sha256": "1f5e63fb64421d720630c53401a729192b4a81a23c5bbbf1b7abf3c0b34ca98e"
+          "sha256": "d8d0b99055d19aeed7b5396004d7ff368218c762357e4284f6ac03f3798dd0a1"
         },
         "zh-CN": {
           "bytes": 36296,
           "lines": 928,
-          "sha256": "33b383c452d6f8a249caa9234335b4d9533a8b027f94f9847223a9b0270efc0f"
+          "sha256": "f4fe0f2971acec7473efaced98e1eba9da0993b369c6a9f21b2fcd344277d8c6"
         }
       }
     },

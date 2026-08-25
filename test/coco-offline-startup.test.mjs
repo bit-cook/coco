@@ -101,7 +101,7 @@ test("Given a bare installed CoCo PTY with missing fd and rg, when startup begin
       startupOutputs.push(`${result.stdout}${result.stderr}`);
     }
     const [wideStartup, narrowStartup] = startupOutputs;
-    assert.match(wideStartup, /CCCC/);
+    assert.match(wideStartup, /██████/);
     assert.match(narrowStartup, /CoCo/);
     for (const startup of startupOutputs) {
       assert.doesNotMatch(startup, /fd not found\. Offline mode enabled, skipping download\.|ripgrep not found\. Offline mode enabled, skipping download\./);
