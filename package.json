@@ -1,6 +1,6 @@
 {
   "name": "coco",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "CoCo Agent — a general AI assistant with strong coding and terminal capabilities",
   "author": "BitCook <10547589+bit-cook@users.noreply.github.com> (https://github.com/bit-cook)",
   "type": "module",

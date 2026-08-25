@@ -19,8 +19,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 Or install an explicitly reviewed release:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.7.2/install.sh
-COCO_VERSION=0.7.2 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.7.3/install.sh
+COCO_VERSION=0.7.3 bash install.sh
 ```
 
 The installer verifies the exact-tag release tarball and the pinned public Agnes credential against their published SHA-256 values, safely extracts CoCo, and preserves existing `~/.coco/agent` configuration during updates and reinstalls.
@@ -44,6 +44,7 @@ coco --list-models
 - **Faster everywhere** — differential runtime verification and a frame-safe localization cache cut interactive first paint to about 2.5 seconds and remove render-loop disk IO.
 - **Complete Chinese TUI** — status messages, the llama.cpp local-model extension, and slash-command descriptions are fully localized; switch with `/language`.
 - **Control dashboard** — run `coco control start` and open the local-first web console (127.0.0.1:3210) to create background tasks and watch runners from a browser.
+- **Co Web** — run `coweb` or `coco coweb` for session browsing, chat continuation/forking, model and thinking controls, and project previews. It installs locally under `~/.coco/agent/webui/`; use the documented SSH SSE proxy path for public interactive chat.
 - **A new mark** — two open rings around a terminal chevron; the identity now matches across CLI startup, site, and favicon.
 
 ## Documentation
