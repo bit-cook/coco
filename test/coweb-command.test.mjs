@@ -15,9 +15,10 @@ test("coweb command is registered as a native dispatch route with usage", async 
 
 test("coweb argument parsing and environment wiring stay hermetic", async () => {
   const { parseCowebArgs, envFor, webUiRoot } = await import(join(root, "scripts", "coweb.mjs"));
-  const parsed = parseCowebArgs(["--port", "8080", "--password", "s3cret", "--allow-host", "web.example"]);
-  assert.deepEqual(parsed.options.allowHosts, ["web.example"]);
+  const parsed = parseCowebArgs(["--port", "8080", "--password", "s3cret"]);
   assert.deepEqual(parsed.options, { allowHosts: [], port: "8080", password: "s3cret", update: false });
+  const trustedParsed = parseCowebArgs(["--allow-host", "web.example"]);
+  assert.deepEqual(trustedParsed.options.allowHosts, ["web.example"]);
   assert.equal(parseCowebArgs(["--port"]).error, "COWEB_FLAG_VALUE_MISSING");
   assert.equal(parseCowebArgs(["nonsense"]).error, "COWEB_UNKNOWN_ARGUMENT");
   const env = envFor({ port: "8080", hostname: "0.0.0.0" }, "/agents/coco");

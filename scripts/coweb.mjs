@@ -38,7 +38,7 @@ export function envFor(options, agentDir) {
   if (options.port) env.PORT = String(options.port);
   if (options.hostname) env.PI_WEB_HOSTNAME = options.hostname;
   if (options.password) env.PI_WEB_PASSWORD = options.password;
-  if (options.allowHosts.length) env.PI_WEB_ALLOWED_HOSTS = options.allowHosts.join(",");
+  if (options.allowHosts?.length) env.PI_WEB_ALLOWED_HOSTS = options.allowHosts.join(",");
   else delete env.PI_WEB_ALLOWED_HOSTS;
   return env;
 }
