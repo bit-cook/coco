@@ -355,10 +355,10 @@ test("Given the patched startup wordmark, when rendered at responsive widths, th
     await applyCocoIdentityPatch({ root });
     const ResponsiveStartupWordmark = wordmarkFrom(await readPatched(root, "dist/modes/interactive/interactive-mode.js"));
 
-    const wideArtThreshold = 66;
+     const wideArtThreshold = 40;
     const wide = new ResponsiveStartupWordmark(false, "0.82.1").render(80);
-    assert.equal(wide.length, 4);
-    assert.match(wide.join("\n"), /CCCC/);
+     assert.equal(wide.length, 6);
+     assert.match(wide.join("\n"), /██████╗/);
     assert.match(wide.join("\n"), /v0\.82\.1/);
     assert.ok(wide.every((line) => visibleWidth(line) <= 80));
 
@@ -367,8 +367,8 @@ test("Given the patched startup wordmark, when rendered at responsive widths, th
     assert.match(beforeWide[0], /CoCo/);
 
     const atWide = new ResponsiveStartupWordmark(false).render(wideArtThreshold);
-    assert.equal(atWide.length, 4);
-    assert.match(atWide.join("\n"), /CCCC/);
+     assert.equal(atWide.length, 6);
+     assert.match(atWide.join("\n"), /██████╗/);
 
     const narrow = new ResponsiveStartupWordmark(false).render(20);
     assert.equal(narrow.length, 1);
@@ -397,7 +397,7 @@ test("Given the patched startup wordmark, when startup state changes, then quiet
     const ResponsiveStartupWordmark = wordmarkFrom(await readPatched(root, "dist/modes/interactive/interactive-mode.js"));
 
     const quiet = new ResponsiveStartupWordmark(false, "0.82.1");
-    assert.equal(quiet.render(80).length, 4);
+     assert.equal(quiet.render(80).length, 6);
 
     const wordmark = new ResponsiveStartupWordmark(false, "", "compact", "expanded\ninstructions");
     const compact = wordmark.render(40);

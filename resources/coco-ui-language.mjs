@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -75,7 +75,7 @@ const ZH = {
   "Horizontal padding for user messages, assistant messages, and thinking": "用户消息、助手消息和推理内容的水平边距",
   "HTTP idle timeout": "HTTP 空闲超时",
   "Image width": "图片宽度",
-  "Install telemetry": "安装遥测",
+  "Install telemetry": "更新遥测",
   "Light": "浅色",
   "Light reasoning (~2k tokens)": "轻度推理（约 2k tokens）",
   "Light theme": "浅色主题",
@@ -195,7 +195,7 @@ const ZH = {
   "Show images": "显示图片",
   "Show OSC 9;4 progress indicators in the terminal tab bar": "在终端标签栏显示 OSC 9;4 进度指示",
   "Show the terminal cursor while still positioning it for IME support": "显示终端光标，同时保持对 IME 输入法的定位支持",
-  "Show transcript notices for significant prompt-cache misses": "提示重要的 prompt cache 未命中",
+  "Show transcript notices for significant prompt-cache misses": "在对话中提示显著的提示缓存未命中",
   "Skill commands": "技能命令",
   "skip setup": "跳过设置",
   "Sort:": "排序：",
@@ -303,12 +303,97 @@ const ZH = {
   "confirm": "确认",
   "Keyboard Shortcuts": "键盘快捷键",
   "... {count} more lines (": "... 还有 {count} 行（",
+  "Auto-compaction cancelled": "自动压缩已取消",
+  "Already at this point": "已在该消息处",
+  "Branch summarization cancelled": "分支摘要生成已取消",
+  "Cloned to new session": "已克隆到新会话",
+  "Resume cancelled": "恢复会话已取消",
+  "Resumed session in current cwd": "已在当前目录恢复会话",
+  "No login methods available.": "没有可用的登录方式。",
+  "Import cancelled": "导入已取消",
+  "Share cancelled": "分享已取消",
+  "Copied last agent message to clipboard": "已复制上一条助手消息到剪贴板",
+  "Suspend to background is not supported on Windows": "Windows 不支持挂起到后台",
+  "Yes": "是",
+  "No": "否",
+  "Updated to v{version}. Use {command} to view full changelog.": "已更新到 v{version}。使用 {command} 查看完整更新日志。",
+  "Warn when Anthropic subscription auth may use paid extra usage": "当 Anthropic 订阅认证可能产生付费额外用量时提醒",
+  "Enter while streaming queues steering messages. 'one-at-a-time': deliver one, wait for response. 'all': deliver all at once.": "流式输出时按 Enter 将消息加入引导队列：'one-at-a-time' 逐条发送并等待回复；'all' 一次性全部发送。",
+  "Model name or owner/repository[:quant]": "模型名称或 owner/仓库[:量化]",
+  "Hugging Face owner/repository[:quant]": "Hugging Face owner/仓库[:量化]",
+  "Type at least 2 characters": "至少输入 2 个字符",
+  "Searching Hugging Face…": "正在搜索 Hugging Face…",
+  "No GGUF models found": "未找到 GGUF 模型",
+  "downloads": "次下载",
+  "Download model…": "下载模型…",
+  "llama.cpp models": "llama.cpp 模型",
+  "Loading…": "加载中…",
+  "loaded": "已加载",
+  "unloaded": "未加载",
+  "loading": "加载中",
+  "downloading": "下载中",
+  "sleeping": "休眠中",
+  "context": "上下文",
+  "load/unload/download": "加载/卸载/下载",
+  "back": "返回",
+  "stop": "停止",
+  "API key (optional)": "API 密钥（可选）",
+  "llama.cpp server URL": "llama.cpp 服务器地址",
+  "Could not connect to the server.": "无法连接到服务器。",
+  "Unload all and load": "卸载全部并加载",
+  "Keep loaded and load": "保留已加载并加载",
+  "Cancel": "取消",
+  "Restoring previously loaded models": "正在恢复之前加载的模型",
+  "Loading model": "正在加载模型",
+  "Starting…": "启动中…",
+  "Stop loading?": "停止加载？",
+  "Unload model?": "卸载模型？",
+  "Loading model details": "正在获取模型详情",
+  "Manual approval is required": "需要手动审批",
+  "Accept the access terms": "需接受访问条款",
+  "Continue": "继续",
+  "Back": "返回",
+  "recommended": "推荐",
+  "Downloading model": "正在下载模型",
+  "Stop download?": "停止下载？",
+  "Open settings menu": "打开设置菜单",
+  "Select model (opens selector UI)": "选择对话使用的模型",
+  "Enable/disable models for Ctrl+P cycling": "设置 Ctrl+P 轮换可用的模型",
+  "Export session (HTML default, or specify path: .html/.jsonl)": "导出会话（默认 HTML，也可指定 .html/.jsonl 路径）",
+  "Import and resume a session from a JSONL file": "从 JSONL 文件导入并恢复会话",
+  "Share session as a secret GitHub gist": "通过 GitHub 私密 gist 分享会话",
+  "Set session display name": "设置会话显示名称",
+  "Show session info and stats": "查看会话信息与统计",
+  "Show changelog entries": "查看更新日志条目",
+  "Show all keyboard shortcuts": "查看全部键盘快捷键",
+  "Create a new fork from a previous user message": "从历史用户消息创建新分叉",
+  "Duplicate the current session at the current position": "在当前位置复制当前会话",
+  "Navigate session tree (switch branches)": "浏览会话树（切换分支）",
+  "Save project trust decision for future sessions": "保存项目信任决定，供后续会话使用",
+  "Configure provider authentication": "登录并配置模型提供商",
+  "Remove provider authentication": "退出提供商登录",
+  "Start a new session": "开始新会话",
+  "Manually compact the session context": "手动压缩会话上下文",
+  "Resume a different session": "切换到其他会话",
+  "Reload keybindings, extensions, skills, prompts, themes, and context files": "重载快捷键、扩展、技能、提示词、主题与上下文文件",
+  "Quit CoCo": "退出 CoCo",
+  "Quit coco": "退出 CoCo",
+  "Manage llama.cpp router models": "管理 llama.cpp 本地路由模型",
 };
 
 function agentDir() { return process.env.COCO_CODING_AGENT_DIR || join(process.env.HOME || homedir(), ".coco", "agent"); }
+
+let localeCache = undefined;
+
 export function uiLocale() {
-  try { return JSON.parse(readFileSync(join(agentDir(), "language.json"), "utf8")).locale === "zh-CN" ? "zh-CN" : "en"; }
-  catch {
+  const path = join(agentDir(), "language.json");
+  try {
+    const stats = statSync(path);
+    if (localeCache && localeCache.path === path && localeCache.mtimeMs === stats.mtimeMs && localeCache.size === stats.size) return localeCache.locale;
+    const locale = JSON.parse(readFileSync(path, "utf8")).locale === "zh-CN" ? "zh-CN" : "en";
+    localeCache = { locale, mtimeMs: stats.mtimeMs, path, size: stats.size };
+    return locale;
+  } catch {
     const value = [process.env.LC_ALL, process.env.LC_MESSAGES, process.env.LANG].find((entry) => typeof entry === "string" && entry.trim() !== "") ?? "";
     return /^(?:zh|cmn)(?:[_-](?:CN|SG|Hans))?(?:[.@]|$)/i.test(value) ? "zh-CN" : "en";
   }
@@ -340,7 +425,19 @@ export function uiText(value, values = {}) {
     .replace(/^Could not refresh (\d+) model catalogs; showing cached models\.$/, "无法刷新 $1 个模型目录，正在显示缓存模型。")
     .replace(/ login-required/g, " 需要登录")
     .replace(/ • unconfigured/g, " • 未配置")
-    .replace(/ ✓ configured/g, " ✓ 已配置");
+    .replace(/ ✓ configured/g, " ✓ 已配置")
+    .replace(/^Session exported to: (.+)$/, "会话已导出到：$1")
+    .replace(/^Session imported from: (.+)$/, "已从 $1 导入会话")
+    .replace(/^Saved trust decision: (trusted|untrusted)\. Restart pi for this to take effect\.$/, (_, state) => `信任决定已保存：${state === "trusted" ? "信任" : "不信任"}。重启 pi 后生效。`)
+    .replace(/^HTTP idle timeout: (.+)$/, "HTTP 空闲超时：$1")
+    .replace(/^Configure llama\.cpp with \/login (.+)$/, "请使用 /login $1 配置 llama.cpp")
+    .replace(/^(\d+) models? loaded$/, "$1 个模型已加载")
+    .replace(/^Loaded (.+)$/, "已加载 $1")
+    .replace(/^Load started for (.+)$/, "已开始加载 $1")
+    .replace(/^Unloaded (.+)$/, "已卸载 $1")
+    .replace(/^Downloaded (.+)$/, "已下载 $1")
+    .replace(/^Select quantization\n([\s\S]+)$/, "选择量化版本\n$1")
+    .replace(/^Hugging Face access required\n([\s\S]+)\n\n(.+) at:\n(https:\/\/huggingface\.co\/[\s\S]+)\nThe llama\.cpp server needs HF_TOKEN with access\.$/, "需要 Hugging Face 访问权限\n$1\n\n$2：\n$3\nllama.cpp 服务器需要配置 HF_TOKEN。");
 }
 export function uiValue(value) {
   return typeof value === "string" ? uiText(value) : value;

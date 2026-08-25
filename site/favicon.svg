@@ -1,5 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="favicon-title">
   <title id="favicon-title">CoCo Agent</title>
-  <path fill="#ff6b35" fill-rule="evenodd" d="M28 10H19C12.925 10 8 14.925 8 21v22c0 6.075 4.925 11 11 11h9v-8h-8c-2.209 0-4-1.791-4-4V22c0-2.209 1.791-4 4-4h8zm8 0h9c6.075 0 11 4.925 11 11v22c0 6.075-4.925 11-11 11h-9v-8h8c2.209 0 4-1.791 4-4V22c0-2.209-1.791-4-4-4h-8z"/>
-  <path fill="#00ffff" d="M29 24l8 8-8 8v-6l2-2-2-2z"/>
+  <g fill="none" stroke-linecap="round">
+    <path stroke="#ff6b35" stroke-width="8" d="M 26.6 17.23 A 15 15 0 1 0 26.6 46.77"/>
+    <path stroke="#ff6b35" stroke-width="8" d="M 37.4 17.23 A 15 15 0 1 1 37.4 46.77"/>
+    <path stroke="#00e5ff" stroke-width="4.6" stroke-linejoin="round" d="M 29.7 27.2 L 34.5 32 L 29.7 36.8"/>
+  </g>
 </svg>

@@ -2,7 +2,7 @@
   "name": "coco-agent",
   "displayName": "CoCo Agent",
   "description": "Native CoCo tasks, context, diff review, approvals and history for VS Code",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "publisher": "bit-cook",
   "engines": { "vscode": "^1.95.0" },
   "categories": ["Other", "Machine Learning"],
@@ -10,10 +10,10 @@
   "main": "./extension.js",
   "contributes": {
     "commands": [
-      { "command": "coco.createTask", "title": "CoCo: Create Background Task" },
-      { "command": "coco.showTasks", "title": "CoCo: Show Task History" },
-      { "command": "coco.openControl", "title": "CoCo: Open Control Dashboard" },
-      { "command": "coco.diffActive", "title": "CoCo: Compare Active File with Git" }
+      { "command": "coco.createTask", "title": "Create Background Task" },
+      { "command": "coco.showTasks", "title": "Show Task History" },
+      { "command": "coco.openControl", "title": "Open Control Dashboard" },
+      { "command": "coco.diffActive", "title": "Compare Active File with Git" }
     ],
     "configuration": {
       "title": "CoCo",

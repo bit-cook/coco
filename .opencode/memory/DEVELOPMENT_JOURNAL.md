@@ -2217,3 +2217,7 @@ ORCH child admission was exposed through the service facade and tested as a saga
 After Control exposed status, next, inbox, pop, and child transition routes, complete core passed `666/666`; closure `172`, scanner clean, package `2/2`, and runtime probe `21,363` remained approved. ORCH-001 production integration is still staged; child spawning and runner budget aggregation remain.
 
 Pi currently exposes individual tool-call hooks but no batch admission/result hook, so TOOL-001 cannot be wired into the production loop without racing the host scheduler. The pool remains an approved adapter with a clear upstream integration boundary; no heuristic tool-name parallelism was added.
+
+## 2026-08-24 v0.7.2 Preparation
+
+Release candidate carries three batches: (1) TUI i18n completion with always-run patch semantics, idempotent insert guards, llama.cpp extension coverage, slash-command descriptions, and a runtime syntax contract over localized files; (2) startup/runtime performance per ADR-005 and ADR-006 — differential cold verification, two-lstat warm pair, five-syscall NOFOLLOW reads, parallel walks, and the frame-safe localization cache; measured warm verify 1.3-1.5s FAST, cold 4.3s, first paint 2.5s, frame IO 2.9x lower, tamper fail-closed preserved; (3) redesigned ring-pair mark with flat favicon and VS Code title cleanup. Full gates recorded before tag.

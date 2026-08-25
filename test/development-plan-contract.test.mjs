@@ -6,7 +6,7 @@ import test from "node:test";
 const root = new URL("..", import.meta.url).pathname;
 const workItems = join(root, "development", "work-items", "0.6.3");
 
-test("active development plan preserves history and the focused 0.7.1 release target", async () => {
+test("active development plan preserves history and the focused 0.7.2 release target", async () => {
   const [agents, plan, history, generated, leases, files] = await Promise.all([
     readFile(join(root, "AGENTS.md"), "utf8"),
     readFile(join(root, "DEVELOPMENT_PLAN.md"), "utf8"),
@@ -16,11 +16,11 @@ test("active development plan preserves history and the focused 0.7.1 release ta
     readdir(workItems),
   ]);
 
-  assert.match(agents, /Current branch: `chore\/v0\.7\.1-release-closeout`/);
+  assert.match(agents, /Current branch: `release\/v0\.7\.2`/);
   assert.match(agents, /DEVELOPMENT_PLAN\.md/);
   assert.match(agents, /HISTORICAL_DOCUMENTS\.md/);
   assert.match(agents, /Released version: `0\.7\.1`/);
-  assert.match(plan, /Next target: post-release maintenance only; all research-derived work items are implemented/);
+  assert.match(plan, /Next target: publish `v0.7.2`; performance, i18n completion, and the redesigned mark/);
   assert.match(plan, /Completed 0\.6\.3 Wave/);
   assert.equal(leases.schemaVersion, 1);
   assert.equal(Array.isArray(leases.leases), true);
@@ -59,10 +59,11 @@ test("active development plan preserves history and the focused 0.7.1 release ta
 test("architecture decisions preserve runtime, supervision, release, and platform rationale", async () => {
   const directory = join(root, "documentation", "architecture", "decisions");
   const files = (await readdir(directory)).toSorted();
-  assert.deepEqual(files, ["ADR-001-runtime-cas.md", "ADR-002-at-most-once-supervision.md", "ADR-003-release-isolation.md", "ADR-004-platform-policy.md"]);
+  assert.deepEqual(files, ["ADR-001-runtime-cas.md", "ADR-002-at-most-once-supervision.md", "ADR-003-release-isolation.md", "ADR-004-platform-policy.md", "ADR-005-differential-integrity-verification.md", "ADR-005-differential-integrity-verification.zh-CN.md", "ADR-006-frame-safe-localization-cache.md", "ADR-006-frame-safe-localization-cache.zh-CN.md"]);
   for (const file of files) {
     const value = await readFile(join(directory, file), "utf8");
-    for (const section of ["Context", "Security Consequences", "Operational Consequences", "Alternatives Rejected", "Tests"]) assert.match(value, new RegExp(`^## ${section}$`, "m"), `${file}: ${section}`);
+    const sections = file.endsWith(".zh-CN.md") ? ["背景", "决策", "安全后果", "运维后果", "已否决的替代方案", "测试"] : ["Context", "Security Consequences", "Operational Consequences", "Alternatives Rejected", "Tests"];
+    for (const section of sections) assert.match(value, new RegExp(`^## ${section}$`, "m"), `${file}: ${section}`);
   }
   const release = await readFile(join(directory, "ADR-003-release-isolation.md"), "utf8");
   assert.match(release, /REL-004, REL-005/);

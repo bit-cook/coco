@@ -55,19 +55,22 @@ function safePath(path) { return path !== "" && !path.startsWith("/") && !path.s
 function mode(info) { return (info.mode & 0o111) === 0 ? 0o644 : 0o755; }
 function runtimeRootsFor(entries) { return [...new Set(entries.map((item) => item.path.split("/", 1)[0]))]; }
 
+/** Read a file through a NOFOLLOW handle and prove the bytes belong to one
+ * unchanged inode: open rejects symlinked final components, the pre-read
+ * fstat captures identity, and the post-read fstat proves the handle never
+ * changed mid-read. Path-level re-lstat is intentionally absent — hashed
+ * bytes are attributed to the verified inode, which is the evidence that
+ * matters; a post-read path swap cannot retroactively alter that evidence. */
 async function readVerifiedFile(path, code = "RUNTIME_INTEGRITY_REVALIDATION_FAILED") {
   if (typeof constants.O_NOFOLLOW !== "number") throw new Error(code);
-  const before = await lstat(path);
-  if (!before.isFile() || before.isSymbolicLink()) throw new Error(code);
   let handle;
   try {
     handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
     const opened = await handle.stat();
-    if (!opened.isFile() || !sameSnapshot(snapshotOf(before), snapshotOf(opened))) throw new Error(code);
+    if (!opened.isFile()) throw new Error(code);
     const bytes = await handle.readFile();
     const after = await handle.stat();
-    const current = await lstat(path);
-    if (!current.isFile() || current.isSymbolicLink() || !sameSnapshot(snapshotOf(opened), snapshotOf(after)) || !sameSnapshot(snapshotOf(opened), snapshotOf(current))) throw new Error(code);
+    if (!sameSnapshot(snapshotOf(opened), snapshotOf(after))) throw new Error(code);
     return { bytes, info: after };
   } finally {
     await handle?.close().catch(() => {});
@@ -99,12 +102,8 @@ async function files(root, absolute = root) {
     return [{ mode: mode(info), path: filePath, size: info.size, mtimeMs: info.mtimeMs }];
   }
   const names = (await readdir(absolute)).sort((left, right) => left.localeCompare(right));
-  const result = [];
-  for (const name of names) {
-    if (EXCLUDED_COMPONENTS.has(name)) continue;
-    result.push(...await files(root, join(absolute, name)));
-  }
-  return result;
+  const children = await Promise.all(names.filter((name) => !EXCLUDED_COMPONENTS.has(name)).map((name) => files(root, join(absolute, name))));
+  return children.flat();
 }
 
 /** Walk a runtime root with readdir only (no per-file stat), returning file
@@ -130,39 +129,31 @@ async function walkPaths(root, absolute, output = []) {
   return output;
 }
 
-/** Cheap structural check: the file path set on disk must exactly match the
- * manifest's entry path set (catches add/remove/rename). No content hashing. */
-async function structureCheck(root, expected, runtimeRoots) {
+
+/** Compare a manifest entry against a cached six-field stat snapshot using a
+ * before/after lstat pair. The warm path never reads file contents, so the
+ * metadata pair alone preserves swap-race detection with two syscalls. */
+async function lstatSnapshotMatches(root, intended, snapshot) {
   try {
-    const walked = await Promise.all(runtimeRoots.map((directory) => walkPaths(root, join(root, directory))));
-    const actual = walked.flat().filter((path) => path !== MANIFEST && path !== SIDECAR && !TRUST_ANCHORS.has(path));
-    if (actual.length !== expected.size) return false;
-    for (const path of actual) if (!expected.has(path)) return false;
-    return true;
+    if (typeof constants.O_NOFOLLOW !== "number" || !snapshotValid(snapshot)) return false;
+    const path = join(root, intended.path);
+    const before = await lstat(path);
+    if (!before.isFile() || before.isSymbolicLink() || (before.mode & 0o7777) !== intended.mode || !statMatchesCached(before, snapshot)) return false;
+    const after = await lstat(path);
+    return after.isFile() && !after.isSymbolicLink() && sameStat(after, before);
   } catch {
     return false;
   }
 }
 
-/** Compare a manifest entry against a cached six-field stat snapshot. */
-async function lstatSnapshotMatches(root, intended, snapshot) {
-  let handle;
-  try {
-    if (typeof constants.O_NOFOLLOW !== "number" || !snapshotValid(snapshot)) return false;
-    const path = join(root, intended.path);
-    const before = await lstat(path);
-    if (!before.isFile() || before.isSymbolicLink()) return false;
-    handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
-    const opened = await handle.stat();
-    const current = await lstat(path);
-    return opened.isFile() && current.isFile() && !current.isSymbolicLink()
-      && sameSnapshot(snapshotOf(before), snapshotOf(opened)) && sameSnapshot(snapshotOf(opened), snapshotOf(current))
-      && sameSnapshot(snapshot, snapshotOf(opened)) && mode(opened) === intended.mode;
-  } catch {
-    return false;
-  } finally {
-    await handle?.close().catch(() => {});
-  }
+function statMatchesCached(info, snapshot) {
+  return info.size === snapshot.size && info.mtimeMs === snapshot.mtimeMs && info.ctimeMs === snapshot.ctimeMs
+    && (info.mode & 0o7777) === snapshot.mode && info.dev === snapshot.dev && info.ino === snapshot.ino;
+}
+
+function sameStat(left, right) {
+  return left.size === right.size && left.mtimeMs === right.mtimeMs && left.ctimeMs === right.ctimeMs
+    && left.mode === right.mode && left.dev === right.dev && left.ino === right.ino;
 }
 
 async function expectedMap(root) {
@@ -230,37 +221,43 @@ export async function verifyRuntimeIntegrity({ beforeEntry, root, cachePath }) {
     if (!Array.isArray(startupPaths) || startupPaths.length !== entryPaths.length || new Set(startupPaths).size !== startupPaths.length || !startupPaths.every((path) => typeof path === "string" && expected.has(path))) return rejected("RUNTIME_INTEGRITY_MANIFEST_INVALID");
     const startupSet = new Set(startupPaths);
     const runtimeRoots = runtimeRootsFor(parsed.entries);
-    const scanRuntime = async () => (await Promise.all(runtimeRoots.map(async (directory) => files(absolute, join(absolute, directory))))).flat().filter((item) => item.path !== MANIFEST && item.path !== SIDECAR && !TRUST_ANCHORS.has(item.path));
+    const scanRuntime = async () => (await Promise.all(runtimeRoots.map((directory) => walkPaths(absolute, join(absolute, directory))))).flat().filter((item) => item !== MANIFEST && item !== SIDECAR && !TRUST_ANCHORS.has(item));
 
     // Warm verification checks cached directory topology plus the bounded
     // startup closure. Set COCO_INTEGRITY_FULL=1 to force full verification.
-    if (cachePath && process.env.COCO_INTEGRITY_FULL !== "1") {
-      const cached = await readCache(cachePath);
-      if (cached?.manifestHash === sidecarHash) {
-        const directoryCheck = await directorySnapshotsMatch(absolute, cached.directories, runtimeRoots);
-        if (directoryCheck === true) {
-          const cachedPaths = Object.keys(cached.entries);
-          const fastEntries = parsed.entries.filter((item) => startupSet.has(item.path));
-          const snapshotsMatch = cachedPaths.length === fastEntries.length
-            && cachedPaths.every((path) => startupSet.has(path))
-            && (await Promise.all(fastEntries.map((item) => lstatSnapshotMatches(absolute, item, cached.entries[item.path])))).every(Boolean);
-          if (snapshotsMatch && await verifyMap(absolute, parsed)) {
-            return { entries: parsed.entries.length, status: "approved", fast: true, mode: "fast" };
-          }
+    const cached = cachePath && process.env.COCO_INTEGRITY_FULL !== "1" ? await readCache(cachePath) : undefined;
+    if (cached?.manifestHash === sidecarHash) {
+      const directoryCheck = await directorySnapshotsMatch(absolute, cached.directories, runtimeRoots);
+      if (directoryCheck === true) {
+        const cachedPaths = Object.keys(cached.entries);
+        const fastEntries = parsed.entries.filter((item) => startupSet.has(item.path));
+        const snapshotsMatch = cachedPaths.length === fastEntries.length
+          && cachedPaths.every((path) => startupSet.has(path))
+          && (await Promise.all(fastEntries.map((item) => lstatSnapshotMatches(absolute, item, cached.entries[item.path])))).every(Boolean);
+        if (snapshotsMatch && await verifyMap(absolute, parsed)) {
+          return { entries: parsed.entries.length, status: "approved", fast: true, mode: "fast" };
         }
       }
     }
 
     const actualRuntime = await scanRuntime();
-    if (actualRuntime.some((item) => !expected.has(item.path))) return rejected("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY", "full");
+    if (actualRuntime.some((item) => !expected.has(item))) return rejected("RUNTIME_INTEGRITY_UNEXPECTED_ENTRY", "full");
+
+    // Differential cold verification: when the cached snapshots were written by
+    // an approved run of this exact manifest, an entry whose six-field stat
+    // still matches may skip re-hashing (trusted-local change detection; any
+    // metadata drift falls back to complete hashing of that file).
+    const reuseSnapshots = cached?.manifestHash === sidecarHash ? cached.entries : undefined;
 
     const verified = await mapConcurrent(parsed.entries, VERIFY_CONCURRENCY, async (intended) => {
       const path = intended.path;
       if (beforeEntry) await beforeEntry(path);
+      const snapshot = reuseSnapshots?.[path];
+      if (snapshot && snapshotValid(snapshot) && await lstatSnapshotMatches(absolute, intended, snapshot)) return true;
       const { bytes, info } = await readVerifiedFile(join(absolute, path));
       return mode(info) === intended.mode && info.size === intended.size && sha256(bytes) === intended.sha256 && classFor(path) === intended.class;
     });
-    if (verified.some((ok) => !ok)) return rejected("RUNTIME_INTEGRITY_MISMATCH");
+    if (verified.some((ok) => !ok)) return rejected("RUNTIME_INTEGRITY_MISMATCH", "full");
     if (!await verifyMap(absolute, parsed)) return rejected("RUNTIME_INTEGRITY_MISMATCH");
     if (cachePath) {
       await writeCache(cachePath, sidecarHash, parsed.entries, startupSet, absolute, runtimeRoots).catch(() => {});
@@ -270,6 +267,7 @@ export async function verifyRuntimeIntegrity({ beforeEntry, root, cachePath }) {
     return rejected(error instanceof Error && error.message.startsWith("RUNTIME_INTEGRITY_") ? error.message : "RUNTIME_INTEGRITY_INVALID");
   }
 }
+
 
 async function readCache(cachePath) {
   try {
@@ -308,21 +306,29 @@ function snapshotValid(value) {
 
 async function directorySnapshots(root, runtimeRoots) {
   const directories = {};
-  for (const directory of runtimeRoots) {
+  const takeRoot = async (directory) => {
     const absolute = join(root, directory);
     let info;
     try { info = await lstat(absolute); } catch { return null; }
-    if (info.isFile() && !info.isSymbolicLink()) continue;
+    if (info.isFile() && !info.isSymbolicLink()) return true;
     if (!info.isDirectory() || info.isSymbolicLink()) return null;
     directories[directory] = snapshotOf(info);
-    for (const dirent of await readdir(absolute, { withFileTypes: true, recursive: true })) {
-      if (!dirent.isDirectory() || EXCLUDED_COMPONENTS.has(dirent.name) || dirent.parentPath.split(sep).some((component) => EXCLUDED_COMPONENTS.has(component))) continue;
+    const entries = await readdir(absolute, { withFileTypes: true, recursive: true });
+    const scoped = entries.filter((dirent) => dirent.isDirectory() && !EXCLUDED_COMPONENTS.has(dirent.name) && !dirent.parentPath.split(sep).some((component) => EXCLUDED_COMPONENTS.has(component)));
+    const snapshots = await Promise.all(scoped.map(async (dirent) => {
       const path = pathOf(root, join(dirent.parentPath, dirent.name));
       const child = await lstat(join(root, path));
       if (!child.isDirectory() || child.isSymbolicLink()) return null;
-      directories[path] = snapshotOf(child);
+      return [path, snapshotOf(child)];
+    }));
+    for (const item of snapshots) {
+      if (item === null) return null;
+      directories[item[0]] = item[1];
     }
-  }
+    return true;
+  };
+  const outcomes = await Promise.all(runtimeRoots.map(takeRoot));
+  if (outcomes.some((outcome) => outcome !== true)) return null;
   return directories;
 }
 
@@ -339,13 +345,17 @@ async function directorySnapshotsMatch(root, directories, runtimeRoots) {
 
 async function writeCache(cachePath, manifestHash, entries, startupSet, root, runtimeRoots) {
   const snapshots = {};
-  for (const entry of entries) {
-    if (!startupSet.has(entry.path)) continue;
+  const scoped = entries.filter((entry) => startupSet.has(entry.path));
+  const snapshotOutcomes = await Promise.all(scoped.map(async (entry) => {
     try {
       const info = await lstat(join(root, entry.path));
-      if (!info.isFile() || info.isSymbolicLink()) return;
-      snapshots[entry.path] = snapshotOf(info);
-    } catch { return; }
+      if (!info.isFile() || info.isSymbolicLink()) return false;
+      return [entry.path, snapshotOf(info)];
+    } catch { return false; }
+  }));
+  for (const item of snapshotOutcomes) {
+    if (item === false) return;
+    snapshots[item[0]] = item[1];
   }
   const directories = await directorySnapshots(root, runtimeRoots).catch(() => null);
   if (!directories || Object.keys(snapshots).length !== startupSet.size) return;

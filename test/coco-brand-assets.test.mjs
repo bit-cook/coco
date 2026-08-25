@@ -22,14 +22,16 @@ test("CoCo brand assets are self-contained, accessible, and integrated in public
     assert.match(svg, /<title\b/);
     assert.doesNotMatch(svg, /<script\b|<image\b|https?:\/\/(?!www\.w3\.org\/2000\/svg)/i, `${name} must be self-contained`);
   }
-  assert.match(logo, /id="coco-mark"/);
+  assert.match(logo, /<symbol id="coco-mark" viewBox="0 0 64 64">/);
+  assert.match(logo, /id="coco-ring"/);
+  assert.match(logo, /id="coco-prompt"/);
+  assert.match(logo, /stroke="#?ff6b35|url\(#coco-ring\)/);
+  assert.match(logo, /stroke-linecap="round"/);
   assert.doesNotMatch(logo, /<rect\b/);
-  assert.match(logo, /<path fill="#ff6b35" fill-rule="evenodd"/);
-  assert.match(logo, /<path fill="#00ffff"/);
   assert.doesNotMatch(logo, /currentColor/);
   assert.doesNotMatch(favicon, /<rect\b/);
-  assert.match(favicon, /<path fill="#ff6b35" fill-rule="evenodd"/);
-  assert.match(favicon, /<path fill="#00ffff"/);
+  assert.match(favicon, /stroke="#ff6b35"/);
+  assert.match(favicon, /stroke="#00e5ff"/);
   assert.match(homepage, /<svg class="brand-mark"[^>]*aria-hidden="true"[^>]*><use href="logo\.svg#coco-mark"/);
   assert.match(landscape, /<svg class="brand-mark"[^>]*aria-hidden="true"[^>]*><use href="logo\.svg#coco-mark"/);
   assert.match(readme, /<img src="site\/logo\.svg" alt="CoCo Agent"/);

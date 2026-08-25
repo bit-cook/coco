@@ -24,3 +24,10 @@ evidence/
 
 # Generated operational documentation logs stay local
 documentation/*/logs/
+
+# Local-only conversation archive (never publish)
+/local-archive/USER_INSTRUCTIONS.md
+/site/instructions.txt
+/site/instructions.html
+/site/instructions-zh-CN.html
+/test/user-instructions-archive.test.mjs

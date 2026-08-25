@@ -4,9 +4,9 @@ Install the `coco-agent-0.7.1.vsix` asset from the CoCo `v0.7.1` release, start 
 
 Commands:
 
-- `CoCo: Create Background Task`
-- `CoCo: Show Task History`
-- `CoCo: Open Control Dashboard`
-- `CoCo: Compare Active File with Git`
+- `Create Background Task`
+- `Show Task History`
+- `Open Control Dashboard`
+- `Compare Active File with Git`
 
 The extension stores the control token in VS Code SecretStorage. It sends selection and open-tab context only when you explicitly create a task.
