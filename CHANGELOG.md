@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.3] - 2026-08-25
+
+### Co Web
+
+- Added `coweb` / `coco coweb`: a CoCo-local browser workspace for session browsing, chat continuation and forks, model/thinking controls, and project previews.
+- Added Co Web branding for the page title, PWA manifest, favicon, and app icons after every managed install or update.
+- Added a strict public SSE proxy path for trusted reverse-proxy hosts; raw SSH reverse tunneling preserves streaming where Cloudflare Quick Tunnels buffer SSE.
+
+
 ## [0.7.2] - 2026-08-24
 
 ### Performance

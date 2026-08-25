@@ -5,9 +5,9 @@ Read this file before changing the repository.
 ## Current Truth
 
 - Worktree: `/root/coco-tmp/coco-v053-migration`
-- Current branch: `chore/v0.7.2-closeout`
+- Current branch: `release/v0.7.3`
 - Released version: `0.7.2`
-- Current target: post-release maintenance only; no new research item is active
+- Current target: publish `0.7.3` (Coweb / Co Web)
 - Active plan: `DEVELOPMENT_PLAN.md`
 - Work items: `development/work-items/0.7.0/`
 - Execution journal: `.opencode/memory/DEVELOPMENT_JOURNAL.md`

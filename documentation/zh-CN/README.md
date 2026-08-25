@@ -17,8 +17,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 或者安装经过明确审阅的固定版本：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.7.2/install.sh
-COCO_VERSION=0.7.2 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.7.3/install.sh
+COCO_VERSION=0.7.3 bash install.sh
 ```
 
 安装程序会根据已发布的 SHA-256 值验证固定标签发行包和公开 Agnes 凭据，安全解压 CoCo，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。
@@ -42,6 +42,7 @@ coco --list-models
 - **全面提速** —— 差分运行时校验与帧安全本地化缓存把交互首屏压缩到约2.5秒，并消除渲染循环内的磁盘IO。
 - **中文全覆盖** —— 状态消息、llama.cpp 本地模型扩展与斜杠命令描述全部本地化；用 `/language` 一键切换。
 - **Control 控制台** —— 运行 `coco control start`，在浏览器打开本地优先的网页控制台（127.0.0.1:3210），创建后台任务并查看 runner。
+- **Co Web** —— 运行 `coweb` 或 `coco coweb`，可浏览会话、续聊/分叉、切换模型与思考级别、预览项目文件。它只安装到 `~/.coco/agent/webui/`；公网交互聊天请使用文档中的 SSH SSE 代理路径。
 - **全新标识** —— 终端箭头两侧相拥的圆环；CLI 启动、网站与favicon视觉统一。
 
 ## 文档

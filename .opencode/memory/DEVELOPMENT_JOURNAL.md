@@ -2225,3 +2225,7 @@ Release candidate carries three batches: (1) TUI i18n completion with always-run
 ## 2026-08-25 v0.7.2 Release Closeout
 
 Tag v0.7.2 on 652c3a9c. Release workflow 32803930372 passed all four stages; nine assets published non-draft at github.com/bit-cook/coco/releases/tag/v0.7.2; Pages serves 0.7.2; npm returns E404 (intentional). Public acceptance: SHA256SUMS 8/8 validated, public installer upgraded the host install to 0.7.2, version and TUI verified, second-boot first paint 2.6s on the FAST path (first post-upgrade boot 7.7s cold plus snapshot staging). In-place COCO_BIN_DIR upgrade exposed a self-referencing launcher symlink; install.sh now installs the real launcher file when the link directory equals the install bin directory (installer suite 26/26). Closeout branch carries the guard plus released-state documentation.
+
+## 2026-08-25 v0.7.3 Preparation
+
+Release candidate adds Coweb/Co Web: managed pi-web install under ~/.coco/agent/webui, native coweb dispatch, session browsing and chat controls, Co Web PWA/icon branding, and a strict public SSE proxy. Local and public end-to-end tests verified prompt acceptance, connected/event streaming, text deltas, and agent_end through raw SSH reverse forwarding. Cloudflare Quick Tunnel buffers pi-web SSE and is documented as unsuitable for interactive chat.
