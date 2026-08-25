@@ -130,6 +130,8 @@ for (const installer of installers) {
     assert.doesNotMatch(source, /\$\{filename\}(?:\.sha256)?\?v=/);
     assert.equal(source.includes(agnesAssetUrl), true);
     assert.equal(source.includes(agnesAssetDigest), true);
+    assert.match(source, /exec "\$COCO_BIN_DIR\/coco" coweb "\\\$@"/);
+    assert.doesNotMatch(source, /pi-web/);
   });
 
   test(`Given a clean home, when ${installer} installs from a verified release artifact, then it writes public models metadata and pinned Agnes auth`, async () => {

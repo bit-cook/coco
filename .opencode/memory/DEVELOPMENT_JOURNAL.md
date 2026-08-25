@@ -2229,3 +2229,7 @@ Tag v0.7.2 on 652c3a9c. Release workflow 32803930372 passed all four stages; nin
 ## 2026-08-25 v0.7.3 Preparation
 
 Release candidate adds Coweb/Co Web: managed pi-web install under ~/.coco/agent/webui, native coweb dispatch, session browsing and chat controls, Co Web PWA/icon branding, and a strict public SSE proxy. Local and public end-to-end tests verified prompt acceptance, connected/event streaming, text deltas, and agent_end through raw SSH reverse forwarding. Cloudflare Quick Tunnel buffers pi-web SSE and is documented as unsuitable for interactive chat.
+
+## 2026-08-25 v0.7.4 Preparation
+
+Release candidate fixes Coweb distribution: install.sh now creates a managed bare coweb wrapper next to coco, and uninstall.sh removes only that wrapper. Installer suite validates install and removal of both binaries.

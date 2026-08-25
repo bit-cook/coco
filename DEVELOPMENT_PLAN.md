@@ -5,8 +5,8 @@ Last updated: 2026-08-18
 ## Current State
 
 - Released: `v0.7.2` at `652c3a9c`
-- Development branch: `release/v0.7.3`
-- Next target: publish `v0.7.3`; Coweb / Co Web web frontend
+- Development branch: `release/v0.7.4`
+- Next target: publish `v0.7.4`; bare coweb distribution fix
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
 - Research pages: `/research.html` and `/research-zh-CN.html`
