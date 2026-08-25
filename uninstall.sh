@@ -56,6 +56,18 @@ remove_managed_launcher() {
   fi
 }
 
+is_managed_coweb() {
+  local path=$1 target="$COCO_BIN_DIR/coco"
+  [ -f "$path" ] && [ ! -L "$path" ] || return 1
+  grep -Fqx "exec \"$target\" coweb \"\$@\"" "$path"
+}
+
+remove_managed_coweb() {
+  local path=$1
+  ( [ -e "$path" ] || [ -L "$path" ] ) && is_managed_coweb "$path" || return 0
+  rm -f "$path"
+}
+
 [ "$HOME_DIR" != "/" ] || die "Refusing to uninstall with HOME=/"
 [ -n "$COCO_INSTALL_DIR" ] || die "COCO_INSTALL_DIR is empty"
 [ "$COCO_INSTALL_DIR" != "/" ] || die "Refusing to remove COCO_INSTALL_DIR=/"
@@ -88,6 +100,7 @@ remove_managed_launcher "$HOME_DIR/.local/bin/coco"
 
 if [ -n "$COCO_BIN_DIR" ]; then
   remove_managed_launcher "$COCO_BIN_DIR/coco"
+  remove_managed_coweb "$COCO_BIN_DIR/coweb"
 fi
 
 for path in \

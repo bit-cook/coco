@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.4] - 2026-08-25
+
+### Coweb Distribution
+
+- The installer now creates a bare `coweb` launcher alongside `coco`, and the uninstaller removes only its managed wrapper.
+- Public release installs can open the Co Web frontend with `coweb` immediately; no manual symlink or wrapper is needed.
+
+
 ## [0.7.3] - 2026-08-25
 
 ### Co Web
