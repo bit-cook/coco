@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -83,11 +83,8 @@ export async function cowebCommand(args, { agentDir }) {
   }
   const launcher = resolveInstalledBin(root);
   const url = `http://${options.hostname === "0.0.0.0" ? "127.0.0.1" : options.hostname || "127.0.0.1"}:${options.port ?? DEFAULT_PORT}`;
-  process.stdout.write(`coweb: starting web frontend at ${url}\ncoweb: Ctrl-C stops the server\n`);
-  const child = import("node:child_process").then(({ spawn }) => spawn(launcher, [], { env: envFor(options, agentDir), stdio: "inherit" }));
-  const running = await child;
-  running.on("exit", (code) => {
-    process.exitCode = code ?? 0;
-  });
-  for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => running.kill(signal));
+  const running = spawn(launcher, [], { detached: true, env: envFor(options, agentDir), stdio: "ignore" });
+  running.unref();
+  process.stdout.write(`coweb: started web frontend at ${url} (pid ${running.pid})\n`);
+  return { exitCode: 0, kind: "native" };
 }

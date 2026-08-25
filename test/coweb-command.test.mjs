@@ -7,10 +7,13 @@ const root = join(import.meta.dirname, "..");
 
 test("coweb command is registered as a native dispatch route with usage", async () => {
   const dispatcher = await readFile(join(root, "scripts", "coco-dispatcher.mjs"), "utf8");
+  const launcher = await readFile(join(root, "scripts", "coweb.mjs"), "utf8");
   assert.match(dispatcher, /NATIVE_COMMANDS = new Set\(\[[^\]]*"coweb"/);
   assert.match(dispatcher, /coco coweb \[--port <port>\] \[--hostname/);
   assert.match(dispatcher, /argv\[0\] === "coweb"/);
   assert.match(dispatcher, /import\("\.\/coweb\.mjs"\)/);
+  assert.match(launcher, /return \{ exitCode: 0, kind: "native" \}/);
+  assert.match(launcher, /detached: true/);
 });
 
 test("coweb argument parsing and environment wiring stay hermetic", async () => {
