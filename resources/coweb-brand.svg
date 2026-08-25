@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="coweb-title">
+  <title id="coweb-title">Co Web</title>
+  <defs>
+    <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff9a62"/>
+      <stop offset="1" stop-color="#ff5722"/>
+    </linearGradient>
+    <linearGradient id="prompt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#53ffe0"/>
+      <stop offset="1" stop-color="#00c2ff"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke-linecap="round">
+    <path stroke="url(#ring)" stroke-width="8" d="M 26.6 17.23 A 15 15 0 1 0 26.6 46.77"/>
+    <path stroke="url(#ring)" stroke-width="8" d="M 37.4 17.23 A 15 15 0 1 1 37.4 46.77"/>
+    <path stroke="url(#prompt)" stroke-width="4.6" stroke-linejoin="round" d="M 29.7 27.2 L 34.5 32 L 29.7 36.8"/>
+  </g>
+</svg>

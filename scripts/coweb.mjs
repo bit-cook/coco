@@ -1,11 +1,53 @@
 import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { copyFile, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const PACKAGE_SPEC = "@lyhue1991/pi-web";
 const MARKER = "installed-version.json";
 const DEFAULT_PORT = 30141;
+const COWEB_ROOT = dirname(fileURLToPath(import.meta.url));
+
+export function brandText(value) {
+  return value
+    .replaceAll("Pi Web interface for the pi coding agent", "Co Web interface for CoCo Agent")
+    .replaceAll("Pi Web", "Co Web")
+    .replaceAll("pi coding agent", "CoCo Agent")
+    .replaceAll("pi Coding Agent", "CoCo Agent");
+}
+
+async function textFiles(root, relative = "") {
+  const directory = join(root, relative);
+  const output = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(relative, entry.name);
+    if (entry.isDirectory()) output.push(...await textFiles(root, path));
+    else if (/\.(?:html|js|rsc|body|webmanifest|json)$/u.test(entry.name)) output.push(path);
+  }
+  return output;
+}
+
+export async function applyCowebBrand(root) {
+  const packageRoot = join(root, "node_modules", PACKAGE_SPEC);
+  const textRoots = [".next/server/app", ".next/static", "public"];
+  for (const textRoot of textRoots) {
+    if (!existsSync(join(packageRoot, textRoot))) continue;
+    for (const relative of await textFiles(packageRoot, textRoot)) {
+      const path = join(packageRoot, relative);
+      const current = await readFile(path, "utf8");
+      const next = brandText(current).replaceAll("favicon.ico?8aa486c701a3d218", "icons/icon-512.png?coweb-v1");
+      if (next !== current) await writeFile(path, next);
+    }
+  }
+  const iconDirectory = join(packageRoot, "public", "icons");
+  if (!existsSync(iconDirectory)) return;
+  await copyFile(join(COWEB_ROOT, "..", "resources", "coweb-brand-192.png"), join(iconDirectory, "icon-192.png"));
+  await copyFile(join(COWEB_ROOT, "..", "resources", "coweb-brand-512.png"), join(iconDirectory, "icon-512.png"));
+  await copyFile(join(COWEB_ROOT, "..", "resources", "coweb-brand-180.png"), join(iconDirectory, "apple-touch-icon.png"));
+  const favicon = join(packageRoot, ".next", "server", "app", "favicon.ico.body");
+  if (existsSync(favicon)) await copyFile(join(COWEB_ROOT, "..", "resources", "coweb-brand-512.png"), favicon);
+}
 
 function fail(code) {
   console.error(`coweb: ${code}`);
@@ -14,7 +56,7 @@ function fail(code) {
 
 export function parseCowebArgs(args) {
   const options = { update: false, allowHosts: [] };
-  const flags = { "--port": "port", "--hostname": "hostname", "--password": "password", "--allow-host": "allowHost" };
+  const flags = { "--port": "port", "--hostname": "hostname", "--password": "password", "--allow-host": "allowHost", "--public-host": "publicHost" };
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--update") options.update = true;
@@ -81,10 +123,20 @@ export async function cowebCommand(args, { agentDir }) {
   } else if (current) {
     process.stdout.write(`coweb: using ${PACKAGE_SPEC} ${current} (${root})\n`);
   }
+  await applyCowebBrand(root);
   const launcher = resolveInstalledBin(root);
   const url = `http://${options.hostname === "0.0.0.0" ? "127.0.0.1" : options.hostname || "127.0.0.1"}:${options.port ?? DEFAULT_PORT}`;
   const running = spawn(launcher, [], { detached: true, env: envFor(options, agentDir), stdio: "ignore" });
   running.unref();
   process.stdout.write(`coweb: started web frontend at ${url} (pid ${running.pid})\n`);
+  if (options.publicHost) {
+    const proxy = spawn(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), "coweb-proxy.mjs")], {
+      detached: true,
+      env: { ...envFor(options, agentDir), COWEB_PUBLIC_HOST: options.publicHost, COWEB_UPSTREAM_PORT: String(options.port ?? DEFAULT_PORT) },
+      stdio: "ignore",
+    });
+    proxy.unref();
+    process.stdout.write(`coweb: started SSE proxy at http://127.0.0.1:30142 for ${options.publicHost} (pid ${proxy.pid})\n`);
+  }
   return { exitCode: 0, kind: "native" };
 }
