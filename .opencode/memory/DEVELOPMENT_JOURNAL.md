@@ -2221,3 +2221,7 @@ Pi currently exposes individual tool-call hooks but no batch admission/result ho
 ## 2026-08-24 v0.7.2 Preparation
 
 Release candidate carries three batches: (1) TUI i18n completion with always-run patch semantics, idempotent insert guards, llama.cpp extension coverage, slash-command descriptions, and a runtime syntax contract over localized files; (2) startup/runtime performance per ADR-005 and ADR-006 — differential cold verification, two-lstat warm pair, five-syscall NOFOLLOW reads, parallel walks, and the frame-safe localization cache; measured warm verify 1.3-1.5s FAST, cold 4.3s, first paint 2.5s, frame IO 2.9x lower, tamper fail-closed preserved; (3) redesigned ring-pair mark with flat favicon and VS Code title cleanup. Full gates recorded before tag.
+
+## 2026-08-25 v0.7.2 Release Closeout
+
+Tag v0.7.2 on 652c3a9c. Release workflow 32803930372 passed all four stages; nine assets published non-draft at github.com/bit-cook/coco/releases/tag/v0.7.2; Pages serves 0.7.2; npm returns E404 (intentional). Public acceptance: SHA256SUMS 8/8 validated, public installer upgraded the host install to 0.7.2, version and TUI verified, second-boot first paint 2.6s on the FAST path (first post-upgrade boot 7.7s cold plus snapshot staging). In-place COCO_BIN_DIR upgrade exposed a self-referencing launcher symlink; install.sh now installs the real launcher file when the link directory equals the install bin directory (installer suite 26/26). Closeout branch carries the guard plus released-state documentation.

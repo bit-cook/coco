@@ -4,9 +4,9 @@ Last updated: 2026-08-18
 
 ## Current State
 
-- Released: `v0.7.1` at `455bbaa42ae40e8abce6a1b2ff2f452e80e85245`
-- Development branch: `release/v0.7.2`
-- Next target: publish `v0.7.2`; performance, i18n completion, and the redesigned mark
+- Released: `v0.7.2` at `652c3a9c`
+- Development branch: `chore/v0.7.2-closeout`
+- Next target: post-release maintenance only; all research-derived work items are implemented
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
 - Research pages: `/research.html` and `/research-zh-CN.html`
@@ -94,3 +94,5 @@ ORCH-001 is complete. TOOL-001 production integration is complete through pinned
 The published `v0.7.1` carries that final TOOL-001 integration. Release workflow `32731763396` passed all four permission-isolated stages and published nine assets; post-release main CI `32738293959` passed. Version/release focused contracts pass `68/68`; core `676/676`, integrity `39/39`, closure `172`, scanner clean, package `2/2`, runtime probe `21,368`, and Node `22.19.0` startup performance pass. npm remains intentionally unpublished.
 
 Post-release public verification downloaded all nine assets, validated every entry named by `SHA256SUMS`, installed through the public `install.sh` into an isolated home, observed `coco --version` as `0.7.1`, and removed the isolated install, agent state, and launcher through the public uninstaller. No npm package was published.
+
+The published `v0.7.2` delivered differential integrity verification (ADR-005), the frame-safe localization cache (ADR-006), complete Chinese TUI coverage, and the redesigned ring-pair mark. Release workflow `32803930372` passed all four permission-isolated stages and published nine assets; Pages serves 0.7.2. Post-release public verification validated every `SHA256SUMS` entry, installed through the public `install.sh`, observed `coco --version` 0.7.2, and exercised warm FAST verification at 2.6s first paint. An in-place `COCO_BIN_DIR` upgrade exposed a self-referencing launcher link; the installer now installs the real launcher file in that topology. npm remains intentionally unpublished.
