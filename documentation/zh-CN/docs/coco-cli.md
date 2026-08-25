@@ -128,3 +128,17 @@ Doctor 会报告 custom default Provider 的本地 readiness，但 `--connectivi
 ## 配置范围
 
 CoCo 使用 `~/.coco/agent/` 下的全局资源，包括 `settings.json`、`models.json`、`auth.json`、`skills/`、`prompts/` 和 `extensions/`。不会加载项目本地设置、扩展、技能、提示词或系统提示文件。请参阅 [CoCo 安全](coco-security.md)。
+
+## CoCo Web（coweb）
+
+```bash
+coco coweb [--port <端口>] [--hostname <地址>] [--password <密码>] [--update]
+```
+
+在本地浏览器启动 CoCo 会话前端，默认地址 `http://127.0.0.1:30141`（可用 `--port` 覆盖）。首次运行会安装到 `~/.coco/webui/`（绝不装入全局）；`--update` 可升级到最新版。
+
+工作区支持按项目浏览历史会话、继续或分叉对话、切换模型与思考级别，并在 agent 运行时预览项目文件。会话与 CLI 使用同一批 JSONL 文件，两边始终同步。
+
+- 默认仅绑定回环地址；仅在可信网络下使用 `--hostname 0.0.0.0`。
+- `--password` 为所有端点启用 HTTP Basic Auth（用户名 `pi`）。明文HTTP不加密——远程访问请使用可信反向代理或VPN。
+- Ctrl-C 停止。任务管理控制台仍是 `coco control start`。

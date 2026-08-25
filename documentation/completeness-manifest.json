@@ -121,14 +121,14 @@
       "source": null,
       "locales": {
         "en": {
-          "bytes": 7780,
-          "lines": 130,
-          "sha256": "38e6c362920da4006a7df0200b0d4d4540d151d9c143fe22e809515edd5a2249"
+          "bytes": 8712,
+          "lines": 145,
+          "sha256": "6714bf0554f7eb1318e714101e272f1106e28365982bb5f54bcf0becabdd6364"
         },
         "zh-CN": {
-          "bytes": 7417,
-          "lines": 130,
-          "sha256": "cb606ad02f3eaf6a3e9e9cbed4d16df57d04b6b73856b7fe9562b6fb13d42794"
+          "bytes": 8271,
+          "lines": 145,
+          "sha256": "fd607501c308b6153d64408dcc74e110e4ec1dc8724e13b59b7fb75da5ca0c79"
         }
       }
     },

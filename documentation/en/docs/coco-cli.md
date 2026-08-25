@@ -128,3 +128,17 @@ Current-process credentials may instead use `AGNES_API_KEY`, `IDEPUB_API_KEY`, `
 ## Configuration scope
 
 CoCo uses global resources under `~/.coco/agent/`, including `settings.json`, `models.json`, `auth.json`, `skills/`, `prompts/`, and `extensions/`. Project-local settings, extensions, skills, prompts, and system prompt files are not loaded. See [CoCo security](coco-security.md).
+
+## CoCo Web (coweb)
+
+```bash
+coco coweb [--port <port>] [--hostname <address>] [--password <secret>] [--update]
+```
+
+Starts a local web frontend for CoCo sessions at `http://127.0.0.1:30141` (override with `--port`). On first run it installs the frontend into `~/.coco/webui/` (never global); `--update` refreshes it to the latest version.
+
+The workspace can browse past sessions by project, continue or fork conversations, switch models and thinking levels, and preview project files while the agent works. Sessions are the same JSONL files the CLI uses, so both views stay in sync.
+
+- Binds to loopback by default; pass `--hostname 0.0.0.0` only on trusted networks.
+- `--password` protects every endpoint with HTTP Basic Auth (user `pi`). Plain HTTP is not encrypted — use a trusted reverse proxy or VPN for remote access.
+- Stop with Ctrl-C. The control dashboard (`coco control start`) remains the task-management console.
