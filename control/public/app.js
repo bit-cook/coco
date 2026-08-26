@@ -2,11 +2,7 @@ const $ = (selector) => document.querySelector(selector);
 let token = sessionStorage.getItem("coco-control-token") || "";
 const api = async (path, options = {}) => {
   const response = await fetch(path, { ...options, headers: { authorization: `Bearer ${token}`, "content-type": "application/json", ...(options.headers || {}) } });
-  if (!response.ok) {
-    const body = await response.json();
-    const msg = body?.error || `HTTP ${response.status}`;
-    throw new Error(msg === "UNAUTHORIZED" ? "连接失败：令牌无效或已过期。请运行 coco control token 获取最新令牌。" : msg);
-  }
+  if (!response.ok) throw new Error((await response.json()).error || `HTTP ${response.status}`);
   return response.json();
 };
 const escapeText = (node, value) => { node.textContent = value ?? ""; };
@@ -28,25 +24,12 @@ async function render() {
   }
 }
 async function connect() {
-  try {
-    await api("/v1/health");
-    document.body.classList.add("connected");
-    $("#status").textContent = "已安全连接";
-    $("#connect-panel").classList.add("hidden");
-    $("#composer").classList.remove("hidden");
-    $("#tasks-section").classList.remove("hidden");
-    await render();
-  } catch (error) {
-    document.body.classList.remove("connected");
-    $("#status").textContent = "连接失败：" + error.message;
-    $("#connect-panel").classList.remove("hidden");
-    throw error;
-  }
+  await api("/v1/health"); document.body.classList.add("connected"); $("#status").textContent = "已安全连接";
+  $("#connect-panel").classList.add("hidden"); $("#composer").classList.remove("hidden"); $("#tasks-section").classList.remove("hidden"); await render();
 }
 $("#connect-form").addEventListener("submit", async (event) => { event.preventDefault(); token = $("#token").value; try { await connect(); sessionStorage.setItem("coco-control-token", token); } catch (error) { $("#status").textContent = error.message; } });
 $("#task-form").addEventListener("submit", async (event) => { event.preventDefault(); await api("/v1/tasks", { method: "POST", body: JSON.stringify({ approved: !$("#approval").checked, cwd: $("#cwd").value, prompt: $("#prompt").value, worktree: $("#worktree").checked }) }); $("#prompt").value = ""; await render(); });
 $("#refresh").addEventListener("click", render);
 $("#stop-all").addEventListener("click", async () => { if (confirm("完全终止所有正在运行的 CoCo 任务和 Agent？")) { await api("/v1/tasks/stop-all", { method: "POST" }); await render(); } });
-  if (!token) { document.body.classList.remove("connected"); $("#status").textContent = "未连接：请输入控制令牌"; $("#connect-panel").classList.remove("hidden"); $("#composer").classList.add("hidden"); $("#tasks-section").classList.add("hidden"); }
-  else { try { await connect(); sessionStorage.setItem("coco-control-token", token); } catch (error) { $("#status").textContent = error.message; $("#connect-panel").classList.remove("hidden"); document.body.classList.remove("connected"); sessionStorage.removeItem("coco-control-token"); } }
+if (token) connect().catch(() => sessionStorage.removeItem("coco-control-token"));
 setInterval(() => { if (document.body.classList.contains("connected")) render().catch(() => {}); }, 3000);
