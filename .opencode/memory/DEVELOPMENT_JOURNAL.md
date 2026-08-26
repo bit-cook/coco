@@ -2233,3 +2233,9 @@ Release candidate adds Coweb/Co Web: managed pi-web install under ~/.coco/agent/
 ## 2026-08-25 v0.7.4 Preparation
 
 Release candidate fixes Coweb distribution: install.sh now creates a managed bare coweb wrapper next to coco, and uninstall.sh removes only that wrapper. Installer suite validates install and removal of both binaries.
+
+## 2026-08-26 Native Co Web
+
+Replaced the runtime-installed external pi-web frontend with a bundled `coweb/` static frontend and native loopback HTTP server. `coco coweb [--port <port>] [--password <secret>]` binds only to `127.0.0.1` (default `30141`), optionally protects all endpoints with Basic Auth user `pi`, and makes no host-header assumption, so SSH reverse forwarding works directly. The server uses bundled `SessionManager`, `createAgentSessionServices`, and `createAgentSessionFromServices` against the CoCo agent directory; it supports session list/create/open, prompt submission, polling state/messages, and configured model/thinking selection. Arbitrary session paths are rejected outside the CoCo sessions directory. Removed the obsolete SSE proxy and runtime npm installation path. Added EN/ZH documentation and regenerated the package inventory and runtime-integrity manifest.
+
+Evidence: `node --test test/coweb-command.test.mjs` passed 4/4; syntax checks passed; `npm pack --dry-run --json` confirmed all four coweb assets; native SDK temporary-agent smoke returned 1109 configured models and zero sessions; runtime integrity full probe approved 21,381 entries; `git diff --check` passed. Installer suite passed within the combined run. The combined release-packaging contract test exceeded the 120-second harness limit after its first passing assertion; it was not rerun because the command outcome is uncertain under the execution policy.
