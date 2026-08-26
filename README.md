@@ -44,7 +44,7 @@ coco --list-models
 - **Faster everywhere** — differential runtime verification and a frame-safe localization cache cut interactive first paint to about 2.5 seconds and remove render-loop disk IO.
 - **Complete Chinese TUI** — status messages, the llama.cpp local-model extension, and slash-command descriptions are fully localized; switch with `/language`.
 - **Control dashboard** — run `coco control start` and open the local-first web console (127.0.0.1:3210) to create background tasks and watch runners from a browser.
-- **Co Web** — run `coweb` or `coco coweb` for a bundled local session browser and chat frontend. It uses the same CoCo sessions and model configuration, never installs packages at runtime, and supports SSH reverse forwarding without host-header configuration.
+- **Co Web** — run `coweb` or `coco coweb` for session browsing, chat continuation/forking, model and thinking controls, and project previews. It installs locally under `~/.coco/agent/webui/`; use the documented SSH SSE proxy path for public interactive chat.
 - **A new mark** — two open rings around a terminal chevron; the identity now matches across CLI startup, site, and favicon.
 
 ## Documentation
