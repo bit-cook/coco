@@ -140,6 +140,6 @@ Starts **Co Web**, the local web frontend for CoCo sessions, at `http://127.0.0.
 The workspace can browse past sessions by project, continue or fork conversations, switch models and thinking levels, and preview project files while the agent works. Sessions are the same JSONL files the CLI uses, so both views stay in sync.
 
 - Binds to loopback by default; pass `--hostname 0.0.0.0` only on trusted networks.
-- `--password` protects every endpoint with HTTP Basic Auth (user `pi`). Plain HTTP is not encrypted — use a trusted reverse proxy or VPN for remote access.
+- `--password` protects every endpoint with HTTP Basic Auth (public user `coco`). Plain HTTP is not encrypted — use a trusted reverse proxy or VPN for remote access.
 - For a public reverse proxy, pass the exact external hostname with `--public-host`. Coweb starts an SSE compatibility proxy on `127.0.0.1:30142`; point the tunnel at that port. Raw SSH reverse tunneling preserves agent streaming. Cloudflare Quick Tunnels buffer pi-web SSE and are not suitable for interactive chat.
 - Stop with Ctrl-C. The control dashboard (`coco control start`) remains the task-management console.

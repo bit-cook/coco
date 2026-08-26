@@ -140,6 +140,6 @@ coco coweb [--port <端口>] [--hostname <地址>] [--password <密码>] [--allo
 工作区支持按项目浏览历史会话、继续或分叉对话、切换模型与思考级别，并在 agent 运行时预览项目文件。会话与 CLI 使用同一批 JSONL 文件，两边始终同步。
 
 - 默认仅绑定回环地址；仅在可信网络下使用 `--hostname 0.0.0.0`。
-- `--password` 为所有端点启用 HTTP Basic Auth（用户名 `pi`）。明文HTTP不加密——远程访问请使用可信反向代理或VPN。
+- `--password` 为所有端点启用 HTTP Basic Auth（公网用户名 `coco`）。明文HTTP不加密——远程访问请使用可信反向代理或VPN。
 - 如需公开反向代理，使用 `--public-host` 传入精确外部域名。Coweb 会在 `127.0.0.1:30142` 启动 SSE 兼容代理，隧道应转发到该端口。原始 SSH 反向隧道可保留 agent 流式事件；Cloudflare Quick Tunnel 会缓冲 pi-web SSE，不适合作为交互聊天通道。
 - Ctrl-C 停止。任务管理控制台仍是 `coco control start`。
