@@ -8,6 +8,7 @@ const PACKAGE_SPEC = "@lyhue1991/pi-web";
 const MARKER = "installed-version.json";
 const DEFAULT_PORT = 30141;
 const COWEB_ROOT = dirname(fileURLToPath(import.meta.url));
+let agentDirParent = () => process.env.HOME ? join(process.env.HOME, ".coco") : "/root/.coco";
 
 export function brandText(value) {
   return value
@@ -94,7 +95,12 @@ async function installedVersion(root) {
 }
 
 function npm(args, cwd, done) {
-  execFile(process.env.COCO_NPM_BIN || "npm", args, { cwd, maxBuffer: 16 * 1024 * 1024, timeout: 600_000 }, (error, stdout, stderr) => done(error, `${stdout}${stderr}`));
+  const bundled = join(agentDirParent(), "node_modules", "npm", "bin", "npm-cli.js");
+  const besideNode = join(dirname(process.execPath), "npm");
+  if (process.env.COCO_NPM_BIN) return execFile(process.env.COCO_NPM_BIN, args, { cwd, maxBuffer: 16 * 1024 * 1024, timeout: 600_000 }, (error, stdout, stderr) => done(error, `${stdout}${stderr}`));
+  if (existsSync(bundled)) return execFile(process.execPath, [bundled, ...args], { cwd, maxBuffer: 16 * 1024 * 1024, timeout: 600_000 }, (error, stdout, stderr) => done(error, `${stdout}${stderr}`));
+  if (existsSync(besideNode)) return execFile(besideNode, args, { cwd, maxBuffer: 16 * 1024 * 1024, timeout: 600_000 }, (error, stdout, stderr) => done(error, `${stdout}${stderr}`));
+  execFile("npm", args, { cwd, maxBuffer: 16 * 1024 * 1024, timeout: 600_000 }, (error, stdout, stderr) => done(error, `${stdout}${stderr}`));
 }
 
 function resolveInstalledBin(root) {
@@ -103,6 +109,7 @@ function resolveInstalledBin(root) {
 }
 
 export async function cowebCommand(args, { agentDir }) {
+  agentDirParent = () => dirname(agentDir);
   const parsed = parseCowebArgs(args);
   if (parsed.error) return fail(`${parsed.error}:${parsed.flag ?? parsed.value ?? ""}`);
   const options = parsed.options;
