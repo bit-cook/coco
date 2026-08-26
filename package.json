@@ -35,6 +35,7 @@
   "files": [
     "bin",
     "control",
+    "coweb",
     "dist",
     "docs",
     "documentation",

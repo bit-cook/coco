@@ -6,7 +6,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 const MANIFEST = "resources/runtime-integrity-manifest.v1.json";
 const SIDECAR = "resources/runtime-integrity-manifest.v1.json.sha256";
 const MAP = "scripts/package-asset-map.v1.json";
-const ROOTS = ["bin", "control", "dist", "docs", "examples", "resources", "scripts", "CHANGELOG.md", "README.md", "package.json"];
+const ROOTS = ["bin", "control", "coweb", "dist", "docs", "examples", "resources", "scripts", "CHANGELOG.md", "README.md", "package.json"];
 const TRUST_ANCHORS = new Set(["bin/coco", "scripts/coco-bootstrap.cjs"]);
 const CACHE_SCHEMA_VERSION = 3;
 const EXCLUDED_COMPONENTS = new Set([".bin", ".package-lock.json", "coverage", "node-gyp-bin", "npm", "src", "test", "tests"]);

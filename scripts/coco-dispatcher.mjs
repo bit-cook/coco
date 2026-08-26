@@ -30,7 +30,7 @@ Usage:
   coco task list|active|show|cancel|stop-all|run [id] [--json]
   coco runner start|status|stop|run [--once]
   coco control start|status|token|stop [--host <address>] [--port <port>]
-  coco coweb [--port <port>] [--hostname <address>] [--password <secret>] [--allow-host <host>] [--public-host <host>] [--update]
+  coco coweb [--port <port>] [--password <secret>]
   coco mcp add <name> -- <command> [args...] | list | approve|ask|deny|remove <name>
   coco backup create|verify|restore-drill|prune|store-publish|store-fetch|store-list|store-remove [options]
 

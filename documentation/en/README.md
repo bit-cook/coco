@@ -50,6 +50,8 @@ coco -p "hello"
 coco --list-models
 ```
 
+Co Web is bundled with CoCo: run `coco coweb` to serve the local session frontend at `127.0.0.1:30141`. It does not install packages at runtime or start during installation. See the [CoCo CLI reference](docs/coco-cli.md#coco-web-coweb) for password protection and SSH reverse forwarding.
+
 ## Startup network policy
 
 CoCo starts offline by default. It sets `PI_OFFLINE=1` before Pi loads, so a bare startup does not check for updates or download missing `fd` and `ripgrep` binaries. This affects startup work only; model and provider API calls still run when you use CoCo.

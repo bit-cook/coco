@@ -132,14 +132,13 @@ CoCo 使用 `~/.coco/agent/` 下的全局资源，包括 `settings.json`、`mode
 ## CoCo Web（coweb）
 
 ```bash
-coco coweb [--port <端口>] [--hostname <地址>] [--password <密码>] [--allow-host <主机>] [--public-host <主机>] [--update]
+coco coweb [--port <端口>] [--password <密码>]
 ```
 
-在本地浏览器启动 **Co Web**（CoCo 会话前端），默认地址 `http://127.0.0.1:30141`（可用 `--port` 覆盖）。首次运行会安装到 `~/.coco/agent/webui/`（绝不装入全局）；`--update` 可升级到最新版。每次安装或升级后，Co Web 都会重写页面标题、PWA manifest、favicon 和应用图标为 CoCo 品牌。
+在本地浏览器启动随 CoCo 打包的 **Co Web**（CoCo 会话前端），默认地址 `http://127.0.0.1:30141`（可用 `--port` 覆盖）。运行时不会安装包或访问包注册表，安装过程也不会自动启动它。
 
-工作区支持按项目浏览历史会话、继续或分叉对话、切换模型与思考级别，并在 agent 运行时预览项目文件。会话与 CLI 使用同一批 JSONL 文件，两边始终同步。
+工作区支持浏览历史会话、打开或创建对话、提交提示词以及切换已配置的模型和思考级别。agent 运行时浏览器通过轮询读取会话状态。会话与 CLI 使用同一批 JSONL 文件，两边始终同步。
 
-- 默认仅绑定回环地址；仅在可信网络下使用 `--hostname 0.0.0.0`。
-- `--password` 为所有端点启用 HTTP Basic Auth（用户名 `pi`）。明文HTTP不加密——远程访问请使用可信反向代理或VPN。
-- 如需公开反向代理，使用 `--public-host` 传入精确外部域名。Coweb 会在 `127.0.0.1:30142` 启动 SSE 兼容代理，隧道应转发到该端口。原始 SSH 反向隧道可保留 agent 流式事件；Cloudflare Quick Tunnel 会缓冲 pi-web SSE，不适合作为交互聊天通道。
+- 始终仅绑定回环地址。远程访问请使用到 `127.0.0.1:30141` 的可信 SSH 反向转发；服务端不依赖外部主机头。
+- `--password` 为所有端点启用 HTTP Basic Auth（用户名 `pi`）。明文 HTTP 不加密，远程访问请使用 SSH 或可信 VPN 保护。
 - Ctrl-C 停止。任务管理控制台仍是 `coco control start`。
