@@ -1,0 +1,11 @@
+/* Desktop client styles remain frozen. These rules only activate on narrow screens. */
+@media (max-width: 640px) {
+  html, body { overflow-x: hidden; }
+  .sidebar-container { width: min(92vw, 360px) !important; max-width: 92vw !important; }
+  .right-panel-container { width: min(92vw, 420px) !important; max-width: 92vw !important; }
+  .panel-resize-handle, .sidebar-resize-handle { display: none !important; }
+  button, input:not([type="hidden"]), select, textarea { min-height: 44px !important; }
+  textarea { font-size: 16px !important; line-height: 1.35 !important; }
+  [class*="composer" i], [class*="input" i] { padding-bottom: max(12px, env(safe-area-inset-bottom)) !important; }
+  [class*="chat" i] { min-width: 0 !important; }
+}

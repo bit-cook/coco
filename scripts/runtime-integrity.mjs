@@ -6,7 +6,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 const MANIFEST = "resources/runtime-integrity-manifest.v1.json";
 const SIDECAR = "resources/runtime-integrity-manifest.v1.json.sha256";
 const MAP = "scripts/package-asset-map.v1.json";
-const ROOTS = ["bin", "control", "dist", "docs", "examples", "resources", "scripts", "CHANGELOG.md", "README.md", "package.json"];
+const ROOTS = ["bin", "control", "coweb", "dist", "docs", "examples", "resources", "scripts", "CHANGELOG.md", "README.md", "package.json"];
 const TRUST_ANCHORS = new Set(["bin/coco", "scripts/coco-bootstrap.cjs"]);
 const CACHE_SCHEMA_VERSION = 3;
 const EXCLUDED_COMPONENTS = new Set([".bin", ".package-lock.json", "coverage", "node-gyp-bin", "npm", "src", "test", "tests"]);
@@ -90,7 +90,7 @@ function classFor(path) {
   const name = parts.at(-1).toLowerCase();
   if (METADATA.has(name)) return "package-metadata";
   if (name.startsWith("readme") || name.startsWith("changelog") || parts.includes("docs") || parts.includes("examples")) return "runtime-asset";
-  return [...RUNTIME_EXTENSIONS].some((extension) => name.endsWith(extension)) || path.startsWith("bin/") || path.startsWith("dist/") ? "runtime-code" : "runtime-asset";
+  return [...RUNTIME_EXTENSIONS].some((extension) => name.endsWith(extension)) || path.startsWith("bin/") || path.startsWith("dist/") || path.startsWith("scripts/") ? "runtime-code" : "runtime-asset";
 }
 
 async function files(root, absolute = root) {

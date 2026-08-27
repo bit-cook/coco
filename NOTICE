@@ -8,3 +8,7 @@ Upstream license: MIT
 CoCo retains applicable upstream copyright and license notices. CoCo-specific
 changes are authored and maintained by BitCook and distributed under the MIT
 License in LICENSE.
+
+Co Web includes a frozen browser-client snapshot from Pi Web by agegr
+(`@lyhue1991/pi-web` 0.8.17, MIT). The complete upstream license and snapshot
+provenance are included in `coweb/desktop/`.

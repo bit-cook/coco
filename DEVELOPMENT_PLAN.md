@@ -1,12 +1,12 @@
 # CoCo Development Plan
 
-Last updated: 2026-08-18
+Last updated: 2026-08-27
 
 ## Current State
 
 - Released: `v0.7.2` at `652c3a9c`
 - Development branch: `release/v0.7.4`
-- Next target: publish `v0.7.4`; bare coweb distribution fix
+- Next target: publish `v0.7.4`; native coweb service (COWEB-002) supersedes the managed pi-web install; verification green, awaiting commit authorization
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
 - Research pages: `/research.html` and `/research-zh-CN.html`

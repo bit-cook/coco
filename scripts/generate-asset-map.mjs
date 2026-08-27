@@ -4,10 +4,10 @@ import { join, normalize, relative, resolve, sep } from "node:path";
 import { canonicalJson, sha256 } from "./canonical-json.mjs";
 
 const CORE = "@earendil-works/pi-coding-agent";
-const RUNTIME_ROOTS = new Set(["bin", "dist", "docs", "examples", "resources"]);
+const RUNTIME_ROOTS = new Set(["bin", "coweb", "dist", "docs", "examples", "resources"]);
 const RESOLVER_PATHS = ["CHANGELOG.md", "README.md", "docs", "examples", "package.json", "dist/core/export-html", "dist/modes/interactive/assets", "dist/modes/interactive/theme"];
 const GENERATED_RUNTIME_ARTIFACTS = new Set(["scripts/package-asset-map.v1.json", "resources/runtime-integrity-manifest.v1.json", "resources/runtime-integrity-manifest.v1.json.sha256"]);
-const REQUIRED_PROTECTED_PATHS = ["scripts/canonical-json.mjs"];
+const REQUIRED_PROTECTED_PATHS = ["scripts/canonical-json.mjs", "scripts/coweb-native-service.mjs", "scripts/coweb.mjs", "scripts/coweb-proxy.mjs"];
 
 class AssetMapError extends Error {
   constructor(code) { super(code); this.code = code; this.name = "AssetMapError"; }

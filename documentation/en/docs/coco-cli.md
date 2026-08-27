@@ -132,14 +132,14 @@ CoCo uses global resources under `~/.coco/agent/`, including `settings.json`, `m
 ## CoCo Web (coweb)
 
 ```bash
-coco coweb [--port <port>] [--hostname <address>] [--password <secret>] [--allow-host <host>] [--public-host <host>] [--update]
+coco coweb [--port <port>] [--password <secret>] [--public-host <host>]
 ```
 
-Starts **Co Web**, the local web frontend for CoCo sessions, at `http://127.0.0.1:30141` (override with `--port`). On first run it installs the frontend into `~/.coco/agent/webui/` (never global); `--update` refreshes it to the latest version. Co Web applies CoCo branding to the page title, PWA manifest, favicon, and app icons after every install or update.
+Starts **Co Web**, CoCo's bundled native loopback frontend, at `http://127.0.0.1:30141` (override with `--port`). It never installs an npm package or starts an external Pi Web/Next.js runtime. The pinned desktop client assets are served by CoCo's native session and SSE service; responsive overrides apply only on mobile-sized viewports.
 
 The workspace can browse past sessions by project, continue or fork conversations, switch models and thinking levels, and preview project files while the agent works. Sessions are the same JSONL files the CLI uses, so both views stay in sync.
 
-- Binds to loopback by default; pass `--hostname 0.0.0.0` only on trusted networks.
+- Binds only to loopback. Public exposure must use the authenticated proxy started by `--public-host`.
 - `--password` protects every endpoint with HTTP Basic Auth (public user `coco`). Plain HTTP is not encrypted — use a trusted reverse proxy or VPN for remote access.
-- For a public reverse proxy, pass the exact external hostname with `--public-host`. Coweb starts an SSE compatibility proxy on `127.0.0.1:30142`; point the tunnel at that port. Raw SSH reverse tunneling preserves agent streaming. Cloudflare Quick Tunnels buffer pi-web SSE and are not suitable for interactive chat.
+- For a public reverse proxy, pass the exact external hostname with `--public-host` and require `--password`. Coweb starts an authenticated SSE proxy on `127.0.0.1:30142`; point a streaming-preserving tunnel at that port. Use public user `coco`. Raw SSH reverse tunneling preserves agent streaming; Cloudflare Quick Tunnels are not suitable for interactive chat.
 - Stop with Ctrl-C. The control dashboard (`coco control start`) remains the task-management console.
