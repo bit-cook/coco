@@ -130,7 +130,9 @@ for (const installer of installers) {
     assert.doesNotMatch(source, /\$\{filename\}(?:\.sha256)?\?v=/);
     assert.equal(source.includes(agnesAssetUrl), true);
     assert.equal(source.includes(agnesAssetDigest), true);
-    assert.match(source, /exec "\$COCO_BIN_DIR\/coco" coweb "\\\$@"/);
+    assert.match(source, /exec "\$COCO_BIN_DIR\/coco" web "\\\$@"/);
+    assert.match(source, /cat > "\$COCO_BIN_DIR\/web"/);
+    assert.match(source, /cat > "\$COCO_BIN_DIR\/coweb"/);
     assert.doesNotMatch(source, /pi-web/);
   });
 

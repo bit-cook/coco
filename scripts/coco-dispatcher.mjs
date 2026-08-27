@@ -8,7 +8,7 @@ import { COCO_VERSION, CORE_NAME, CORE_VERSION } from "./coco-runtime-identity.m
 import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
 
 const MANAGED_PROVIDERS = new Set(MANAGED_PROVIDER_IDS);
-const NATIVE_COMMANDS = new Set(["manage", "doctor", "core", "task", "runner", "control", "coweb", "mcp", "backup"]);
+const NATIVE_COMMANDS = new Set(["manage", "doctor", "core", "task", "runner", "control", "web", "coweb", "mcp", "backup"]);
 
 function help() {
   process.stdout.write(`CoCo ${COCO_VERSION}
@@ -30,7 +30,7 @@ Usage:
   coco task list|active|show|cancel|stop-all|run [id] [--json]
   coco runner start|status|stop|run [--once]
   coco control start|status|token|stop [--host <address>] [--port <port>]
-   coco coweb [--port <port>] [--password <secret>] [--public-host <host>]
+  coco web [--port <port>] [--password <secret>] [--public-host <host>] (legacy alias: coco coweb)
   coco mcp add <name> -- <command> [args...] | list | approve|ask|deny|remove <name>
   coco backup create|verify|restore-drill|prune|store-publish|store-fetch|store-list|store-remove [options]
 
@@ -234,7 +234,7 @@ async function native(argv, root) {
     try { const { agentDirectory } = await import("./state-paths.mjs"); return await (await import("./control-service.mjs")).controlCommand(argv.slice(1), { agentDir: agentDirectory(), root }); }
     catch (error) { return failure(error instanceof Error && "code" in error ? error.code : "CONTROL_COMMAND_FAILED"); }
   }
-  if (argv[0] === "coweb") {
+  if (argv[0] === "web" || argv[0] === "coweb") {
     try { const { agentDirectory } = await import("./state-paths.mjs"); return await (await import("./coweb.mjs")).cowebCommand(argv.slice(1), { agentDir: agentDirectory() }); }
     catch (error) { return failure(error instanceof Error && "code" in error ? error.code : "COWEB_COMMAND_FAILED"); }
   }

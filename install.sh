@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.7.4}"
+COCO_VERSION="${COCO_VERSION:-0.8.0}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/bit-cook/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key"
@@ -35,13 +35,16 @@ ROLLBACK_DIR="${INSTALL_PARENT}/.${INSTALL_NAME}.coco-rollback-$$"
 AGENT_BACKUP="${TMPDIR_install}/agent-backup"
 PREVIOUS_LINK="${TMPDIR_install}/previous-link"
 PREVIOUS_COWEB="${TMPDIR_install}/previous-coweb"
+PREVIOUS_WEB="${TMPDIR_install}/previous-web"
 HAD_INSTALL=0
 HAD_AGENT=0
 HAD_LINK=0
 HAD_COWEB=0
+HAD_WEB=0
 SWAPPED=0
 LINKED=0
 COWEB_LINKED=0
+WEB_LINKED=0
 COMMITTED=0
 CREATED_MODELS=0
 CREATED_AUTH=0
@@ -54,8 +57,10 @@ cleanup() {
     if [ "$CREATED_AUTH" -eq 1 ]; then rm -f "$COCO_AGENT_DIR/auth.json"; fi
     if [ "$LINKED" -eq 1 ]; then rm -f "$COCO_BIN_DIR/coco"; fi
     if [ "$COWEB_LINKED" -eq 1 ]; then rm -f "$COCO_BIN_DIR/coweb"; fi
+    if [ "$WEB_LINKED" -eq 1 ]; then rm -f "$COCO_BIN_DIR/web"; fi
     if [ "$HAD_LINK" -eq 1 ]; then mv "$PREVIOUS_LINK" "$COCO_BIN_DIR/coco"; fi
     if [ "$HAD_COWEB" -eq 1 ]; then mv "$PREVIOUS_COWEB" "$COCO_BIN_DIR/coweb"; fi
+    if [ "$HAD_WEB" -eq 1 ]; then mv "$PREVIOUS_WEB" "$COCO_BIN_DIR/web"; fi
     if [ "$SWAPPED" -eq 1 ]; then
       if [ "$HAD_AGENT" -eq 1 ] && [ -e "$COCO_AGENT_DIR" ]; then
         mv "$COCO_AGENT_DIR" "$AGENT_BACKUP"
@@ -449,6 +454,7 @@ link_binary() {
   mkdir -p "$COCO_BIN_DIR"
   if [ -L "$COCO_BIN_DIR/coco" ] || [ -f "$COCO_BIN_DIR/coco" ]; then mv "$COCO_BIN_DIR/coco" "$PREVIOUS_LINK"; HAD_LINK=1; elif [ -e "$COCO_BIN_DIR/coco" ]; then die "Refusing non-regular binary link path"; fi
   if [ -L "$COCO_BIN_DIR/coweb" ] || [ -f "$COCO_BIN_DIR/coweb" ]; then mv "$COCO_BIN_DIR/coweb" "$PREVIOUS_COWEB"; HAD_COWEB=1; elif [ -e "$COCO_BIN_DIR/coweb" ]; then die "Refusing non-regular coweb link path"; fi
+  if [ -L "$COCO_BIN_DIR/web" ] || [ -f "$COCO_BIN_DIR/web" ]; then mv "$COCO_BIN_DIR/web" "$PREVIOUS_WEB"; HAD_WEB=1; elif [ -e "$COCO_BIN_DIR/web" ]; then die "Refusing non-regular web link path"; fi
   if [ "$COCO_BIN_DIR" = "$(dirname "$COCO_INSTALL_DIR/bin/coco")" ]; then
     install -m 755 "$COCO_INSTALL_DIR/bin/coco" "$COCO_BIN_DIR/coco"
   elif [ -x "$COCO_INSTALL_DIR/runtime/node/bin/node" ]; then
@@ -461,9 +467,15 @@ EOF
     ln -s "$COCO_INSTALL_DIR/bin/coco" "$COCO_BIN_DIR/coco"
   fi
   LINKED=1
+  cat > "$COCO_BIN_DIR/web" <<EOF
+#!/usr/bin/env bash
+exec "$COCO_BIN_DIR/coco" web "\$@"
+EOF
+  chmod 700 "$COCO_BIN_DIR/web"
+  WEB_LINKED=1
   cat > "$COCO_BIN_DIR/coweb" <<EOF
 #!/usr/bin/env bash
-exec "$COCO_BIN_DIR/coco" coweb "\$@"
+exec "$COCO_BIN_DIR/coco" web "\$@"
 EOF
   chmod 700 "$COCO_BIN_DIR/coweb"
   COWEB_LINKED=1

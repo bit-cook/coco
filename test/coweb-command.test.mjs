@@ -10,9 +10,10 @@ test("coweb command dispatches a detached CoCo-native service", async () => {
     readFile(join(root, "scripts", "coco-dispatcher.mjs"), "utf8"),
     readFile(join(root, "scripts", "coweb.mjs"), "utf8"),
   ]);
+  assert.match(dispatcher, /NATIVE_COMMANDS = new Set\(\[[^\]]*"web"/);
   assert.match(dispatcher, /NATIVE_COMMANDS = new Set\(\[[^\]]*"coweb"/);
-  assert.match(dispatcher, /coco coweb \[--port <port>\] \[--password <secret>\]/);
-  assert.match(dispatcher, /argv\[0\] === "coweb"/);
+  assert.match(dispatcher, /coco web \[--port <port>\] \[--password <secret>\]/);
+  assert.match(dispatcher, /argv\[0\] === "web" \|\| argv\[0\] === "coweb"/);
   assert.match(launcher, /coweb-native-service\.mjs/);
   assert.match(launcher, /detached: true/);
   assert.match(launcher, /COWEB_READY/);
@@ -32,13 +33,21 @@ test("coweb accepts only validated native service arguments", async () => {
 });
 
 test("coweb desktop snapshot preserves desktop assets and adds only a narrow mobile override", async () => {
-  const [index, snapshot, mobile] = await Promise.all([
+  const [index, snapshot, mobile, manifest, offline, serviceWorker] = await Promise.all([
     readFile(join(root, "coweb", "desktop", "index.html"), "utf8"),
     readFile(join(root, "coweb", "desktop", "SNAPSHOT.json"), "utf8"),
     readFile(join(root, "coweb", "coweb-mobile.css"), "utf8"),
+    readFile(join(root, "coweb", "desktop", "manifest.webmanifest"), "utf8"),
+    readFile(join(root, "coweb", "desktop", "offline.html"), "utf8"),
+    readFile(join(root, "coweb", "desktop", "sw.js"), "utf8"),
   ]);
-  assert.match(index, /Co Web/);
+  assert.match(index, /<title>CoCo Web<\/title>/);
   assert.match(index, /coweb-mobile\.css/);
+  for (const branded of [index, manifest, offline]) {
+    assert.doesNotMatch(branded, /"name":"Co Web"|>Co Web<|content":"Co Web(?! interface)/u);
+    assert.match(branded, /CoCo Web/u);
+  }
+  assert.match(serviceWorker, /const CACHE_PREFIX = "coco-web"/);
   assert.match(snapshot, /"source": "@lyhue1991\/pi-web"/);
   assert.match(snapshot, /"license": "MIT"/);
   assert.match(snapshot, /"integrity": "sha512-/);

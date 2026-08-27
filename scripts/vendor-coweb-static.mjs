@@ -70,6 +70,20 @@ async function verifySource(source) {
   if (packageJson.name !== SNAPSHOT.source || packageJson.version !== SNAPSHOT.version || packageJson.license !== SNAPSHOT.license || locked?.version !== SNAPSHOT.version || locked?.integrity !== SNAPSHOT.integrity) throw new Error("COWEB_STATIC_SOURCE_UNPINNED");
 }
 async function writeSnapshot(source, target) {
+  const BRAND_TRANSFORMS = [
+    [/CoWeb/g, "CoCo Web"],
+    [/Co Web/g, "CoCo Web"],
+    [/(const CACHE_PREFIX = )"pi-web"/g, '$1"coco-web"'],
+  ];
+  const brandedFiles = ["index.html", "index.rsc", "offline.html", "manifest.webmanifest", "sw.js"];
+  for (const name of brandedFiles) {
+    const path = join(target, name);
+    try {
+      let content = await readFile(path, "utf8");
+      for (const [pattern, replacement] of BRAND_TRANSFORMS) content = content.replace(pattern, replacement);
+      await writeFile(path, content);
+    } catch { /* optional snapshot files may be absent */ }
+  }
   const index = join(target, "index.html");
   const original = await readFile(index, "utf8");
   const mobile = '<link rel="stylesheet" href="/coweb-mobile.css">';

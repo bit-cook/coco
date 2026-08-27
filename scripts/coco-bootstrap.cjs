@@ -464,7 +464,7 @@ async function createRuntimeSnapshot(manifest, manifestBytes, sidecarBytes, sour
       await writeSnapshotEntries(stagingRoot, manifest.entries, verifiedBytes);
       writeSnapshotFile(stagingRoot, MANIFEST_ENTRY, manifestBytes, 0o644);
       writeSnapshotFile(stagingRoot, SIDECAR_ENTRY, sidecarBytes, 0o644);
-      writeSnapshotFile(stagingRoot, ".runtime-complete.json", Buffer.from(JSON.stringify(canonical({ key, manifestHash: hash(manifestBytes), schemaVersion: 1 })) + "\n"), 0o600);
+      writeSnapshotFile(stagingRoot, ".runtime-complete.json", Buffer.from(JSON.stringify(canonical({ appRoot: process.env.COCO_APP_ROOT ?? root, key, manifestHash: hash(manifestBytes), schemaVersion: 1 })) + "\n"), 0o600);
       if (!structureCheck(expected, runtimeRoots, stagingRoot)) throw new Error("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
       closeSync(rootDescriptor); rootDescriptor = undefined;
       renameSync(stagingRoot, snapshotRoot); stagingRoot = undefined;
@@ -627,6 +627,9 @@ async function main() {
     const policyModule = { exports: {} };
     new Function("module", "exports", policyBytes.toString("utf8"))(policyModule, policyModule.exports);
     if (typeof policyModule.exports.collectRuntimeNames !== "function" || typeof policyModule.exports.completionValid !== "function" || typeof policyModule.exports.storageBudgetValid !== "function") return reject("RUNTIME_INTEGRITY_REVALIDATION_FAILED");
+    if (process.env.COCO_APP_ROOT === undefined) {
+      try { process.env.COCO_APP_ROOT = await require("node:fs/promises").realpath(root); } catch { process.env.COCO_APP_ROOT = root; }
+    }
     runtimeSnapshot = await createRuntimeSnapshot(manifest, bytes, sidecarBytes, () => {
       const verifiedBytes = new Map();
       for (const entry of manifest.entries) {

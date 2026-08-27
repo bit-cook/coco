@@ -59,7 +59,7 @@ remove_managed_launcher() {
 is_managed_coweb() {
   local path=$1 target="$COCO_BIN_DIR/coco"
   [ -f "$path" ] && [ ! -L "$path" ] || return 1
-  grep -Fqx "exec \"$target\" coweb \"\$@\"" "$path"
+  grep -Fqx "exec \"$target\" coweb \"\$@\"" "$path" || grep -Fqx "exec \"$target\" web \"\$@\"" "$path"
 }
 
 remove_managed_coweb() {
@@ -101,6 +101,7 @@ remove_managed_launcher "$HOME_DIR/.local/bin/coco"
 if [ -n "$COCO_BIN_DIR" ]; then
   remove_managed_launcher "$COCO_BIN_DIR/coco"
   remove_managed_coweb "$COCO_BIN_DIR/coweb"
+  remove_managed_coweb "$COCO_BIN_DIR/web"
 fi
 
 for path in \

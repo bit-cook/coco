@@ -8,6 +8,16 @@ const taskId = option("--task-id"), runId = option("--run-id"), ownerId = option
 if (!taskId || !runId || !ownerId || !Number.isSafeInteger(generation) || generation < 1 || !agentDir) throw new Error("TASK_RUN_SUPERVISOR_USAGE");
 
 const store = createTaskRunSupervisorStore({ agentDir: resolve(agentDir) });
+async function resolveAppRoot(local) {
+  const candidates = [process.env.COCO_APP_ROOT];
+  try { candidates.push(JSON.parse(await (await import("node:fs/promises")).readFile(resolve(local, ".runtime-complete.json"), "utf8")).appRoot); } catch { /* older snapshots carry no marker appRoot */ }
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" || !candidate) continue;
+    const root = resolve(candidate);
+    if (await (await import("node:fs/promises")).stat(resolve(root, "bin", "coco")).then(() => true, () => false)) return root;
+  }
+  return local;
+}
 function normalizedExitCode(value) {
   if (typeof value !== "number" || !Number.isFinite(value)) return 1;
   const integer = Math.trunc(value);
@@ -58,7 +68,8 @@ if (state?.authorization && !state.outcome) {
     const registration = (await store.inspect({ taskId, runId })).registration;
     if (!registration || registration.pid !== process.pid || state.authorization.pid !== registration.pid || state.authorization.processIdentity !== registration.processIdentity) throw new Error("TASK_RUN_AUTHORIZATION_IDENTITY_MISMATCH");
     process.chdir(state.spec.cwd);
-    const root = fileURLToPath(new URL("..", import.meta.url));
+    const local = fileURLToPath(new URL("..", import.meta.url));
+    const root = await resolveAppRoot(local);
     process.argv.splice(0, process.argv.length, process.execPath, resolve(root, "bin", "coco"), "--mode", "json", "--no-approve", state.spec.prompt);
     const bootstrap = await import(pathToFileURL(resolve(root, "scripts", "coco-bootstrap.cjs")).href);
     if (bootstrap.default && typeof bootstrap.default.then === "function") await bootstrap.default;

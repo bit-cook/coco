@@ -61,6 +61,6 @@ export async function cowebCommand(args, { agentDir }) {
   service.stdout.destroy();
   service.stderr.destroy();
   service.unref();
-  process.stdout.write(`coweb: native Co Web available at http://127.0.0.1:${port} (pid ${service.pid})\n`);
+  process.stdout.write(`coweb: native CoCo Web available at http://127.0.0.1:${port} (pid ${service.pid})\n`);
   return { exitCode: 0, kind: "native" };
 }

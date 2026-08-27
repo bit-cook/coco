@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { spawn } from "node:child_process";
 import { createReadStream } from "node:fs";
-import { mkdir, open, readFile, rm } from "node:fs/promises";
+import { mkdir, lstat, open, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, resolve } from "node:path";
 
@@ -22,6 +22,7 @@ import { cancelTask, startDetachedRunner, stopRunner } from "./task-runner.mjs";
 import { processAlive, processIdentity, processMatches, terminateProcessTree } from "./task-process.mjs";
 import { createWebhookDeliveryStore } from "./webhook-deliveries.mjs";
 import { resolveRuntimeRoot } from "./runtime-root.mjs";
+import { repositoryRoot } from "./worktree-tasks.mjs";
 
 const MAX_BODY = 1024 * 1024;
 const MAX_OBSERVATION_RESPONSE = 1024 * 1024;
@@ -69,6 +70,13 @@ async function recoverableMutation({ commands, effect, operationId, request, req
   if (!commandId) return effect();
   return runControlCommandMutation({ commandId, effect, effectGeneration: 1, journal: commands, operationId, request: { method: request.method, path: new URL(request.url ?? "/", "http://localhost").pathname, value: requestValue } });
 }
+async function validateTaskCwd({ cwd, worktree }) {
+  if (typeof cwd !== "string" || !cwd.trim()) fail("TASK_CWD_INVALID");
+  let info; try { info = await lstat(cwd); } catch { fail("TASK_CWD_INVALID"); }
+  if (!info.isDirectory()) fail("TASK_CWD_INVALID");
+  if (worktree === false) return;
+  try { await repositoryRoot(cwd); } catch (error) { fail(typeof error?.code === "string" ? error.code : "TASK_CWD_INVALID"); }
+}
 const PUBLIC_ERRORS = new Map([
   ["REQUEST_TOO_LARGE", 413],
   ["REQUEST_PAYLOAD_INVALID", 400],
@@ -76,6 +84,12 @@ const PUBLIC_ERRORS = new Map([
   ["TASK_NOT_APPROVABLE", 409],
   ["TASK_NOT_CANCELLABLE", 409],
   ["TASK_NOT_FOUND", 404],
+  ["TASK_CWD_INVALID", 400],
+  ["WORKTREE_PATH_INVALID", 400],
+  ["WORKTREE_REPOSITORY_INVALID", 400],
+  ["WORKTREE_CONFLICT", 409],
+  ["WORKTREE_GIT_RETRYABLE", 503],
+  ["WORKTREE_GIT_LOCKED", 503],
   ["RUNNER_STOPPING", 503],
   ["RUNNER_START_FAILED", 503],
   ["CONTROL_ALREADY_RUNNING", 409],
@@ -232,6 +246,7 @@ export async function runControlServer({ agentDir, host, port, root, signal }) {
       if (request.method === "POST" && url.pathname === "/v1/tasks") {
         let input; try { input = JSON.parse((await body(request)).toString("utf8")); } catch { fail("REQUEST_PAYLOAD_INVALID"); }
         if (typeof input.prompt !== "string" || !input.prompt.trim() || typeof input.cwd !== "string") return json(response, 400, { error: "TASK_INVALID" });
+        await validateTaskCwd(input);
         const commandId = idempotencyKey(request);
         if (!commandId && request.headers["idempotency-key"] !== undefined) return json(response, 400, { error: "IDEMPOTENCY_KEY_INVALID" });
         if (!commandId) {

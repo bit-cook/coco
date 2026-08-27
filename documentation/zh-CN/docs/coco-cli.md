@@ -13,8 +13,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 如需安装已审阅的发布版，请下载该发布版的 `install.sh`，并使用匹配的 `COCO_VERSION` 运行：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.7.4/install.sh
-COCO_VERSION=0.7.4 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.0/install.sh
+COCO_VERSION=0.8.0 bash install.sh
 ```
 
 升级时再次运行稳定安装程序。它会验证发行包，并在更新和重新安装时保留现有的 `~/.coco/agent` 配置。`coco update` 不可用。
@@ -129,13 +129,15 @@ Doctor 会报告 custom default Provider 的本地 readiness，但 `--connectivi
 
 CoCo 使用 `~/.coco/agent/` 下的全局资源，包括 `settings.json`、`models.json`、`auth.json`、`skills/`、`prompts/` 和 `extensions/`。不会加载项目本地设置、扩展、技能、提示词或系统提示文件。请参阅 [CoCo 安全](coco-security.md)。
 
-## CoCo Web（coweb）
+## CoCo Web（web）
 
 ```bash
-coco coweb [--port <端口>] [--password <密码>] [--public-host <主机>]
+coco web [--port <端口>] [--password <密码>] [--public-host <主机>]
+
+兼容别名：`coco coweb`。
 ```
 
-启动 **Co Web**（CoCo 内置原生回环前端），默认地址 `http://127.0.0.1:30141`（可用 `--port` 覆盖）。它不会在运行时安装 npm 包，也不会启动外部 Pi Web/Next.js 运行时。固定版本的桌面客户端资源由 CoCo 原生会话和 SSE 服务提供，响应式覆盖仅作用于移动端尺寸。
+启动 **CoCo Web**（CoCo 内置原生回环前端），默认地址 `http://127.0.0.1:30141`（可用 `--port` 覆盖）。它不会在运行时安装 npm 包，也不会启动外部 Pi Web/Next.js 运行时。固定版本的桌面客户端资源由 CoCo 原生会话和 SSE 服务提供，响应式覆盖仅作用于移动端尺寸。
 
 工作区支持按项目浏览历史会话、继续或分叉对话、切换模型与思考级别，并在 agent 运行时预览项目文件。会话与 CLI 使用同一批 JSONL 文件，两边始终同步。
 

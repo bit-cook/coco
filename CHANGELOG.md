@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.0] - 2026-08-27
+
+### CoCo Web (coco web)
+
+- Renamed the command surface to `coco web`; `coco coweb` remains as a compatibility alias, and the installer writes both the new `web` and legacy `coweb` wrappers with matching uninstall cleanup.
+- The frozen browser client is branded at vendor time: page title, PWA manifest names, offline page, and service-worker cache prefix now read CoCo Web, while the upstream MIT attribution in SNAPSHOT.json stays intact.
+- Task execution through `coco control` is repaired end to end: detached runs resolve their agent entrypoint from a self-verifying runtime root (CAS marker manifest-hash bound), fixing instant `ERR_MODULE_NOT_FOUND` failures; stale state pins can no longer serve pre-upgrade snapshots.
+- Create-time validation rejects missing or non-git task directories immediately (`TASK_CWD_INVALID` / `WORKTREE_REPOSITORY_INVALID`), and failed launches render prominently instead of silently resetting.
+
+### Verified
+
+- Focused suites (coweb trio, control trio, supervisor, installer, plan contract) plus a 64-test regression batch all green; runtime integrity and package asset maps regenerated after every source freeze.
+- Live public verification: authenticated page title, mobile viewport without overflow, model listing, real task lifecycle (queued→running→completed with agent-authored commits), approve/cancel flows over an SSH-reverse-proxied URL.
+
+
 ## [0.7.4] - 2026-08-25
 
 ### Coweb Distribution

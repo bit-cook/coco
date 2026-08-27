@@ -154,6 +154,40 @@ test("authorized supervisor executes the real offline entry and persists outcome
   }
 });
 
+test("supervisor launches the app-root coco entry when COCO_APP_ROOT is set", { timeout: 30_000 }, async (t) => {
+  const assertExists = async () => {};
+  const agentDir = await mkdtemp(join(tmpdir(), "coco-supervisor-approot-"));
+  const appRoot = await mkdtemp(join(tmpdir(), "coco-supervisor-fakeapp-"));
+  const store = createTaskRunSupervisorStore({ agentDir }); let child; let registered;
+  try {
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(join(appRoot, "bin"), { recursive: true });
+    await mkdir(join(appRoot, "scripts"), { recursive: true });
+    await writeFile(join(appRoot, "bin", "coco"), "process.stdout.write('APP_ROOT_ENTRY_OK:'+process.argv.slice(3).join(','));process.exit(0);\n");
+    await writeFile(join(appRoot, "scripts", "coco-bootstrap.cjs"), "const { pathToFileURL } = require('node:url');\nmodule.exports = import(pathToFileURL(process.argv[1]).href);\n");
+    const prepared = await store.prepare({ cwd: process.cwd(), prompt: "app-root-probe", runId, taskId });
+    const { open } = await import("node:fs/promises");
+    const stdout = await open(prepared.paths.stdout, "a", 0o600);
+    const stderr = await open(prepared.paths.stderr, "a", 0o600);
+    child = spawn(process.execPath, [join(new URL("..", import.meta.url).pathname, "scripts", "task-run-supervisor-main.mjs"), "--task-id", taskId, "--run-id", runId, "--generation", String(prepared.generation), "--owner-id", prepared.ownerId], { detached: process.platform !== "win32", env: { ...process.env, COCO_CODING_AGENT_DIR: agentDir, COCO_APP_ROOT: appRoot }, stdio: ["ignore", stdout.fd, stderr.fd] });
+    await stdout.close(); await stderr.close();
+    let state;
+    for (let attempt = 0; attempt < 500; attempt += 1) { state = await store.inspect({ taskId, runId }); if (state.registration) break; await new Promise((done) => setTimeout(done, 10)); }
+    assert.ok(state.registration);
+    registered = state.registration;
+    await store.authorize({ generation: prepared.generation, ownerId: prepared.ownerId, taskId, runId, specSha256: prepared.specSha256 });
+    for (let attempt = 0; attempt < 3000; attempt += 1) { state = await store.inspect({ taskId, runId }); if (state.outcome) break; await new Promise((done) => setTimeout(done, 10)); }
+    assert.ok(state.outcome, await readFile(prepared.paths.stderr, "utf8"));
+    assert.equal(state.outcome.exitCode, 0);
+    assert.match(await readFile(prepared.paths.stdout, "utf8"), /APP_ROOT_ENTRY_OK:/);
+  } finally {
+    if (registered?.pid) { const identity = await processIdentity(registered.pid); if (identity) await terminateProcessTree(registered.pid, { graceMs: 50, identity }); }
+    if (child?.pid) { const identity = await processIdentity(child.pid); if (identity) await terminateProcessTree(child.pid, { graceMs: 50, identity }); }
+    await rm(agentDir, { recursive: true, force: true });
+    await rm(appRoot, { recursive: true, force: true });
+  }
+});
+
 test("supervisor canonical reads reject replacement symlinks", async () => {
   const agentDir = await mkdtemp(join(tmpdir(), "coco-supervisor-symlink-"));
   const store = createTaskRunSupervisorStore({ agentDir });

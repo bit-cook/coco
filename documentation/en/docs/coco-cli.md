@@ -13,8 +13,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 To install a reviewed release, download that release's `install.sh` and run it with the matching `COCO_VERSION`:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.7.4/install.sh
-COCO_VERSION=0.7.4 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.0/install.sh
+COCO_VERSION=0.8.0 bash install.sh
 ```
 
 Upgrade by running the stable installer again. It verifies the release artifact and preserves existing `~/.coco/agent` configuration during updates and reinstalls. `coco update` is not available.
@@ -129,13 +129,15 @@ Current-process credentials may instead use `AGNES_API_KEY`, `IDEPUB_API_KEY`, `
 
 CoCo uses global resources under `~/.coco/agent/`, including `settings.json`, `models.json`, `auth.json`, `skills/`, `prompts/`, and `extensions/`. Project-local settings, extensions, skills, prompts, and system prompt files are not loaded. See [CoCo security](coco-security.md).
 
-## CoCo Web (coweb)
+## CoCo Web (`web`)
 
 ```bash
-coco coweb [--port <port>] [--password <secret>] [--public-host <host>]
+coco web [--port <port>] [--password <secret>] [--public-host <host>]
+
+Legacy alias: `coco coweb` (kept for compatibility).
 ```
 
-Starts **Co Web**, CoCo's bundled native loopback frontend, at `http://127.0.0.1:30141` (override with `--port`). It never installs an npm package or starts an external Pi Web/Next.js runtime. The pinned desktop client assets are served by CoCo's native session and SSE service; responsive overrides apply only on mobile-sized viewports.
+Starts **CoCo Web**, CoCo's bundled native loopback frontend, at `http://127.0.0.1:30141` (override with `--port`). It never installs an npm package or starts an external Pi Web/Next.js runtime. The pinned desktop client assets are served by CoCo's native session and SSE service; responsive overrides apply only on mobile-sized viewports.
 
 The workspace can browse past sessions by project, continue or fork conversations, switch models and thinking levels, and preview project files while the agent works. Sessions are the same JSONL files the CLI uses, so both views stay in sync.
 

@@ -24,10 +24,15 @@ function run(cwd, environment, executable = launcher, nodeArguments = []) {
 
 test("Given forbidden project executable resources, when launcher preflight fails, then it reports the stable error code", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-launcher-preflight-"));
+  const sourceRoot = join(new URL("..", import.meta.url).pathname);
   const packageRoot = join(fixture, "coco");
   try {
     await cp(join(new URL("..", import.meta.url).pathname), packageRoot, {
-      filter: (path) => !path.includes("/.git/") && !path.includes("/.coco-tools/") && !path.includes("/test/") && !path.includes("/agent/"),
+      filter: (path) => {
+        if (path.includes("/.git/") || path.includes("/.coco-tools/") || path.includes("/test/")) return false;
+        const relative = path.slice(sourceRoot.length);
+        return relative !== "agent" && !relative.startsWith("agent/");
+      },
       recursive: true,
     });
     await generateRuntimeIntegrityManifest({ root: packageRoot });
@@ -58,11 +63,16 @@ test("Given a forged process integrity nonce, when launcher source is inspected,
 
 test("Given a symlink-preserving launcher path, when canonical root differs, then the bound verifier reaches stable preflight attribution", async () => {
   const fixture = await mkdtemp(join(tmpdir(), "coco-launcher-canonical-"));
+  const sourceRoot = join(new URL("..", import.meta.url).pathname);
   const packageRoot = join(fixture, "coco");
   const linkedRoot = join(fixture, "linked-coco");
   try {
     await cp(join(new URL("..", import.meta.url).pathname), packageRoot, {
-      filter: (path) => !path.includes("/.git/") && !path.includes("/.coco-tools/") && !path.includes("/test/") && !path.includes("/agent/"),
+      filter: (path) => {
+        if (path.includes("/.git/") || path.includes("/.coco-tools/") || path.includes("/test/")) return false;
+        const relative = path.slice(sourceRoot.length);
+        return relative !== "agent" && !relative.startsWith("agent/");
+      },
       recursive: true,
     });
     await generateRuntimeIntegrityManifest({ root: packageRoot });
