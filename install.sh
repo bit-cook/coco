@@ -26,6 +26,37 @@ info() { printf 'coco: %s\n' "$*"; }
 die() { printf 'coco: %s\n' "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "Required command not found: $1"; }
 
+# ---------- 下载源与镜像 ----------
+# COCO_MIRROR=auto（默认，探测 npmmirror 可达性自动选路）| cn（强制镜像）| off（强制直连）
+COCO_MIRROR="${COCO_MIRROR:-auto}"
+NODE_DIST_BASE_GLOBAL="https://nodejs.org/dist"
+NODE_DIST_BASE_CN="https://registry.npmmirror.com/-/binary/node"
+GH_PROXY_PREFIXES=("https://gh-proxy.com/" "https://ghfast.top/")
+
+fetch_url() { # fetch_url <url> <outfile>：失败返回非零（-f 保证 HTTP 错误也失败）
+  if command -v curl >/dev/null 2>&1; then
+    curl -fSL --retry 3 --retry-delay 2 --connect-timeout 10 -o "$2" "$1"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q --tries=3 -T 30 -O "$2" "$1"
+  else
+    return 87
+  fi
+}
+
+use_cn() {
+  case "$COCO_MIRROR" in
+    cn) return 0 ;;
+    off) return 1 ;;
+  esac
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsI --connect-timeout 2 --max-time 4 -o /dev/null https://registry.npmmirror.com 2>/dev/null
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q -T 4 -O /dev/null https://registry.npmmirror.com 2>/dev/null
+  else
+    return 1
+  fi
+}
+
 INSTALL_PARENT="$(dirname "$COCO_INSTALL_DIR")"
 INSTALL_NAME="$(basename "$COCO_INSTALL_DIR")"
 mkdir -p "$INSTALL_PARENT"
@@ -98,25 +129,33 @@ prepare_node() {
     return
   fi
 
-  local os arch platform filename base archive checksums expected actual extract
+  local os arch platform filename archive checksums expected actual extract
   case "$(uname -s)" in Linux*) os="linux" ;; Darwin*) os="darwin" ;; esac
   case "$(uname -m)" in x86_64|amd64) arch="x64" ;; arm64|aarch64) arch="arm64" ;; esac
   platform="${os}-${arch}"
   filename="node-v${NODE_VERSION}-${platform}.tar.gz"
-  base="https://nodejs.org/dist/v${NODE_VERSION}"
   archive="${TMPDIR_install}/${filename}"
   checksums="${TMPDIR_install}/node-SHASUMS256.txt"
   extract="${TMPDIR_install}/node-runtime"
   info "Node.js >= ${NODE_MIN_MAJOR}.${NODE_MIN_MINOR} not found; installing private Node.js v${NODE_VERSION}"
-  if command -v curl >/dev/null 2>&1; then
-    curl -fSL --retry 3 --retry-delay 2 -o "$archive" "${base}/${filename}"
-    curl -fSL --retry 3 --retry-delay 2 -o "$checksums" "${base}/SHASUMS256.txt"
-  elif command -v wget >/dev/null 2>&1; then
-    wget -q --tries=3 -O "$archive" "${base}/${filename}"
-    wget -q --tries=3 -O "$checksums" "${base}/SHASUMS256.txt"
+  # 多源下载：COCO_NODE_DIST_BASE 覆盖优先 → 按网络选路的 npmmirror / nodejs.org → 互为兜底
+  local bases=() downloaded=0
+  if [ -n "${COCO_NODE_DIST_BASE:-}" ]; then bases+=("${COCO_NODE_DIST_BASE%/}/v${NODE_VERSION}"); fi
+  if use_cn; then
+    bases+=("${NODE_DIST_BASE_CN}/v${NODE_VERSION}" "${NODE_DIST_BASE_GLOBAL}/v${NODE_VERSION}")
   else
-    die "Neither curl nor wget found. Install one and retry."
+    bases+=("${NODE_DIST_BASE_GLOBAL}/v${NODE_VERSION}" "${NODE_DIST_BASE_CN}/v${NODE_VERSION}")
   fi
+  local base
+  for base in "${bases[@]}"; do
+    if fetch_url "${base}/${filename}" "$archive" && fetch_url "${base}/SHASUMS256.txt" "$checksums"; then
+      downloaded=1
+      break
+    fi
+    info "Node.js source unreachable: ${base}; trying next mirror …"
+  done
+  [ "$downloaded" = 1 ] || die "All Node.js mirrors failed (set COCO_NODE_DIST_BASE to override)"
+  [ -s "$archive" ] || die "Node.js archive download failed"
   expected="$(grep "  ${filename}$" "$checksums" | cut -d ' ' -f1)"
   [ -n "$expected" ] || die "Node.js checksum not found for ${filename}"
   if command -v sha256sum >/dev/null 2>&1; then actual="$(sha256sum "$archive" | cut -d ' ' -f1)"; elif command -v shasum >/dev/null 2>&1; then actual="$(shasum -a 256 "$archive" | cut -d ' ' -f1)"; else die "Neither sha256sum nor shasum found. Install one and retry."; fi
@@ -131,12 +170,25 @@ prepare_node() {
 download() {
   local filename="coco-${COCO_VERSION}.tgz" sidecar line expected actual
   TARBALL="${TMPDIR_install}/${filename}"; sidecar="${TARBALL}.sha256"
-  if command -v curl >/dev/null 2>&1; then
-    curl -fSL --retry 3 --retry-delay 2 -o "$TARBALL" "${COCO_RELEASE_BASE}/${filename}?cache=${COCO_VERSION}-$$"
-    curl -fSL --retry 3 --retry-delay 2 -o "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256?cache=${COCO_VERSION}-$$"
-  elif command -v wget >/dev/null 2>&1; then
-    wget -q --tries=3 -O "$TARBALL" "${COCO_RELEASE_BASE}/${filename}?cache=${COCO_VERSION}-$$"; wget -q --tries=3 -O "$sidecar" "${COCO_RELEASE_BASE}/${filename}.sha256?cache=${COCO_VERSION}-$$"
-  else die "Neither curl nor wget found. Install one and retry."; fi
+  # 多源下载：COCO_RELEASE_MIRRORS 覆盖优先 → CN 时 gh-proxy/ghfast 加速 → 官方直连兜底
+  local urls=() u ok=0
+  if [ -n "${COCO_RELEASE_MIRRORS:-}" ]; then
+    local p
+    for p in ${COCO_RELEASE_MIRRORS}; do urls+=("${p%/}/${COCO_RELEASE_BASE}"); done
+  fi
+  if use_cn; then
+    local prefix
+    for prefix in "${GH_PROXY_PREFIXES[@]}"; do urls+=("${prefix}${COCO_RELEASE_BASE}"); done
+  fi
+  urls+=("${COCO_RELEASE_BASE}")
+  for u in "${urls[@]}"; do
+    if fetch_url "${u}/${filename}?cache=${COCO_VERSION}-$$" "$TARBALL" && fetch_url "${u}/${filename}.sha256?cache=${COCO_VERSION}-$$" "$sidecar"; then
+      ok=1
+      break
+    fi
+    info "Release source unreachable: ${u}; trying next mirror …"
+  done
+  [ "$ok" = 1 ] || die "All coco release mirrors failed (set COCO_RELEASE_MIRRORS to override)"
   line="$(cat "$sidecar")"
   printf '%s\n' "$line" | grep -Eq "^[0-9a-fA-F]{64}  ${filename}$" || die "Invalid SHA-256 sidecar for ${filename}"
   expected="${line%%  *}"
@@ -145,12 +197,18 @@ download() {
 }
 
 download_agnes_key() {
-  local key_path="${TMPDIR_install}/agnes.key" actual size
-  if command -v curl >/dev/null 2>&1; then
-    curl -fSL --retry 3 --retry-delay 2 -o "$key_path" "$AGNES_KEY_URL"
-  elif command -v wget >/dev/null 2>&1; then
-    wget -q --tries=3 -O "$key_path" "$AGNES_KEY_URL"
-  else die "Neither curl nor wget found. Install one and retry."; fi
+  local key_path="${TMPDIR_install}/agnes.key" actual size u ok=0
+  local urls=()
+  if use_cn; then
+    local prefix
+    for prefix in "${GH_PROXY_PREFIXES[@]}"; do urls+=("${prefix}${AGNES_KEY_URL}"); done
+  fi
+  urls+=("${AGNES_KEY_URL}")
+  for u in "${urls[@]}"; do
+    if fetch_url "$u" "$key_path"; then ok=1; break; fi
+    info "Key source unreachable: ${u}; trying next mirror …"
+  done
+  [ "$ok" = 1 ] || die "Agnes key download failed from all mirrors"
   size="$(wc -c < "$key_path" | tr -d '[:space:]')"
   [ "$size" = "$AGNES_KEY_SIZE" ] || die "Agnes API key size verification failed"
   if command -v sha256sum >/dev/null 2>&1; then actual="$(sha256sum "$key_path" | cut -d ' ' -f1)"; elif command -v shasum >/dev/null 2>&1; then actual="$(shasum -a 256 "$key_path" | cut -d ' ' -f1)"; else die "Neither sha256sum nor shasum found. Install one and retry."; fi
