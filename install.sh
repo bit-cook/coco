@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.8.0}"
+COCO_VERSION="${COCO_VERSION:-0.8.1}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/bit-cook/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key"
@@ -115,85 +115,138 @@ detect_platform() {
   case "$(uname -m)" in arm64|aarch64|x86_64|amd64) ;; *) die "Unsupported architecture: $(uname -m). coco supports arm64 and amd64." ;; esac
 }
 
-node_is_usable() {
-  command -v node >/dev/null 2>&1 || return 1
+node_version_ok() { # node_version_ok <node-path>
   local version major minor
-  version="$(node --version 2>/dev/null)" || return 1
+  version="$("$1" --version 2>/dev/null)" || return 1
   version="${version#v}"; major="${version%%.*}"; minor="${version#*.}"; minor="${minor%%.*}"
   [ "$major" -gt "$NODE_MIN_MAJOR" ] || { [ "$major" -eq "$NODE_MIN_MAJOR" ] && [ "$minor" -ge "$NODE_MIN_MINOR" ]; }
 }
 
-prepare_node() {
+node_is_usable() {
+  command -v node >/dev/null 2>&1 || return 1
+  node_version_ok "$(command -v node)"
+}
+
+# 并行下载的全局计划（prepare_node_plan 设置；fetch/finish 两段执行）
+NEED_NODE_FETCH=0
+NEED_TGZ_FETCH=0
+NODE_FILENAME="" NODE_ARCHIVE="" NODE_CHECKSUMS="" NODE_EXTRACT=""
+NODE_BASES=() CN_MODE=-1
+
+sha256_of() { # sha256_of <file>
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d ' ' -f1
+  elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d ' ' -f1
+  else return 1; fi
+}
+
+prepare_node_plan() {
   if node_is_usable; then
     NODE_BIN="$(command -v node)"
     return
   fi
-
-  local os arch platform filename archive checksums expected actual extract
+  # 私有运行时复用：重装/升级时免下载 Node（本地复制远快于 30MB 网络下载）
+  if [ -x "$COCO_INSTALL_DIR/runtime/node/bin/node" ] && node_version_ok "$COCO_INSTALL_DIR/runtime/node/bin/node"; then
+    mkdir -p "$TMPDIR_install/runtime-reuse"
+    cp -a "$COCO_INSTALL_DIR/runtime/node" "$TMPDIR_install/runtime-reuse/node"
+    NODE_RUNTIME_SOURCE="$TMPDIR_install/runtime-reuse/node"
+    NODE_BIN="$NODE_RUNTIME_SOURCE/bin/node"
+    info "Reusing existing private Node.js runtime (no download needed)"
+    return
+  fi
+  local os arch platform
   case "$(uname -s)" in Linux*) os="linux" ;; Darwin*) os="darwin" ;; esac
   case "$(uname -m)" in x86_64|amd64) arch="x64" ;; arm64|aarch64) arch="arm64" ;; esac
   platform="${os}-${arch}"
-  filename="node-v${NODE_VERSION}-${platform}.tar.gz"
-  archive="${TMPDIR_install}/${filename}"
-  checksums="${TMPDIR_install}/node-SHASUMS256.txt"
-  extract="${TMPDIR_install}/node-runtime"
+  NODE_FILENAME="node-v${NODE_VERSION}-${platform}.tar.gz"
+  NODE_ARCHIVE="${TMPDIR_install}/${NODE_FILENAME}"
+  NODE_CHECKSUMS="${TMPDIR_install}/node-SHASUMS256.txt"
+  NODE_EXTRACT="${TMPDIR_install}/node-runtime"
+  NEED_NODE_FETCH=1
   info "Node.js >= ${NODE_MIN_MAJOR}.${NODE_MIN_MINOR} not found; installing private Node.js v${NODE_VERSION}"
-  # 多源下载：COCO_NODE_DIST_BASE 覆盖优先 → 按网络选路的 npmmirror / nodejs.org → 互为兜底
-  local bases=() downloaded=0
+}
+
+fetch_node_files() { # 仅下载（可后台执行；die 在子壳内只终止子壳）
+  local bases=() base downloaded=0
   if [ -n "${COCO_NODE_DIST_BASE:-}" ]; then bases+=("${COCO_NODE_DIST_BASE%/}/v${NODE_VERSION}"); fi
-  if use_cn; then
+  if [ "$CN_MODE" = 1 ]; then
     bases+=("${NODE_DIST_BASE_CN}/v${NODE_VERSION}" "${NODE_DIST_BASE_GLOBAL}/v${NODE_VERSION}")
   else
     bases+=("${NODE_DIST_BASE_GLOBAL}/v${NODE_VERSION}" "${NODE_DIST_BASE_CN}/v${NODE_VERSION}")
   fi
-  local base
   for base in "${bases[@]}"; do
-    if fetch_url "${base}/${filename}" "$archive" && fetch_url "${base}/SHASUMS256.txt" "$checksums"; then
+    if fetch_url "${base}/${NODE_FILENAME}" "$NODE_ARCHIVE" && fetch_url "${base}/SHASUMS256.txt" "$NODE_CHECKSUMS"; then
       downloaded=1
       break
     fi
     info "Node.js source unreachable: ${base}; trying next mirror …"
   done
-  [ "$downloaded" = 1 ] || die "All Node.js mirrors failed (set COCO_NODE_DIST_BASE to override)"
-  [ -s "$archive" ] || die "Node.js archive download failed"
-  expected="$(grep "  ${filename}$" "$checksums" | cut -d ' ' -f1)"
-  [ -n "$expected" ] || die "Node.js checksum not found for ${filename}"
-  if command -v sha256sum >/dev/null 2>&1; then actual="$(sha256sum "$archive" | cut -d ' ' -f1)"; elif command -v shasum >/dev/null 2>&1; then actual="$(shasum -a 256 "$archive" | cut -d ' ' -f1)"; else die "Neither sha256sum nor shasum found. Install one and retry."; fi
+  [ "$downloaded" = 1 ] || { info "All Node.js mirrors failed (set COCO_NODE_DIST_BASE to override)"; return 1; }
+  [ -s "$NODE_ARCHIVE" ] || return 1
+}
+
+finish_node() { # 校验 + 解压（主壳内执行，可安全 die）
+  local expected actual
+  expected="$(grep "  ${NODE_FILENAME}$" "$NODE_CHECKSUMS" | cut -d ' ' -f1)"
+  [ -n "$expected" ] || die "Node.js checksum not found for ${NODE_FILENAME}"
+  actual="$(sha256_of "$NODE_ARCHIVE")" || die "Neither sha256sum nor shasum found. Install one and retry."
   [ "$actual" = "$expected" ] || die "Node.js SHA-256 verification failed"
-  mkdir -p "$extract"
-  tar -xzf "$archive" -C "$extract" --strip-components=1
-  NODE_RUNTIME_SOURCE="$extract"
-  NODE_BIN="$extract/bin/node"
+  mkdir -p "$NODE_EXTRACT"
+  tar -xzf "$NODE_ARCHIVE" -C "$NODE_EXTRACT" --strip-components=1
+  NODE_RUNTIME_SOURCE="$NODE_EXTRACT"
+  NODE_BIN="$NODE_EXTRACT/bin/node"
   [ -x "$NODE_BIN" ] || die "Private Node.js installation failed"
 }
 
-download() {
-  local filename="coco-${COCO_VERSION}.tgz" sidecar line expected actual
-  TARBALL="${TMPDIR_install}/${filename}"; sidecar="${TARBALL}.sha256"
-  # 多源下载：COCO_RELEASE_MIRRORS 覆盖优先 → CN 时 gh-proxy/ghfast 加速 → 官方直连兜底
-  local urls=() u ok=0
+verify_tgz_sidecar() { # verify_tgz_sidecar <tarball> <sidecar> <filename>：0=通过
+  local line expected actual
+  line="$(cat "$2")"
+  printf '%s
+' "$line" | grep -Eq "^[0-9a-fA-F]{64}  $3$" || return 1
+  expected="${line%%  *}"
+  actual="$(sha256_of "$1")" || return 1
+  [ "$(printf '%s' "$actual" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$expected" | tr '[:upper:]' '[:lower:]')" ]
+}
+
+prepare_tgz_plan() {
+  TARBALL="${TMPDIR_install}/coco-${COCO_VERSION}.tgz"
+  TGZ_SIDECAR="${TARBALL}.sha256"
+  TGZ_FILENAME="coco-${COCO_VERSION}.tgz"
+  # 缓存命中：复核 SHA-256 后完全跳过网络
+  mkdir -p "$COCO_CACHE_DIR" 2>/dev/null || true
+  if [ -s "$COCO_CACHE_DIR/$TGZ_FILENAME" ] && [ -s "$COCO_CACHE_DIR/$TGZ_FILENAME.sha256" ]      && verify_tgz_sidecar "$COCO_CACHE_DIR/$TGZ_FILENAME" "$COCO_CACHE_DIR/$TGZ_FILENAME.sha256" "$TGZ_FILENAME"; then
+    cp "$COCO_CACHE_DIR/$TGZ_FILENAME" "$TARBALL"
+    cp "$COCO_CACHE_DIR/$TGZ_FILENAME.sha256" "$TGZ_SIDECAR"
+    info "Reusing cached ${TGZ_FILENAME} (${COCO_CACHE_DIR})"
+    return
+  fi
+  NEED_TGZ_FETCH=1
+  # 多源下载：COCO_RELEASE_MIRRORS 覆盖优先 → CN 时 gh-proxy/ghfast/ghproxy 加速 → 官方直连兜底
+  TGZ_URLS=()
+  local p prefix
   if [ -n "${COCO_RELEASE_MIRRORS:-}" ]; then
-    local p
-    for p in ${COCO_RELEASE_MIRRORS}; do urls+=("${p%/}/${COCO_RELEASE_BASE}"); done
+    for p in ${COCO_RELEASE_MIRRORS}; do TGZ_URLS+=("${p%/}/${COCO_RELEASE_BASE}"); done
   fi
-  if use_cn; then
-    local prefix
-    for prefix in "${GH_PROXY_PREFIXES[@]}"; do urls+=("${prefix}${COCO_RELEASE_BASE}"); done
+  if [ "$CN_MODE" = 1 ]; then
+    for prefix in "${GH_PROXY_PREFIXES[@]}"; do TGZ_URLS+=("${prefix}${COCO_RELEASE_BASE}"); done
   fi
-  urls+=("${COCO_RELEASE_BASE}")
-  for u in "${urls[@]}"; do
-    if fetch_url "${u}/${filename}?cache=${COCO_VERSION}-$$" "$TARBALL" && fetch_url "${u}/${filename}.sha256?cache=${COCO_VERSION}-$$" "$sidecar"; then
-      ok=1
-      break
+  TGZ_URLS+=("${COCO_RELEASE_BASE}")
+}
+
+fetch_tgz_files() { # 仅下载（可后台执行）
+  local u
+  for u in "${TGZ_URLS[@]}"; do
+    if fetch_url "${u}/${TGZ_FILENAME}?cache=${COCO_VERSION}-$$" "$TARBALL" && fetch_url "${u}/${TGZ_FILENAME}.sha256?cache=${COCO_VERSION}-$$" "$TGZ_SIDECAR"; then
+      return 0
     fi
     info "Release source unreachable: ${u}; trying next mirror …"
   done
-  [ "$ok" = 1 ] || die "All coco release mirrors failed (set COCO_RELEASE_MIRRORS to override)"
-  line="$(cat "$sidecar")"
-  printf '%s\n' "$line" | grep -Eq "^[0-9a-fA-F]{64}  ${filename}$" || die "Invalid SHA-256 sidecar for ${filename}"
-  expected="${line%%  *}"
-  if command -v sha256sum >/dev/null 2>&1; then actual="$(sha256sum "$TARBALL" | cut -d ' ' -f1)"; elif command -v shasum >/dev/null 2>&1; then actual="$(shasum -a 256 "$TARBALL" | cut -d ' ' -f1)"; else die "Neither sha256sum nor shasum found. Install one and retry."; fi
-  [ "$(printf '%s' "$actual" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$expected" | tr '[:upper:]' '[:lower:]')" ] || die "SHA-256 verification failed for ${filename}"
+  return 1
+}
+
+finish_tgz() { # 校验 + 写缓存（主壳内执行，可安全 die）
+  verify_tgz_sidecar "$TARBALL" "$TGZ_SIDECAR" "$TGZ_FILENAME"     || die "SHA-256 verification failed for ${TGZ_FILENAME}"
+  cp "$TARBALL" "$COCO_CACHE_DIR/$TGZ_FILENAME" 2>/dev/null || true
+  cp "$TGZ_SIDECAR" "$COCO_CACHE_DIR/$TGZ_FILENAME.sha256" 2>/dev/null || true
 }
 
 download_agnes_key() {
@@ -541,7 +594,28 @@ EOF
 }
 
 main() {
-  detect_platform; prepare_node; download; install_coco; write_config; verify_config; link_binary
+  detect_platform
+  prepare_node_plan
+  prepare_tgz_plan
+  if [ "$CN_MODE" = -1 ]; then if use_cn; then CN_MODE=1; else CN_MODE=0; fi; fi
+  if [ "$NEED_NODE_FETCH" = 1 ] && [ "$NEED_TGZ_FETCH" = 1 ]; then
+    # 极限优化：Node 运行时与发行包并行下载（全新安装的最大两段耗时重叠）
+    info "Fetching Node.js runtime and coco package in parallel …"
+    ( trap - EXIT HUP INT TERM; fetch_node_files ) & local p1=$!
+    ( trap - EXIT HUP INT TERM; fetch_tgz_files ) & local p2=$!
+    local s1=0 s2=0
+    wait "$p1" || s1=$?
+    wait "$p2" || s2=$?
+    [ "$s1" = 0 ] || die "Node.js runtime download failed (set COCO_NODE_DIST_BASE to override)"
+    [ "$s2" = 0 ] || die "coco package download failed (set COCO_RELEASE_MIRRORS to override)"
+  elif [ "$NEED_NODE_FETCH" = 1 ]; then
+    fetch_node_files || die "Node.js runtime download failed (set COCO_NODE_DIST_BASE to override)"
+  elif [ "$NEED_TGZ_FETCH" = 1 ]; then
+    fetch_tgz_files || die "coco package download failed (set COCO_RELEASE_MIRRORS to override)"
+  fi
+  [ "$NEED_NODE_FETCH" = 1 ] && finish_node
+  [ "$NEED_TGZ_FETCH" = 1 ] && finish_tgz
+  install_coco; write_config; verify_config; link_binary
   COMMITTED=1
   rm -rf "$ROLLBACK_DIR"
   info "Installed CoCo v${COCO_VERSION}"
