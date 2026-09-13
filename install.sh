@@ -31,7 +31,7 @@ need() { command -v "$1" >/dev/null 2>&1 || die "Required command not found: $1"
 COCO_MIRROR="${COCO_MIRROR:-auto}"
 NODE_DIST_BASE_GLOBAL="https://nodejs.org/dist"
 NODE_DIST_BASE_CN="https://registry.npmmirror.com/-/binary/node"
-GH_PROXY_PREFIXES=("https://gh-proxy.com/" "https://ghfast.top/")
+GH_PROXY_PREFIXES=("https://gh-proxy.com/" "https://ghfast.top/" "https://ghproxy.net/")
 
 fetch_url() { # fetch_url <url> <outfile>：失败返回非零（-f 保证 HTTP 错误也失败）
   if command -v curl >/dev/null 2>&1; then
