@@ -33,6 +33,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run typecheck:features
       - run: npm run build
+      - run: npm run verify:product-identity
       - run: npm run test:core
       - run: npm run test:integrity
       - run: npm run verify:closure
