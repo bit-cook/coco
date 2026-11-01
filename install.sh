@@ -368,6 +368,9 @@ install_coco() {
   mkdir -p "$extract" "$INSTALL_PARENT"
   tar --no-same-owner --no-same-permissions -xzf "$TARBALL" -C "$extract"
   mv "$extract/package" "$CANDIDATE_DIR"
+  # 归档模式不可信：v0.8.1 发布包把 bin/coco 打成 644（发布管线丢模式），
+  # --no-same-permissions 解包后 -x 检查必败。解包后强制补可执行位。
+  chmod +x "$CANDIDATE_DIR/bin/coco" 2>/dev/null || true
   if [ -n "$NODE_RUNTIME_SOURCE" ]; then
     mkdir -p "$CANDIDATE_DIR/runtime"
     mv "$NODE_RUNTIME_SOURCE" "$CANDIDATE_DIR/runtime/node"

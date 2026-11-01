@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { chmod, lstat, mkdtemp, mkdir, readFile, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { execFile, spawn } from "node:child_process";
+import { access, constants } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -527,6 +528,23 @@ test("Given the release version surfaces, when they are compared, then package.j
   assert.equal(COCO_VERSION, pkg.version);
   assert.equal(installerDefault[1], pkg.version);
   assert.equal(bootstrapperDefault[1], pkg.version);
+});
+
+test("Given a release archive whose bin/coco lost its executable bit, when the installer runs, then it restores the bit and installs", async () => {
+  // 历史 bug：v0.8.1 发布包把 package/bin/coco 打成 644（发布管线丢模式），
+  // --no-same-permissions 解包后 validate_candidate 的 -x 检查必败。
+  // 安装器必须不信任归档模式，解包后强制补可执行位。
+  const setup = await fixture();
+  try {
+    await chmod(join(setup.root, "package", "bin", "coco"), 0o644);
+    await exec("tar", ["-czf", setup.environment.COCO_TEST_TARBALL, "package"], { cwd: setup.root });
+    await writeChecksum(setup.environment.COCO_TEST_TARBALL);
+    assert.equal(await runInstaller(installers[0], { ...setup.environment, COCO_CACHE_DIR: join(setup.root, "cache-empty") }), 0);
+    await stat(join(setup.install, "bin", "coco"));
+    await access(join(setup.install, "bin", "coco"), constants.X_OK);
+  } finally {
+    await rm(setup.root, { force: true, recursive: true });
+  }
 });
 
 test("Given the public bootstrapper, when parsed by POSIX sh, then it contains no bash-only syntax", async () => {
