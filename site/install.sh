@@ -55,7 +55,7 @@ info "installing coco v${version}"
 
 RAW_URL="https://raw.githubusercontent.com/bit-cook/coco/${tag}/install.sh"
 # 镜像源列表（空格分隔；URL 不含空格，可安全分词）
-urls="https://cdn.jsdelivr.net/gh/bit-cook/coco@649675a4f41033c592358e502a0393779dbfe703/install.sh"
+urls="https://cdn.jsdelivr.net/gh/bit-cook/coco@f05ed48276de2c665e1704476a6d8e0efe4c64f1/install.sh"
 if [ -n "${COCO_GH_MIRRORS:-}" ]; then
   for p in ${COCO_GH_MIRRORS}; do urls="$urls ${p%/}/${RAW_URL}"; done
 else
