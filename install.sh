@@ -376,6 +376,18 @@ install_coco() {
     mv "$NODE_RUNTIME_SOURCE" "$CANDIDATE_DIR/runtime/node"
     NODE_BIN="$CANDIDATE_DIR/runtime/node/bin/node"
   fi
+  # 归档可能缺依赖：bundledDependencies 依赖打包时 node_modules 真实存在，
+  # v0.8.1 发布包漏打（23038 → 0 条）。用私有 Node 运行时补装，保证可运行。
+  if [ ! -d "$CANDIDATE_DIR/node_modules" ]; then
+    local npm_cli
+    npm_cli="$(dirname "$NODE_BIN")/npm"
+    if [ -x "$npm_cli" ]; then
+      info "Archive shipped without node_modules; installing dependencies with the private runtime …"
+      ( cd "$CANDIDATE_DIR" && PATH="$(dirname "$NODE_BIN"):$PATH"           npm_config_registry="${COCO_NPM_REGISTRY:-https://registry.npmjs.org/}"           "$npm_cli" install --omit=dev --no-audit --no-fund --loglevel=error )         || die "Dependency installation failed (archive shipped without node_modules)"
+    else
+      die "Archive shipped without node_modules and no private npm is available"
+    fi
+  fi
   validate_candidate
   validate_agent_path
   prepare_agent_backup

@@ -5,8 +5,8 @@ Read this file before changing the repository.
 ## Current Truth
 
 - Worktree: `/root/coco-tmp/coco-v053-migration`
-- Current branch: `release/v0.8.0`
-- Released version: `v0.7.4`
+- Current branch: `release/v0.8.2`
+- Released version: `v0.8.1`
 - Release candidate: `v0.8.0` (native CoCo Web \`coco web\`, control pipeline repair)
 - Active plan: `DEVELOPMENT_PLAN.md`
 - Work items: `development/work-items/0.7.0/`

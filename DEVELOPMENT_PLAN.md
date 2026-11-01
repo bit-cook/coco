@@ -6,7 +6,7 @@ Last updated: 2026-08-27
 
 - Released: `v0.7.4` at `096f830`
 - Development branch: `release/v0.8.0`
-- Next target: publish `v0.8.0`; native CoCo Web (`coco web`) distribution
+- Next target: publish `v0.8.2`; installer reliability repairs (COCO_CACHE_DIR, POSIX bootstrapper, archive mode)
 - npm: not published
 - Website: https://bit-cook.github.io/coco/
 - Research pages: `/research.html` and `/research-zh-CN.html`
