@@ -3,13 +3,16 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.8.1}"
+COCO_VERSION="${COCO_VERSION:-0.8.2}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/bit-cook/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key"
 AGNES_KEY_SIZE=52
 AGNES_KEY_SHA256="4d78028a0a60a7d752e6e57cbcb3113e9de99ab81bde608a0b9610a83cd42f6e"
 COCO_INSTALL_DIR="${COCO_INSTALL_DIR:-$HOME/.coco}"
+# 发行包缓存目录：命中后复核 SHA-256 直接复用，跳过网络（历史 bug：该变量
+# 曾从未赋值，set -u 下安装必崩 "COCO_CACHE_DIR: unbound variable"）。
+COCO_CACHE_DIR="${COCO_CACHE_DIR:-$HOME/.cache/coco}"
 if [ -z "${COCO_BIN_DIR:-}" ]; then
   if [ "$(id -u)" = "0" ]; then COCO_BIN_DIR="/usr/local/bin"; else COCO_BIN_DIR="$HOME/.local/bin"; fi
 fi

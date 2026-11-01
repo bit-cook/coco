@@ -88,6 +88,7 @@ async function fixture() {
     bin,
     environment: {
       ...process.env,
+        COCO_CACHE_DIR: join(root, "cache"),
         COCO_AGENT_DIR: agent,
         COCO_BIN_DIR: bin,
         COCO_CODING_AGENT_DIR: agent,
@@ -300,7 +301,8 @@ for (const installer of installers) {
       await writeFile(join(setup.agent, "settings.json"), settings);
       await writeFile(join(setup.install, "installed-before-checksum-failure"), "preserve\n");
       await writeFile(join(setup.server, `coco-${COCO_VERSION}.tgz.sha256`), `${"0".repeat(64)}  coco-${COCO_VERSION}.tgz\n`);
-      assert.notEqual(await runInstaller(installer, setup.environment), 0);
+      // 空缓存目录：强制走下载路径（缓存命中会合法复用已验证的旧包，绕过损坏源）
+      assert.notEqual(await runInstaller(installer, { ...setup.environment, COCO_CACHE_DIR: join(setup.root, "cache-empty") }), 0);
       assert.equal(await readFile(join(setup.install, "installed-before-checksum-failure"), "utf8"), "preserve\n");
       assert.deepEqual(await readFile(join(setup.agent, "settings.json")), settings);
     } finally {
@@ -317,7 +319,7 @@ for (const installer of installers) {
       await exec("tar", ["-xzf", setup.environment.COCO_TEST_TARBALL, "-C", setup.root]);
       await exec("tar", ["-czf", setup.environment.COCO_TEST_TARBALL, "package", "other-package"], { cwd: setup.root });
       await writeChecksum(setup.environment.COCO_TEST_TARBALL);
-      assert.notEqual(await runInstaller(installer, setup.environment), 0);
+      assert.notEqual(await runInstaller(installer, { ...setup.environment, COCO_CACHE_DIR: join(setup.root, "cache-empty") }), 0);
       assert.equal(await readFile(join(setup.install, "runtime-before-unsafe-archive"), "utf8"), "preserve\n");
     } finally {
       await rm(setup.root, { force: true, recursive: true });
@@ -332,7 +334,7 @@ for (const installer of installers) {
       await symlink("/outside", join(setup.root, "package", "linked-member"));
       await exec("tar", ["-czf", setup.environment.COCO_TEST_TARBALL, "package"], { cwd: setup.root });
       await writeChecksum(setup.environment.COCO_TEST_TARBALL);
-      assert.notEqual(await runInstaller(installer, setup.environment), 0);
+      assert.notEqual(await runInstaller(installer, { ...setup.environment, COCO_CACHE_DIR: join(setup.root, "cache-empty") }), 0);
       assert.equal(await readFile(join(setup.install, "runtime-before-linked-archive"), "utf8"), "preserve\n");
     } finally {
       await rm(setup.root, { force: true, recursive: true });
@@ -507,4 +509,33 @@ test("Given an unrelated launcher, when CoCo is uninstalled, then the launcher i
   } finally {
     await rm(setup.root, { force: true, recursive: true });
   }
+});
+
+test("Given the release version surfaces, when they are compared, then package.json, product manifest, generated identity, installer default, and bootstrapper default all agree", async () => {
+  // 历史 bug（v0.8.1）：package.json 与安装器默认值升到 0.8.1，但
+  // product-manifest.v1.json 留在 0.8.0——测试按 0.8.0 写 sidecar 文件名、
+  // 安装器按 0.8.1 校验，整个安装器测试套件 20/26 红，且无守卫发现。
+  const pkg = JSON.parse(await readFile(join(cocoRoot, "package.json"), "utf8"));
+  const manifest = JSON.parse(await readFile(join(cocoRoot, "resources", "product-manifest.v1.json"), "utf8"));
+  const installerSource = await readFile(installers[0], "utf8");
+  const bootstrapperSource = await readFile(join(cocoRoot, "site", "install.sh"), "utf8");
+  const installerDefault = /^COCO_VERSION="\$\{COCO_VERSION:-([0-9]+\.[0-9]+\.[0-9]+)\}"/m.exec(installerSource);
+  const bootstrapperDefault = /^DEFAULT_VERSION="([0-9]+\.[0-9]+\.[0-9]+)"/m.exec(bootstrapperSource);
+  assert.ok(installerDefault, "installer must declare a default COCO_VERSION");
+  assert.ok(bootstrapperDefault, "bootstrapper must declare a DEFAULT_VERSION");
+  assert.equal(pkg.version, manifest.product.version);
+  assert.equal(COCO_VERSION, pkg.version);
+  assert.equal(installerDefault[1], pkg.version);
+  assert.equal(bootstrapperDefault[1], pkg.version);
+});
+
+test("Given the public bootstrapper, when parsed by POSIX sh, then it contains no bash-only syntax", async () => {
+  // 历史 bug：引导器曾用 bash 数组（GH_PROXIES=(...) / urls+=(...)），
+  // AgentBoot 以 sh 执行安装脚本，第一个数组赋值处即 Syntax error。
+  // Ubuntu 的 sh 即 dash，是 POSIX 兼容性的有效裁判。
+  const bootstrapper = join(cocoRoot, "site", "install.sh");
+  await exec("sh", ["-n", bootstrapper]);
+  const source = await readFile(bootstrapper, "utf8");
+  assert.equal(/^\s*[A-Za-z_][A-Za-z0-9_]*=\(/m.test(source), false, "bootstrapper must not use bash arrays");
+  assert.equal(/\$\{[A-Za-z_][A-Za-z0-9_]*\[@\]\}/.test(source), false, "bootstrapper must not expand bash arrays");
 });

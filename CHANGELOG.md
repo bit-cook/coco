@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.2] - 2026-11-01
+
+### Installer repairs (all user-facing install paths)
+
+- Fixed `COCO_CACHE_DIR: unbound variable`: the release-package cache directory was referenced (mkdir / cache-hit check / cache write) but never assigned, so every real install aborted under `set -u` before reaching the download. The v0.8.1 cache feature was effectively dead code. The variable is now defined with an env override (`COCO_CACHE_DIR`, default `~/.cache/coco`).
+- Fixed the public bootstrapper (`bit-cook.github.io/coco/install.sh`) being bash-only: it used bash arrays (`GH_PROXIES=(...)`, `urls+=(...)`, `"${urls[@]}"`), so any caller executing it with POSIX `sh` died at the first array assignment with `Syntax error: "(" unexpected` — this is exactly how AgentBoot invokes install scripts. The bootstrapper is now POSIX-sh clean (verified with `sh -n`) and still runs the downloaded installer with bash.
+- Fixed the version skew that broke the installer test suite: `package.json` and the installer default were 0.8.1 while `resources/product-manifest.v1.json` (the source of the generated product identity) stayed 0.8.0, so every checksum verification compared against the wrong asset filename. All version surfaces are synchronized, and a new test asserts package.json == manifest == generated identity == installer default == bootstrapper default.
+- The installer test suite was 20/26 red at v0.8.1 (it only asserted exit codes, so the red looked identical to the unbound-variable crash). The cache fix activated the cache path, which legitimately defeated three corrupted-archive tests; those now install against an isolated empty cache directory to force the download path. Suite is 28/28 green, including two new regression guards (version-surface agreement; bootstrapper POSIX-sh parse).
+- Wired `npm run verify:product-identity` into both `ci.yml` and `release.yml` — the guard existed but ran in neither, which is how v0.8.1 shipped with a stale identity.
+
 ## [0.8.0] - 2026-08-27
 
 ### CoCo Web (coco web)
