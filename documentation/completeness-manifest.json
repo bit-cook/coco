@@ -1,6 +1,6 @@
 {
   "schema": "coco-documentation-completeness-v2",
-  "product_version": "0.8.0",
+  "product_version": "0.8.2",
   "status": "complete",
   "complete": true,
   "generation": {
@@ -26,9 +26,9 @@
       "path": "CHANGELOG.md",
       "category": "historical-inherited",
       "source": {
-        "bytes": 500119,
-        "lines": 5462,
-        "sha256": "071a2ccd2a929e9c5d66f0f4175d620261ec73461161160708b92c1ba62bd7fe"
+        "bytes": 502087,
+        "lines": 5472,
+        "sha256": "94c273e5f0eeba17399c8aa8a20716bc1dbd40f58e7b32a7cb99f4baca5ae6ca"
       },
       "locales": {
         "en": {

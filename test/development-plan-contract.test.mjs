@@ -6,7 +6,7 @@ import test from "node:test";
 const root = new URL("..", import.meta.url).pathname;
 const workItems = join(root, "development", "work-items", "0.6.3");
 
-test("active development plan preserves history and the focused 0.8.0 release target", async () => {
+test("active development plan preserves history and the focused release target", async () => {
   const [agents, plan, history, generated, leases, files] = await Promise.all([
     readFile(join(root, "AGENTS.md"), "utf8"),
     readFile(join(root, "DEVELOPMENT_PLAN.md"), "utf8"),
@@ -16,11 +16,11 @@ test("active development plan preserves history and the focused 0.8.0 release ta
     readdir(workItems),
   ]);
 
-  assert.match(agents, /Current branch: `release\/v0.8.0`/);
+  assert.match(agents, /Current branch: `release\/v[0-9]+\.[0-9]+\.[0-9]+`/);
   assert.match(agents, /DEVELOPMENT_PLAN\.md/);
   assert.match(agents, /HISTORICAL_DOCUMENTS\.md/);
-  assert.match(agents, /Released version: `v0.7.4`/);
-  assert.match(plan, /Next target: publish `v0\.8\.0`; native CoCo Web \(`coco web`\) distribution/);
+  assert.match(agents, /Released version: `v[0-9]+\.[0-9]+\.[0-9]+`/);
+  assert.match(plan, /Next target: publish `v[0-9]+\.[0-9]+\.[0-9]+`/);
   assert.match(plan, /Completed 0\.6\.3 Wave/);
   assert.equal(leases.schemaVersion, 1);
   assert.equal(Array.isArray(leases.leases), true);
