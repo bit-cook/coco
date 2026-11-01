@@ -10,6 +10,8 @@ AGNES_KEY_URL="https://github.com/bit-cook/coco/releases/download/installer-v0.1
 AGNES_KEY_SIZE=52
 AGNES_KEY_SHA256="4d78028a0a60a7d752e6e57cbcb3113e9de99ab81bde608a0b9610a83cd42f6e"
 COCO_INSTALL_DIR="${COCO_INSTALL_DIR:-$HOME/.coco}"
+# 发行包缓存目录（历史 bug：从未赋值，set -u 下安装必崩 unbound variable）
+COCO_CACHE_DIR="${COCO_CACHE_DIR:-$HOME/.cache/coco}"
 if [ -z "${COCO_BIN_DIR:-}" ]; then
   if [ "$(id -u)" = "0" ]; then COCO_BIN_DIR="/usr/local/bin"; else COCO_BIN_DIR="$HOME/.local/bin"; fi
 fi

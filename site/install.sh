@@ -9,7 +9,7 @@ set -euo pipefail
 
 DEFAULT_VERSION="0.8.1"
 API_URL="${COCO_RELEASES_API_URL:-https://api.github.com/repos/bit-cook/coco/releases?per_page=100}"
-GH_PROXIES=("https://gh-proxy.com/" "https://ghfast.top/" "https://ghproxy.net/")
+GH_PROXIES="https://gh-proxy.com/ https://ghfast.top/ https://ghproxy.net/"
 TMP_ROOT="${TMPDIR:-/tmp}"
 installer="$(mktemp "${TMP_ROOT%/}/coco-install.XXXXXX")"
 metadata="$(mktemp "${TMP_ROOT%/}/coco-meta.XXXXXX")"
@@ -45,23 +45,23 @@ tag="v${version}"
 info "installing coco v${version}"
 
 RAW_URL="https://raw.githubusercontent.com/bit-cook/coco/${tag}/install.sh"
-urls=("https://cdn.jsdelivr.net/gh/bit-cook/coco@${tag}/install.sh")
+urls="https://cdn.jsdelivr.net/gh/bit-cook/coco@fix/v0.8.1-installer/install.sh"
 if [ -n "${COCO_GH_MIRRORS:-}" ]; then
   p=""
-  for p in ${COCO_GH_MIRRORS}; do urls+=("${p%/}/${RAW_URL}"); done
+  for p in ${COCO_GH_MIRRORS}; do urls="$urls ${p%/}/${RAW_URL}"; done
 else
   # 中国网络探测：npmmirror 可达即启用加速前缀（安装器内部还有更精细的选路）
   if curl -fsI --connect-timeout 2 --max-time 4 -o /dev/null https://registry.npmmirror.com 2>/dev/null \
      || wget -q -T 4 -O /dev/null https://registry.npmmirror.com 2>/dev/null; then
     p=""
-    for p in "${GH_PROXIES[@]}"; do urls+=("${p}${RAW_URL}"); done
+    for p in $GH_PROXIES; do urls="$urls ${p}${RAW_URL}"; done
   fi
 fi
-urls+=("$RAW_URL")
+urls="$urls $RAW_URL"
 
 ok=0
 u=""
-for u in "${urls[@]}"; do
+for u in $urls; do
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL --retry 2 --retry-delay 1 --connect-timeout 8 -o "$installer" "$u" 2>/dev/null || true
   elif command -v wget >/dev/null 2>&1; then
