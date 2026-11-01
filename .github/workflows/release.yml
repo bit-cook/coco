@@ -53,6 +53,13 @@ jobs:
       - run: node scripts/publication-secret-scanner.mjs release
       - run: node -e "import('./scripts/verify-package-closure.mjs').then(async ({verifyTarballClosure}) => { const {readdir}=await import('node:fs/promises'); const tarball=(await readdir('release')).find((entry)=>entry.endsWith('.tgz')); const result=await verifyTarballClosure({root:process.cwd(),tarball:'release/'+tarball}); console.log(JSON.stringify(result)); process.exit(result.status==='approved'?0:1); })"
       - run: tar -tzf release/coco-*.tgz | (! grep -E '(^package/(\.coco-tools|documentation/[^/]+/logs|test/)|/\.omo/)')
+      # bundledDependencies 契约：npm pack 只在打包时 node_modules 真实存在才把
+      # 依赖写进包。v0.8.1 发布包漏打（23038 → 0 条），安装必败。
+      - name: Verify bundled dependencies are packed
+        run: |
+          tar -tzf release/coco-*.tgz | grep -q '^package/node_modules/' || {
+            echo "::error::packed tarball is missing node_modules — bundledDependencies were not installed at pack time"; exit 1; }
+          echo "packed node_modules entries: $(tar -tzf release/coco-*.tgz | grep -c '^package/node_modules/')"
       - run: npm run build:offline
         env:
           COCO_PACKAGE_ARCHIVE: ${{ steps.package.outputs.archive }}
