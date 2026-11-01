@@ -70,18 +70,18 @@
       "source": {
         "bytes": 7603,
         "lines": 124,
-        "sha256": "24655dc57096c02e23860615b1d6010aedd77c69f828fb6f582d27e0318a7390"
+        "sha256": "b4b8ba8d248bb4ed6b014fa7ec367d2d5d305cb2d2cd1c4020321d7d13a56d3b"
       },
       "locales": {
         "en": {
           "bytes": 4881,
           "lines": 99,
-          "sha256": "c9c8743d7aeb2feb68cbb75aa608f396b9f048b8c876831e01c9edbf94ff5081"
+          "sha256": "9d937e94e61ca1c961c259cde0a650c130cb95959dabb61da2490edfdd75cb09"
         },
         "zh-CN": {
           "bytes": 6253,
           "lines": 116,
-          "sha256": "c5fabe12f052ebe4f0924604da33154752b8aaff21669819b6b2985da9218051"
+          "sha256": "501588d1ea95a055100ae5dd8df9263d82e025fc3241996cf6702004990e0bdc"
         }
       }
     },
@@ -123,12 +123,12 @@
         "en": {
           "bytes": 9260,
           "lines": 147,
-          "sha256": "8ae7d792df7c6db8140f328239633a73daf408c4bb66a5a1ab0d6655224f2636"
+          "sha256": "7583202c1cef6b52dec2543a423a567946d7fd5042694674a2804ed4f6ba0c58"
         },
         "zh-CN": {
           "bytes": 8767,
           "lines": 147,
-          "sha256": "3119905819ac087702c6cc16c3ea2c90c26423d16d78c50b6ed8dec265b70648"
+          "sha256": "91f55c863632f3c006463142603eeae87ae8b091c4fd825b43581dd063027ca4"
         }
       }
     },
@@ -418,12 +418,12 @@
         "en": {
           "bytes": 32035,
           "lines": 812,
-          "sha256": "a71d23cf6cbb60ed34685b26796a16756c73e2eafa26d5bd3cb2eb4b2078f476"
+          "sha256": "abf4ba5832f87614101001b05a66a975a066b4d2bcf8822c96ecbccfef87851d"
         },
         "zh-CN": {
           "bytes": 36296,
           "lines": 928,
-          "sha256": "c6617d995a54fab68ef06f7c8b57f1560f2d52f3d0b13f0cbab435e8a35a2aff"
+          "sha256": "631904ef7dc94da97d258893914f49acf6b07bd99b4b79403990ab1fc3c225f2"
         }
       }
     },
