@@ -14,7 +14,7 @@ To install a reviewed release, download that release's `install.sh` and run it w
 
 ```bash
 curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.2/install.sh
-COCO_VERSION=0.8.0 bash install.sh
+COCO_VERSION=0.8.2 bash install.sh
 ```
 
 Upgrade by running the stable installer again. It verifies the release artifact and preserves existing `~/.coco/agent` configuration during updates and reinstalls. `coco update` is not available.
