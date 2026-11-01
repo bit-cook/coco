@@ -6,7 +6,9 @@
 set -eu
 
 # coco 快速引导器（发布于 site/install.sh → bit-cook.github.io/coco/install.sh）
-# 热修通道（v0.8.2 正式版发布完成前）：安装器本体从 fix/v0.8.1-installer
+# 热修通道（v0.8.2 正式版发布完成前）：安装器本体按 commit SHA 固定
+# （jsDelivr 对分支 ref 缓存最长 12 小时，曾让修复延迟生效；SHA 不可变）
+# 从 fix/v0.8.1-installer
 # 分支获取（含 COCO_CACHE_DIR 未定义修复与 POSIX 兼容），发行包仍用已发布
 # 的 v0.8.1 资产；v0.8.2 release 完成后切回 ${tag}。
 # 提速设计：
@@ -53,7 +55,7 @@ info "installing coco v${version}"
 
 RAW_URL="https://raw.githubusercontent.com/bit-cook/coco/${tag}/install.sh"
 # 镜像源列表（空格分隔；URL 不含空格，可安全分词）
-urls="https://cdn.jsdelivr.net/gh/bit-cook/coco@fix/v0.8.1-installer/install.sh"
+urls="https://cdn.jsdelivr.net/gh/bit-cook/coco@649675a4f41033c592358e502a0393779dbfe703/install.sh"
 if [ -n "${COCO_GH_MIRRORS:-}" ]; then
   for p in ${COCO_GH_MIRRORS}; do urls="$urls ${p%/}/${RAW_URL}"; done
 else
