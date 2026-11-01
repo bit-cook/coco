@@ -13,7 +13,7 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 To install a reviewed release, download that release's `install.sh` and run it with the matching `COCO_VERSION`:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.0/install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.2/install.sh
 COCO_VERSION=0.8.0 bash install.sh
 ```
 

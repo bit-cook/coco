@@ -17,7 +17,7 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 或者安装经过明确审阅的固定版本：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.0/install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.2/install.sh
 COCO_VERSION=0.8.0 bash install.sh
 ```
 
