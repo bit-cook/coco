@@ -46,7 +46,10 @@ async function bootstrapFixture() {
 }
 
 async function installedStartupFixture() {
-  const directory = await mkdtemp(join(tmpdir(), "coco-offline-startup-"));
+  // 信任检查会从 cwd 向上遍历找 .agents/skills；若 tmpdir 落在用户 HOME 子树内
+  // （如 ~/.cache 类 TMPDIR）会命中真实 skills 目录弹信任提示，横幅不渲染。
+  // fixture 固定落在系统 /tmp，与 HOME 子树隔离。
+  const directory = await mkdtemp(join("/tmp", "coco-offline-startup-"));
   const home = join(directory, "home");
   const path = join(directory, "path");
   const preload = join(directory, "hostile-fetch.cjs");
@@ -96,7 +99,7 @@ test("Given a bare installed CoCo PTY with missing fd and rg, when startup begin
     delete environment.PI_OFFLINE;
     const startupOutputs = [];
     for (const width of [80, 20]) {
-      const result = await run("/usr/bin/timeout", ["15", "/usr/bin/script", "-qfec", `/usr/bin/stty cols ${width} rows 24; ${process.execPath} ${join(root, "bin", "coco")}`, "/dev/null"], environment, fixture.directory);
+      const result = await run("/usr/bin/timeout", ["15", "/usr/bin/script", "-qfec", `/usr/bin/stty cols ${width} rows 24; ${process.execPath} ${join(root, "bin", "coco")}`, "/dev/null"], { ...environment, TMPDIR: "/tmp" }, fixture.directory);
       assert.equal(result.code, 124, `${result.stdout}${result.stderr}`);
       startupOutputs.push(`${result.stdout}${result.stderr}`);
     }
