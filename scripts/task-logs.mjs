@@ -130,7 +130,22 @@ async function readIndex(path) {
 }
 
 async function writeIndex(agentDir, path, recordCount, bytesLength) {
-  await atomicReplace({ agentDir, path, bytes: `${JSON.stringify({ recordCount, bytesLength })}\n` });
+  // 索引是两个标量的小文件；atomicReplace（临时文件+rename+目录 fsync）每次
+  //  append 要付 3 次 fsync 代价，200 次 append 实测 5.4s 超出 O(1) 门限。
+  // 索引是可从 jsonl 全量重建的派生数据（recoverState），这里用直写+单次
+  // fsync：崩溃时最坏是索引旧值，readIndex 校验失败会触发重建，安全性不变。
+  const bytes = Buffer.from(`${JSON.stringify({ bytesLength, recordCount })}\n`);
+  let descriptor;
+  try {
+    descriptor = await open(path, "w", 0o600);
+    await descriptor.writeFile(bytes);
+    await descriptor.sync();
+  } catch (error) {
+    if (error?.code === "ENOENT") { await mkdir(dirname(path), { recursive: true, mode: 0o700 }); 
+      descriptor = await open(path, "w", 0o600);
+      await descriptor.writeFile(bytes); await descriptor.sync();
+    } else { throw error; }
+  } finally { if (descriptor) await descriptor.close().catch(() => {}); }
 }
 
 async function recoverState(agentDir, jsonlPath, idxPath, identity) {
