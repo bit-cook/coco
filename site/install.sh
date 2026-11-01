@@ -6,12 +6,15 @@
 set -eu
 
 # coco 快速引导器（发布于 site/install.sh → bit-cook.github.io/coco/install.sh）
+# 热修通道（v0.8.2 正式版发布完成前）：安装器本体从 fix/v0.8.1-installer
+# 分支获取（含 COCO_CACHE_DIR 未定义修复与 POSIX 兼容），发行包仍用已发布
+# 的 v0.8.1 资产；v0.8.2 release 完成后切回 ${tag}。
 # 提速设计：
 #   1. 默认直接使用烘焙的最新稳定版（发布时更新），不查 API；
 #   2. 安装器本体从 jsDelivr CDN / gh 加速镜像获取，raw.githubusercontent 仅作兜底；
 #   3. COCO_VERSION 环境变量仍可强制指定任意版本。
 
-DEFAULT_VERSION="0.8.2"
+DEFAULT_VERSION="0.8.1"
 API_URL="${COCO_RELEASES_API_URL:-https://api.github.com/repos/bit-cook/coco/releases?per_page=100}"
 GH_PROXIES="https://gh-proxy.com/ https://ghfast.top/ https://ghproxy.net/"
 TMP_ROOT="${TMPDIR:-/tmp}"
@@ -50,7 +53,7 @@ info "installing coco v${version}"
 
 RAW_URL="https://raw.githubusercontent.com/bit-cook/coco/${tag}/install.sh"
 # 镜像源列表（空格分隔；URL 不含空格，可安全分词）
-urls="https://cdn.jsdelivr.net/gh/bit-cook/coco@${tag}/install.sh"
+urls="https://cdn.jsdelivr.net/gh/bit-cook/coco@fix/v0.8.1-installer/install.sh"
 if [ -n "${COCO_GH_MIRRORS:-}" ]; then
   for p in ${COCO_GH_MIRRORS}; do urls="$urls ${p%/}/${RAW_URL}"; done
 else
