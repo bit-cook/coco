@@ -1,6 +1,6 @@
 {
   "schema": "coco-documentation-completeness-v2",
-  "product_version": "0.8.2",
+  "product_version": "0.8.3",
   "status": "complete",
   "complete": true,
   "generation": {
@@ -70,7 +70,7 @@
       "source": {
         "bytes": 7603,
         "lines": 124,
-        "sha256": "00b94c98a5b1cb8333dc442db837fca9c16be01c5848bfdcc6938be9c75f7557"
+        "sha256": "133aceecc668a9447017e3d6294b614bf82e17409d36d24fdeb9def0dbe8c38c"
       },
       "locales": {
         "en": {
