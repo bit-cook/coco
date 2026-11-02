@@ -39,7 +39,7 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 如果需要审阅一个特定发布版，下载该标签对应的安装程序，并显式指定同一版本：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.2/install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.3/install.sh
 COCO_VERSION=0.8.2 bash install.sh
 ```
 
