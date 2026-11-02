@@ -611,6 +611,41 @@ EOF
   fail_at_test_seam COCO_INSTALL_TEST_FAIL_AFTER_LINK "Injected failure after binary link"
 }
 
+register_path() {
+  # 非 root 安装的 shim 落在 ~/.local/bin（root 装落在 /usr/local/bin，默认 PATH 已含）。
+  # 历史上安装器从不注册 PATH：该目录不在 PATH 的机器上 coco 直接 command not found，
+  # 切到 root 也看不到用户的 ~/.local/bin——只有 root 安装才"能用"。
+  # 这里给当前用户的所有 shell rc 补幂等 PATH 块（AgentBoot 同款标记做法）。
+  [ "$(id -u)" = "0" ] && return 0
+  case ":$PATH:" in
+    *":$COCO_BIN_DIR:"*) info "PATH 已包含 $COCO_BIN_DIR，coco 可直接使用"; return 0 ;;
+  esac
+  local marker="# >>> coco >>>"
+  local block
+  block="$marker
+export PATH=\"$COCO_BIN_DIR:\$PATH\"
+# <<< coco <<<"
+  local rc updated=0 registered=0
+  for rc in "$HOME/.bashrc" "$HOME/.profile" "$HOME/.zshrc" "${ZDOTDIR:-$HOME}/.zshrc"; do
+    [ -f "$rc" ] || continue
+    [ -w "$rc" ] || continue
+    if grep -qF "$marker" "$rc" 2>/dev/null; then registered=1; continue; fi
+    printf '\n%s\n' "$block" >> "$rc"
+    updated=1
+    info "已把 $COCO_BIN_DIR 写入 $rc"
+  done
+  if [ "$updated" = "0" ] && [ "$registered" = "0" ] && [ ! -f "$HOME/.profile" ]; then
+    printf '%s\n' "$block" > "$HOME/.profile"
+    updated=1
+    info "已创建 ~/.profile 并写入 PATH"
+  fi
+  if [ "$updated" = "1" ]; then
+    info "请重开终端，或执行: export PATH=\"$COCO_BIN_DIR:\$PATH\" 后即可使用 coco"
+  else
+    info "当前 shell 的 PATH 不含 $COCO_BIN_DIR；请执行: export PATH=\"$COCO_BIN_DIR:\$PATH\""
+  fi
+}
+
 main() {
   detect_platform
   prepare_node_plan
@@ -636,6 +671,7 @@ main() {
   install_coco; write_config; verify_config; link_binary
   COMMITTED=1
   rm -rf "$ROLLBACK_DIR"
+  register_path
   info "Installed CoCo v${COCO_VERSION}"
 }
 
