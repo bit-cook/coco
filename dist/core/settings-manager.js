@@ -579,7 +579,7 @@ export class SettingsManager {
         return parseTimeoutSetting(this.settings.websocketConnectTimeoutMs, "websocketConnectTimeoutMs");
     }
     getHideThinkingBlock() {
-        return this.settings.hideThinkingBlock ?? false;
+        return this.settings.hideThinkingBlock ?? true;
     }
     getShowCacheMissNotices() {
         return this.settings.showCacheMissNotices ?? false;

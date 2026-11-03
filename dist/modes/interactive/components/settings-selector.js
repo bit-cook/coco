@@ -1,3 +1,4 @@
+import { uiText } from "../../../../resources/coco-ui-language.mjs";
 import { Container, getCapabilities, SelectList, SettingsList, Spacer, Text, } from "@earendil-works/pi-tui";
 import { formatHttpIdleTimeoutMs, HTTP_IDLE_TIMEOUT_CHOICES } from "../../../core/http-dispatcher.js";
 import { getSelectListTheme, getSettingsListTheme, parseAutoThemeSetting, theme, } from "../theme/theme.js";
@@ -310,9 +311,9 @@ export class SettingsSelectorComponent extends Container {
             },
             {
                 id: "hide-thinking",
-                label: "Hide thinking",
-                description: "Hide thinking blocks in assistant responses",
-                currentValue: config.hideThinkingBlock ? "true" : "false",
+                label: uiText("Reasoning process"),
+                description: uiText("Show reasoning blocks in assistant responses"),
+                currentValue: config.hideThinkingBlock ? "false" : "true",
                 values: ["true", "false"],
             },
             {
@@ -533,7 +534,7 @@ export class SettingsSelectorComponent extends Container {
                     break;
                 }
                 case "hide-thinking":
-                    callbacks.onHideThinkingBlockChange(newValue === "true");
+                    callbacks.onHideThinkingBlockChange(newValue !== "true");
                     break;
                 case "cache-miss-notices":
                     callbacks.onShowCacheMissNoticesChange(newValue === "true");

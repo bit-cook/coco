@@ -1344,31 +1344,43 @@ const patchedReasoningDefault = `    getHideThinkingBlock() {
     }`;
 
 async function patchReasoningProcessSetting(projectRoot) {
-  const selectorPath = join(agentPath(projectRoot), "dist", "modes", "interactive", "components", "settings-selector.js");
-  let selector;
-  try { selector = await readFile(selectorPath, "utf8"); }
-  catch (error) { if (error?.code === "ENOENT") return; throw error; }
-  let changed = false;
-  if (!selector.includes(patchedReasoningSetting)) {
-    selector = replaceExact(selector, reasoningSettingAnchor, patchedReasoningSetting);
-    changed = true;
+  // 顶层 dist/ 与 agent 副本都可能被运行时解析：主题等资产经 PI_PACKAGE_DIR
+  // 走顶层 dist，设置模块自 agent 副本相对导入。两份内容必须一致，故双写。
+  const selectorPaths = [
+    join(agentPath(projectRoot), "dist", "modes", "interactive", "components", "settings-selector.js"),
+    join(projectRoot, "dist", "modes", "interactive", "components", "settings-selector.js"),
+  ];
+  for (const selectorPath of selectorPaths) {
+    let selector;
+    try { selector = await readFile(selectorPath, "utf8"); }
+    catch (error) { if (error?.code === "ENOENT") continue; throw error; }
+    let changed = false;
+    if (!selector.includes(patchedReasoningSetting)) {
+      selector = replaceExact(selector, reasoningSettingAnchor, patchedReasoningSetting);
+      changed = true;
+    }
+    if (!selector.includes(patchedReasoningChoice)) {
+      selector = replaceExact(selector, reasoningChoiceAnchor, patchedReasoningChoice);
+      changed = true;
+    }
+    if (changed) {
+      const languagePath = relative(dirname(selectorPath), join(projectRoot, "resources", "coco-ui-language.mjs")).replaceAll("\\", "/");
+      const importLine = `import { uiText } from "${languagePath.startsWith(".") ? languagePath : `./${languagePath}`}";`;
+      if (!selector.includes(importLine)) selector = `${importLine}\n${selector}`;
+      await writeFile(selectorPath, selector, "utf8");
+    }
   }
-  if (!selector.includes(patchedReasoningChoice)) {
-    selector = replaceExact(selector, reasoningChoiceAnchor, patchedReasoningChoice);
-    changed = true;
-  }
-  if (changed) {
-    const languagePath = relative(dirname(selectorPath), join(projectRoot, "resources", "coco-ui-language.mjs")).replaceAll("\\", "/");
-    const importLine = `import { uiText } from "${languagePath.startsWith(".") ? languagePath : `./${languagePath}`}";`;
-    if (!selector.includes(importLine)) selector = `${importLine}\n${selector}`;
-    await writeFile(selectorPath, selector, "utf8");
-  }
-  const managerPath = join(agentPath(projectRoot), "dist", "core", "settings-manager.js");
-  let manager;
-  try { manager = await readFile(managerPath, "utf8"); }
-  catch (error) { if (error?.code === "ENOENT") return; throw error; }
-  if (!manager.includes(patchedReasoningDefault)) {
-    await writeFile(managerPath, replaceExact(manager, reasoningDefaultAnchor, patchedReasoningDefault), "utf8");
+  const managerPaths = [
+    join(agentPath(projectRoot), "dist", "core", "settings-manager.js"),
+    join(projectRoot, "dist", "core", "settings-manager.js"),
+  ];
+  for (const managerPath of managerPaths) {
+    let manager;
+    try { manager = await readFile(managerPath, "utf8"); }
+    catch (error) { if (error?.code === "ENOENT") continue; throw error; }
+    if (!manager.includes(patchedReasoningDefault)) {
+      await writeFile(managerPath, replaceExact(manager, reasoningDefaultAnchor, patchedReasoningDefault), "utf8");
+    }
   }
 }
 
