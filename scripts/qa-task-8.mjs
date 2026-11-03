@@ -27,22 +27,22 @@ async function main() {
   const cases = [];
   try {
     await mkdir(agent, { recursive: true, mode: 0o700 });
-    await writeFile(join(agent, "auth.json"), canonicalJson({ achai: { env: { PRESERVE_ME: "yes" }, key: "old", type: "api_key" }, unknown: { preserve: true } }), { mode: 0o600 });
-    await writeFile(join(agent, "migration.json"), canonicalJson({ rotationRequired: ["achai", "idepub"], schemaVersion: 1 }), { mode: 0o600 });
+    await writeFile(join(agent, "auth.json"), canonicalJson({ groq: { env: { PRESERVE_ME: "yes" }, key: "old", type: "api_key" }, unknown: { preserve: true } }), { mode: 0o600 });
+    await writeFile(join(agent, "migration.json"), canonicalJson({ rotationRequired: ["groq", "idepub"], schemaVersion: 1 }), { mode: 0o600 });
 
     cases.push(result("stdin-framing", true, parseStdinKey(Buffer.from(`${sentinel}\r\n`)) === sentinel));
-    await setAuthKey({ agentDir: agent, key: sentinel, provider: "achai" });
+    await setAuthKey({ agentDir: agent, key: sentinel, provider: "groq" });
     const auth = JSON.parse(await readFile(join(agent, "auth.json"), "utf8"));
     const migration = JSON.parse(await readFile(join(agent, "migration.json"), "utf8"));
-    cases.push(result("set-preserves-env-and-unknown-clears-rotation", true, auth.achai.env.PRESERVE_ME === "yes" && auth.unknown.preserve && !migration.rotationRequired.includes("achai") && migration.rotationRequired.includes("idepub")));
+    cases.push(result("set-preserves-env-and-unknown-clears-rotation", true, auth.groq.env.PRESERVE_ME === "yes" && auth.unknown.preserve && !migration.rotationRequired.includes("groq") && migration.rotationRequired.includes("idepub")));
     cases.push(result("auth-file-private", 0, (await lstat(join(agent, "auth.json"))).mode & 0o077));
-    const [stored] = await getAuthStatus({ agentDir: agent, environment: { ACHAI_API_KEY: "environment" }, provider: "achai" });
+    const [stored] = await getAuthStatus({ agentDir: agent, environment: { GROQ_API_KEY: "environment" }, provider: "groq" });
     cases.push(result("status-redacts-auth-precedence", true, stored.available && stored.source === "auth" && !JSON.stringify(stored).includes(sentinel)));
-    const precedence = resolveCredential({ auth, environment: { ACHAI_API_KEY: "environment" }, legacyModels: { providers: { achai: { apiKey: "legacy" } } }, provider: "achai" });
+    const precedence = resolveCredential({ auth, environment: { GROQ_API_KEY: "environment" }, legacyModels: { providers: { groq: { apiKey: "legacy" } } }, provider: "groq" });
     cases.push(result("credential-precedence", "auth", precedence.source));
-    const removed = await removeAuthKey({ agentDir: agent, environment: { ACHAI_API_KEY: "environment" }, provider: "achai" });
+    const removed = await removeAuthKey({ agentDir: agent, environment: { GROQ_API_KEY: "environment" }, provider: "groq" });
     cases.push(result("remove-uses-environment-and-keeps-rotation", true, removed.available && removed.source === "environment" && (await getAuthStatus({ agentDir: agent, provider: "idepub" }))[0].rotationRequired));
-    const unavailable = await removeAuthKey({ agentDir: agent, provider: "achai" });
+    const unavailable = await removeAuthKey({ agentDir: agent, provider: "groq" });
     cases.push(result("remove-without-environment-unavailable", true, !unavailable.available && unavailable.source === "none"));
     cases.push(result("invalid-keys-rejected", true, await rejects(() => Promise.resolve(parseStdinKey(Buffer.from("\n"))), "AUTH_KEY_INVALID") && await rejects(() => Promise.resolve(parseStdinKey(Buffer.from(" key"))), "AUTH_KEY_INVALID")));
     await setAuthKey({ agentDir: agent, key: "deepseek-stored", provider: "deepseek" });
@@ -54,7 +54,7 @@ async function main() {
     const savedWrite = process.stderr.write;
     let stderr = "";
     process.stderr.write = (text) => { stderr += text; return true; };
-    const dispatched = await dispatchCoco({ argv: ["manage", "auth", "set", "achai", `--api-key=${sentinel}`], root: sandbox });
+    const dispatched = await dispatchCoco({ argv: ["manage", "auth", "set", "groq", `--api-key=${sentinel}`], root: sandbox });
     process.stderr.write = savedWrite;
     process.argv.splice(0, process.argv.length, ...savedArgv);
     cases.push(result("api-key-argv-rejected-without-secret", true, dispatched.exitCode === 1 && stderr.includes("API_KEY_ARG_FORBIDDEN") && !stderr.includes(sentinel)));

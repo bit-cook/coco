@@ -171,7 +171,7 @@ test("Given a subprocess receives a credential over stdin, when it rejects an AP
     let stderr = "";
     const write = process.stderr.write;
     process.stderr.write = (chunk) => { stderr += chunk; return true; };
-    const result = await dispatchCoco({ argv: ["manage", "auth", "set", "achai", "--api-key=" + secret], root: ${JSON.stringify(root)} });
+    const result = await dispatchCoco({ argv: ["manage", "auth", "set", "groq", "--api-key=" + secret], root: ${JSON.stringify(root)} });
     process.stderr.write = write;
     process.stdout.write(JSON.stringify({ argvHasSecret: process.argv.includes(secret), exitCode: result.exitCode, leaked: stderr.includes(secret) }));
   `;

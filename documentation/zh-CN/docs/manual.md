@@ -39,13 +39,13 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 如果需要审阅一个特定发布版，下载该标签对应的安装程序，并显式指定同一版本：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.3/install.sh
-COCO_VERSION=0.8.3 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v1.0.0/install.sh
+COCO_VERSION=1.0.0 bash install.sh
 ```
 
 安装程序会校验发行包；更新或重装时会保留既有的 `~/.coco/agent` 配置。
 
-首次安装的默认提供商是 Agnes，默认模型为 `agnes/agnes-2.5-flash`，默认思考级别为 `max`。
+首次安装的默认提供商是 Groq，默认模型为 `groq/qwen/qwen3.8-27b`，默认思考级别为 `max`。
 
 源代码不捆绑用户提供商凭据。
 
@@ -184,9 +184,9 @@ PI_OFFLINE=0 coco
 
 ## 受管理提供商与认证
 
-CoCo 仅管理以下五个提供商：`agnes`、`idepub`、`achai`、`stepfun`、`deepseek`。
+CoCo 仅管理以下六个提供商：`agnes`、`deepseek`、`groq`、`idepub`、`stepfun`、`stepfun-cn`。
 
-“管理”指 CoCo 原生命令可为它们保存凭据并同步其模型目录；它不表示 CoCo 会提供你的密钥。
+“管理”指 CoCo 原生命令可为它们保存凭据并同步其模型目录；它不表示 CoCo 会提供你的密钥。为受管理提供商保存凭据时，还会尽力拉取该提供商的最新模型目录（网络失败时保留种子清单）；可用 `coco models sync` 刷新全部提供商。
 
 交互式设置会以隐藏输入读取密钥，并要求再次确认：
 
@@ -198,7 +198,7 @@ coco manage auth set idepub
 
 ```bash
 coco manage auth set agnes
-coco manage auth set achai
+coco manage auth set groq
 coco manage auth set stepfun
 coco manage auth set deepseek
 ```
@@ -285,7 +285,7 @@ coco --list-models deepseek
 
 ```bash
 coco --provider deepseek --model deepseek-v4-pro "审查这个变更"
-coco --model agnes/agnes-2.5-flash:max "解释测试失败"
+coco --model groq/qwen/qwen3.8-27b:max "解释测试失败"
 ```
 
 可用思考级别为 `off`、`minimal`、`low`、`medium`、`high`、`xhigh`、`max`，具体模型可能隐藏或映射不支持的级别。
@@ -720,7 +720,7 @@ CoCo 的默认全局配置根为 `~/.coco/agent/`。
 ```json
 {
   "defaultProvider": "agnes",
-  "defaultModel": "agnes-2.5-flash",
+  "defaultModel": "qwen/qwen3.8-27b",
   "defaultThinkingLevel": "max",
   "theme": "dark"
 }
@@ -822,7 +822,7 @@ coco manage migrate --yes
 | `AUTH_TTY_UNAVAILABLE` | 交互式密钥输入不在 TTY | 用受保护的标准输入和 `--stdin` |
 | `AUTH_CONFIRMATION_MISMATCH` | 两次隐藏输入不同 | 重新执行设置，仔细输入两次 |
 | `AUTH_KEY_INVALID` | 密钥为空、带换行/空白、NUL 或过大 | 提供单行有效密钥；不要包含前后空白 |
-| `AUTH_PROVIDER_INVALID` | 不是五个受管理提供商之一 | 使用 `agnes`、`idepub`、`achai`、`stepfun` 或 `deepseek` |
+| `AUTH_PROVIDER_INVALID` | 不是六个受管理提供商之一 | 使用 `agnes`、`deepseek`、`groq`、`idepub`、`stepfun` 或 `stepfun-cn` |
 | 模型未出现在 `/model` | 没有认证、模型未注册或目录未同步 | 运行 `coco manage auth status`，再检查 `--list-models` 或同步目录 |
 | 模型同步失败 | 离线、网络、凭据、目录响应或完整性问题 | 检查网络和认证，运行 `coco doctor`；不要用 `--allow-empty` 掩盖异常 |
 | `EMPTY_CATALOG_REJECTED` | 同步得到空模型列表 | 修复提供商或网络问题；仅在确认空目录正确时使用 `--allow-empty` |

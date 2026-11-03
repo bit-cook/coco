@@ -68,17 +68,17 @@ async function main() {
     await mkdir(agent, { recursive: true, mode: 0o700 });
     await writeFile(join(agent, "models.json"), canonicalJson({ providers: { idepub: { apiKey: SENTINEL } } }), { mode: 0o600 });
     await migrateState({ agentDir: agent });
-    await writeFile(join(agent, "auth.json"), canonicalJson({ achai: { key: SENTINEL, type: "api_key" }, agnes: { key: SENTINEL, type: "api_key" }, deepseek: { key: SENTINEL, type: "api_key" }, idepub: { key: SENTINEL, type: "api_key" }, stepfun: { key: SENTINEL, type: "api_key" } }), { mode: 0o600 });
+    await writeFile(join(agent, "auth.json"), canonicalJson({ agnes: { key: SENTINEL, type: "api_key" }, deepseek: { key: SENTINEL, type: "api_key" }, groq: { key: SENTINEL, type: "api_key" }, idepub: { key: SENTINEL, type: "api_key" }, stepfun: { key: SENTINEL, type: "api_key" }, "stepfun-cn": { key: SENTINEL, type: "api_key" } }), { mode: 0o600 });
     await writeFile(join(agent, "APPEND_SYSTEM.md"), "Fixture prompt policy.\n", { mode: 0o600 });
     await writeFile(join(agent, "settings.json"), canonicalJson({ retry: { provider: { maxRetries: 0, timeoutMs: 100 } } }), { mode: 0o600 });
     const capability = createProviderSyncTestCapability(root);
     process.env.NODE_ENV = "test";
     const sync = (provider) => syncProviderModelsForTest({ agentDir: agent, capability, origin: server.origin, provider, root });
     const idepub = await sync("idepub");
-    const achai = await sync("achai");
+    const agnes = await sync("agnes");
     const metadata = JSON.parse(await readFile(join(agent, "catalogs", "idepub", "current.meta.json"), "utf8"));
-    const statuses = await getAuthStatus({ agentDir: agent, environment: { IDEPUB_API_KEY: "environment-loses", AICHAI_API_KEY: "environment-loses" } });
-    cases.push(result("migration-auth-precedence-and-availability", statuses.every((entry) => entry.available && entry.source === "auth") && idepub.modelCount === 2 && achai.modelCount === 2));
+    const statuses = await getAuthStatus({ agentDir: agent, environment: { AGNES_API_KEY: "environment-loses", IDEPUB_API_KEY: "environment-loses" } });
+    cases.push(result("migration-auth-precedence-and-availability", statuses.every((entry) => entry.available && entry.source === "auth") && idepub.modelCount === 2 && agnes.modelCount === 2));
     cases.push(result("sync-metadata-and-managed-auth-capture", /^[a-f0-9]{64}$/.test(metadata.catalogSha256) && server.requests.filter((request) => request.path === "/v1/models").every((request) => request.authorization === `Bearer ${SENTINEL}`)));
 
     await writeFile(join(agent, "models.json"), canonicalJson(customModels(server.origin)), { mode: 0o600 });

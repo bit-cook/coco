@@ -13,8 +13,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 如需安装已审阅的发布版，请下载该发布版的 `install.sh`，并使用匹配的 `COCO_VERSION` 运行：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.3/install.sh
-COCO_VERSION=0.8.3 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v1.0.0/install.sh
+COCO_VERSION=1.0.0 bash install.sh
 ```
 
 升级时再次运行稳定安装程序。它会验证发行包，并在更新和重新安装时保留现有的 `~/.coco/agent` 配置。`coco update` 不可用。
@@ -89,7 +89,7 @@ PI_OFFLINE=0 coco
 
 ## 受管理提供商与认证
 
-CoCo 仅管理以下提供商：`agnes`、`idepub`、`achai`、`stepfun` 和 `deepseek`。全新安装会将 Agnes 设为默认提供商（`agnes/agnes-2.5-flash`，思考级别为 `max`）；源码不捆绑提供商凭据。
+CoCo 仅管理以下提供商：`agnes`、`deepseek`、`groq`、`idepub`、`stepfun` 和 `stepfun-cn`。全新安装会将 Groq 设为默认提供商（`groq/qwen/qwen3.8-27b`，思考级别为 `max`）；源码不捆绑提供商凭据。
 
 不要在命令行传入凭据：`--api-key` 会被拒绝。使用不会回显密钥的交互命令存储密钥，避免泄露到 shell 历史：
 

@@ -24,9 +24,9 @@ async function main() {
   try {
     const paths = statePaths(agent);
     cases.push(result("state-path-precedence", agent, agentDirectory({ COCO_CODING_AGENT_DIR: agent, HOME: "/ignored" })));
-    const auth = { achai: { key: "stored", type: "api_key" }, unknown: { arbitrary: true } };
+    const auth = { groq: { key: "stored", type: "api_key" }, unknown: { arbitrary: true } };
     cases.push(result("auth-schema-preserves-unknown", true, validateAuth(auth) === auth));
-    cases.push(result("auth-precedence", "auth", resolveCredential({ auth, environment: { ACHAI_API_KEY: "environment" }, legacyModels: { providers: { achai: { apiKey: "legacy" } } }, provider: "achai" }).source));
+    cases.push(result("auth-precedence", "auth", resolveCredential({ auth, environment: { GROQ_API_KEY: "environment" }, legacyModels: { providers: { achai: { apiKey: "legacy" } } }, provider: "achai" }).source));
     cases.push(result("environment-precedence", "environment", resolveCredential({ auth: {}, environment: { IDEPUB_API_KEY: "environment" }, legacyModels: { providers: { idepub: { apiKey: "legacy" } } }, provider: "idepub" }).source));
     cases.push(result("legacy-precedence", "legacy", resolveCredential({ auth: {}, environment: {}, legacyModels: { providers: { idepub: { apiKey: "legacy" } } }, provider: "idepub" }).source));
     cases.push(result("malformed-auth-rejected", true, throws(() => validateAuth({ idepub: { key: "x", type: "api_key", unexpected: true } }), "AUTH_SCHEMA_INVALID")));

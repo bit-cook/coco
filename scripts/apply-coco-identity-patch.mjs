@@ -172,7 +172,7 @@ const patchedModelRuntimeVisible = `    getAvailableSnapshot() {
     }
     isCustomProvider(providerId) {
         return this.config.getProvider(providerId) !== undefined && !this.builtins.has(providerId) &&
-            !["agnes", "idepub", "achai", "stepfun", "deepseek"].includes(providerId);
+            !["agnes", "deepseek", "groq", "idepub", "stepfun", "stepfun-cn"].includes(providerId);
     }
     getVisible() {
         return this.snapshot.all.filter((model) => this.snapshot.configuredProviders.has(model.provider) ||
@@ -198,6 +198,20 @@ const legacyPatchedModelRuntimeVisible = intermediatePatchedModelRuntimeVisible.
         return this.config.getProvider(providerId) !== undefined;
     }
 `, "");
+const previousProviderListPatchedModelRuntimeVisible = `    getAvailableSnapshot() {
+        return this.snapshot.available;
+    }
+    isCustomProvider(providerId) {
+        return this.config.getProvider(providerId) !== undefined && !this.builtins.has(providerId) &&
+            !["agnes", "idepub", "achai", "stepfun", "deepseek"].includes(providerId);
+    }
+    getVisible() {
+        return this.snapshot.all.filter((model) => this.snapshot.configuredProviders.has(model.provider) ||
+            this.config.getProvider(model.provider)?.models?.some((declared) => declared.id === model.id));
+    }
+    getVisibleSnapshot() {
+        return this.getVisible();
+    }`;
 const modelRuntimeDeclarationAnchor = `    getAvailableSnapshot(): readonly Model<Api>[];`;
 const patchedModelRuntimeDeclaration = `    getAvailableSnapshot(): readonly Model<Api>[];
     isCustomProvider(providerId: string): boolean;
@@ -1179,7 +1193,7 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root, support
   patched[1] = replaceExact(patched[1], listModelsWidthsAnchor, patchedListModelsWidths);
   patched[1] = replaceExact(patched[1], listModelsHeaderLineAnchor, patchedListModelsHeaderLine);
   patched[1] = replaceExact(patched[1], listModelsLineAnchor, patchedListModelsLine);
-  patched[2] = replaceUpgrade(patched[2], modelRuntimeVisibleAnchor, [legacyPatchedModelRuntimeVisible, intermediatePatchedModelRuntimeVisible], patchedModelRuntimeVisible);
+  patched[2] = replaceUpgrade(patched[2], modelRuntimeVisibleAnchor, [legacyPatchedModelRuntimeVisible, intermediatePatchedModelRuntimeVisible, previousProviderListPatchedModelRuntimeVisible], patchedModelRuntimeVisible);
   patched[3] = replaceUpgrade(patched[3], modelRuntimeDeclarationAnchor, [legacyPatchedModelRuntimeDeclaration, intermediatePatchedModelRuntimeDeclaration], patchedModelRuntimeDeclaration);
   patched[4] = replaceExact(patched[4], selectorVisibleAnchor, patchedSelectorVisible);
   patched[4] = replaceUpgrade(patched[4], selectorLoginMarkerAnchor, intermediatePatchedSelectorLoginMarker, patchedSelectorLoginMarker);
@@ -1227,13 +1241,13 @@ export async function applyCocoIdentityPatch({ root: projectRoot = root, support
   await patchUiLanguage(projectRoot);
   await patchAutocompleteSourceLabels(projectRoot);
   await patchSettingsValueDisplay(projectRoot);
+  await patchReasoningProcessSetting(projectRoot);
   await patchTuiVisualSystem(projectRoot);
   await patchInputPrompt(projectRoot);
   await patchLlamaExtensionUi(projectRoot);
 }
 
 const llamaImportLine = `import { uiText } from "../../../../../../resources/coco-ui-language.mjs";`;
-
 async function patchLlamaExtensionUi(projectRoot) {
   const root = join(agentPath(projectRoot), "dist", "extensions", "llama");
   for (const filename of ["ui.js", "index.js", "provider.js"]) {
@@ -1294,6 +1308,67 @@ async function patchLlamaExtensionUi(projectRoot) {
     }
     source = reduceDoubleUiText(source);
     await writeFile(path, source, "utf8");
+  }
+}
+
+
+// 推理过程设置改版（v1.0.0）：上游「Hide thinking」（true=隐藏）翻转为
+// 「Reasoning process」（true=显示），默认关闭（不显示推理内容）。
+// 标签/描述经 uiText 走 coco-ui-language.mjs 翻译；设置值 true/false 由
+// pi-tui settings-list 的 uiValue 渲染为 开启/关闭。
+const reasoningSettingAnchor = `            {
+                id: "hide-thinking",
+                label: "Hide thinking",
+                description: "Hide thinking blocks in assistant responses",
+                currentValue: config.hideThinkingBlock ? "true" : "false",
+                values: ["true", "false"],
+            },`;
+const patchedReasoningSetting = `            {
+                id: "hide-thinking",
+                label: uiText("Reasoning process"),
+                description: uiText("Show reasoning blocks in assistant responses"),
+                currentValue: config.hideThinkingBlock ? "false" : "true",
+                values: ["true", "false"],
+            },`;
+const reasoningChoiceAnchor = `                case "hide-thinking":
+                    callbacks.onHideThinkingBlockChange(newValue === "true");
+                    break;`;
+const patchedReasoningChoice = `                case "hide-thinking":
+                    callbacks.onHideThinkingBlockChange(newValue !== "true");
+                    break;`;
+const reasoningDefaultAnchor = `    getHideThinkingBlock() {
+        return this.settings.hideThinkingBlock ?? false;
+    }`;
+const patchedReasoningDefault = `    getHideThinkingBlock() {
+        return this.settings.hideThinkingBlock ?? true;
+    }`;
+
+async function patchReasoningProcessSetting(projectRoot) {
+  const selectorPath = join(agentPath(projectRoot), "dist", "modes", "interactive", "components", "settings-selector.js");
+  let selector;
+  try { selector = await readFile(selectorPath, "utf8"); }
+  catch (error) { if (error?.code === "ENOENT") return; throw error; }
+  let changed = false;
+  if (!selector.includes(patchedReasoningSetting)) {
+    selector = replaceExact(selector, reasoningSettingAnchor, patchedReasoningSetting);
+    changed = true;
+  }
+  if (!selector.includes(patchedReasoningChoice)) {
+    selector = replaceExact(selector, reasoningChoiceAnchor, patchedReasoningChoice);
+    changed = true;
+  }
+  if (changed) {
+    const languagePath = relative(dirname(selectorPath), join(projectRoot, "resources", "coco-ui-language.mjs")).replaceAll("\\", "/");
+    const importLine = `import { uiText } from "${languagePath.startsWith(".") ? languagePath : `./${languagePath}`}";`;
+    if (!selector.includes(importLine)) selector = `${importLine}\n${selector}`;
+    await writeFile(selectorPath, selector, "utf8");
+  }
+  const managerPath = join(agentPath(projectRoot), "dist", "core", "settings-manager.js");
+  let manager;
+  try { manager = await readFile(managerPath, "utf8"); }
+  catch (error) { if (error?.code === "ENOENT") return; throw error; }
+  if (!manager.includes(patchedReasoningDefault)) {
+    await writeFile(managerPath, replaceExact(manager, reasoningDefaultAnchor, patchedReasoningDefault), "utf8");
   }
 }
 

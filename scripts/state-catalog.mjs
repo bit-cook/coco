@@ -19,10 +19,6 @@ export function normalizeModels({ provider, response, transformations }) {
     const allowed = transformations.allowlist?.[provider];
     if (allowed !== undefined && (!Array.isArray(allowed) || !allowed.includes(raw.id))) continue;
     if (transformations.denylist?.includes(key) || (provider === "idepub" && idepubNonChat.test(raw.id))) continue;
-    if (provider === "achai" && "supported_endpoint_types" in raw) {
-      if (!Array.isArray(raw.supported_endpoint_types)) fail("CATALOG_SCHEMA_INVALID");
-      if (!raw.supported_endpoint_types.includes("openai") && !raw.supported_endpoint_types.includes("openai-response")) continue;
-    }
     const defaults = transformations.defaults;
     if (!object(defaults) || !Array.isArray(defaults.input) || !object(defaults.cost)) fail("CAPABILITY_SCHEMA_INVALID");
     const override = transformations.capabilityOverrides?.[key] ?? {};

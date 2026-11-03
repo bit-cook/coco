@@ -13,8 +13,8 @@ import { MANAGED_PROVIDER_IDS } from "./product-identity.generated.mjs";
 import { projectProviderReadiness } from "./provider-readiness.mjs";
 import { rotationProviders } from "./auth-management.mjs";
 
-export const PROVIDER_REGISTRY_SHA256 = "1ca4283d560af09b9301de2e260fc8b9a73587a71110822a8bc214409cf30da1";
-export const PROVIDER_TRANSFORMATIONS_SHA256 = "f79110eab47af63e59309af68a9bc28a8b6ba24f2cabb32b0e6a44f3d968014c";
+export const PROVIDER_REGISTRY_SHA256 = "9ef59a42d27d1129934c82873ea07a632fe6079aae960638e430d88b44124f81";
+export const PROVIDER_TRANSFORMATIONS_SHA256 = "c031a6050646363e6d1a8fd780806a95250a3c2c8de6f33d75bd4af17b996528";
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
 const LOCK_RETRY_ATTEMPTS = 200;

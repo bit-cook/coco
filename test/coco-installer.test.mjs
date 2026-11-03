@@ -12,15 +12,19 @@ const cocoRoot = new URL("..", import.meta.url).pathname;
 const installers = [join(cocoRoot, "install.sh")];
 const uninstaller = join(cocoRoot, "uninstall.sh");
 const publicBaseUrls = {
-  achai: "https://www.achai.cc/v1",
   agnes: "https://apihub.agnes-ai.com/v1",
   deepseek: "https://api.deepseek.com",
+  groq: "https://api.groq.com/openai/v1",
   idepub: "https://api.ide.pub/v1",
   stepfun: "https://api.stepfun.com/step_plan/v1",
+  "stepfun-cn": "https://api.stepfun.com/v1",
 };
 const agnesAssetUrl = "https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key";
 const agnesAssetDigest = "4d78028a0a60a7d752e6e57cbcb3113e9de99ab81bde608a0b9610a83cd42f6e";
 const syntheticAgnesKey = "a".repeat(51);
+const groqAssetUrl = "https://github.com/bit-cook/coco/releases/download/installer-v1.0.0/groq.key";
+const groqAssetDigest = "f0c38aeca0d88069f89a7cb1f06eea0fd40fddb794a0154d0116830feefedfc0";
+const syntheticGroqKey = "g".repeat(55);
 
 async function exec(command, args, options = {}) {
   await new Promise((resolve, reject) => {
@@ -62,6 +66,7 @@ async function fixture() {
   const bin = join(root, "bin");
   const tarball = join(server, `coco-${COCO_VERSION}.tgz`);
   const agnesAsset = join(server, "agnes.key");
+  const groqAsset = join(server, "groq.key");
   const packageRoot = join(root, "package");
   await mkdir(join(packageRoot, "bin"), { recursive: true });
   await mkdir(join(packageRoot, "node_modules"), { recursive: true });
@@ -77,12 +82,13 @@ async function fixture() {
   await exec("tar", ["-czf", tarball, "package"], { cwd: root });
   await writeChecksum(tarball);
   await writeFile(agnesAsset, `${syntheticAgnesKey}\n`);
-  const downloader = "#!/usr/bin/env bash\nset -euo pipefail\nfor ((i = 1; i <= $#; i += 1)); do\n  if [ \"${!i}\" = \"-o\" ] || [ \"${!i}\" = \"-O\" ]; then\n    next=$((i + 1))\n    target=\"${!next}\"\n    url=\"${!#}\"\n    printf '%s\\n' \"$url\" >> \"$COCO_TEST_DOWNLOAD_LOG\"\n    case \"$url\" in\n      *agnes.key) [ \"${COCO_TEST_FAIL_AGNES_DOWNLOAD:-0}\" != 1 ] && cp \"$COCO_TEST_AGNES_ASSET\" \"$target\" ;;\n      *.sha256*) cp \"$COCO_TEST_SIDECAR\" \"$target\" ;;\n      *) cp \"$COCO_TEST_TARBALL\" \"$target\" ;;\n    esac\n    exit 0\n  fi\ndone\nexit 1\n";
+  await writeFile(groqAsset, `${syntheticGroqKey}\n`);
+  const downloader = "#!/usr/bin/env bash\nset -euo pipefail\nfor ((i = 1; i <= $#; i += 1)); do\n  if [ \"${!i}\" = \"-o\" ] || [ \"${!i}\" = \"-O\" ]; then\n    next=$((i + 1))\n    target=\"${!next}\"\n    url=\"${!#}\"\n    printf '%s\\n' \"$url\" >> \"$COCO_TEST_DOWNLOAD_LOG\"\n    case \"$url\" in\n      *agnes.key) [ \"${COCO_TEST_FAIL_AGNES_DOWNLOAD:-0}\" != 1 ] && cp \"$COCO_TEST_AGNES_ASSET\" \"$target\" ;;\n      *groq.key) [ \"${COCO_TEST_FAIL_GROQ_DOWNLOAD:-0}\" != 1 ] && cp \"$COCO_TEST_GROQ_ASSET\" \"$target\" ;;\n      *.sha256*) cp \"$COCO_TEST_SIDECAR\" \"$target\" ;;\n      *) cp \"$COCO_TEST_TARBALL\" \"$target\" ;;\n    esac\n    exit 0\n  fi\ndone\nexit 1\n";
   await writeFile(join(bin, "curl"), downloader);
   await chmod(join(bin, "curl"), 0o755);
   await writeFile(join(bin, "wget"), downloader);
   await chmod(join(bin, "wget"), 0o755);
-  await writeFile(join(bin, "sha256sum"), `#!/usr/bin/env bash\nset -euo pipefail\nif [[ \"$1\" == */agnes.key ]]; then\n  if [ \"\${COCO_TEST_BAD_AGNES_DIGEST:-0}\" = 1 ]; then printf '%s  %s\\n' \"${"0".repeat(64)}\" \"$1\"; else printf '%s  %s\\n' \"${agnesAssetDigest}\" \"$1\"; fi\nelse\n  /usr/bin/sha256sum \"$@\"\nfi\n`);
+  await writeFile(join(bin, "sha256sum"), `#!/usr/bin/env bash\nset -euo pipefail\nif [[ "$1" == */agnes.key ]]; then\n  if [ "\${COCO_TEST_BAD_AGNES_DIGEST:-0}" = 1 ]; then printf '%s  %s\\n' "${"0".repeat(64)}" "$1"; else printf '%s  %s\\n' "${agnesAssetDigest}" "$1"; fi\nelif [[ "$1" == */groq.key ]]; then\n  if [ "\${COCO_TEST_BAD_GROQ_DIGEST:-0}" = 1 ]; then printf '%s  %s\\n' "${"0".repeat(64)}" "$1"; else printf '%s  %s\\n' "${groqAssetDigest}" "$1"; fi\nelse\n  /usr/bin/sha256sum "$@"\nfi\n`);
   await chmod(join(bin, "sha256sum"), 0o755);
   return {
     agent,
@@ -97,6 +103,7 @@ async function fixture() {
       COCO_SYSTEM_BIN: join(root, "system-bin", "coco"),
       COCO_INSTALL_TEST_MODE: "1",
       COCO_TEST_AGNES_ASSET: agnesAsset,
+      COCO_TEST_GROQ_ASSET: groqAsset,
       COCO_TEST_DOWNLOAD_LOG: join(root, "downloads.log"),
       COCO_TEST_SIDECAR: join(server, `coco-${COCO_VERSION}.tgz.sha256`),
       COCO_TEST_TARBALL: tarball,
@@ -132,6 +139,9 @@ for (const installer of installers) {
     assert.doesNotMatch(source, /\$\{filename\}(?:\.sha256)?\?v=/);
     assert.equal(source.includes(agnesAssetUrl), true);
     assert.equal(source.includes(agnesAssetDigest), true);
+    assert.equal(source.includes(groqAssetUrl), true);
+    assert.equal(source.includes(groqAssetDigest), true);
+    assert.equal(source.includes("opencode"), false);
     assert.match(source, /exec "\$COCO_BIN_DIR\/coco" web "\\\$@"/);
     assert.match(source, /cat > "\$COCO_BIN_DIR\/web"/);
     assert.match(source, /cat > "\$COCO_BIN_DIR\/coweb"/);
@@ -145,23 +155,30 @@ for (const installer of installers) {
       await stat(join(setup.install, "node_modules"));
       const models = JSON.parse(await readFile(join(setup.agent, "models.json"), "utf8"));
       const auth = JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8"));
-      assert.deepEqual(Object.keys(models.providers).sort(), ["achai", "agnes", "deepseek", "idepub", "stepfun"]);
+      assert.deepEqual(Object.keys(models.providers).sort(), ["agnes", "deepseek", "groq", "idepub", "stepfun", "stepfun-cn"]);
       assert.deepEqual(Object.fromEntries(Object.entries(models.providers).map(([provider, model]) => [provider, model.baseUrl])), publicBaseUrls);
-      assert.deepEqual(models.providers.achai.models.map(({ id }) => id), ["deepseek-v4-flash", "grok-4.20-0309", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309", "grok-4.3", "grok-4.5", "grok-build-0.1", "grok-chat-fast", "mimo-v2.5", "nemotron-3-ultra", "north-mini-code"]);
+      assert.deepEqual(models.providers.groq.models.map(({ id }) => id), ["qwen/qwen3.8-27b", "qwen/qwen3.6-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "openai/gpt-oss-safeguard-20b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"]);
       assert.deepEqual(models.providers.deepseek.models, [
         { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", reasoning: true, input: ["text"], cost: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 }, contextWindow: 1000000, maxTokens: 384000, compat: { supportsStore: false, supportsDeveloperRole: false, requiresReasoningContentOnAssistantMessages: true, thinkingFormat: "deepseek" }, thinkingLevelMap: { minimal: null, low: null, medium: null, high: "high", max: "max" } },
         { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", reasoning: true, input: ["text"], cost: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 }, contextWindow: 1000000, maxTokens: 384000, compat: { supportsStore: false, supportsDeveloperRole: false, requiresReasoningContentOnAssistantMessages: true, thinkingFormat: "deepseek" }, thinkingLevelMap: { minimal: null, low: null, medium: null, high: "high", max: "max" } },
+        { id: "deepseek-flash", name: "DeepSeek Flash", reasoning: true, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 },
       ]);
       assert.deepEqual(models.providers.deepseek.compat, { supportsDeveloperRole: false, supportsReasoningEffort: true });
       assert.deepEqual(models.providers.idepub.models.map(({ id }) => id), ["gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]);
-      assert.deepEqual(models.providers.stepfun.models.map(({ id }) => id), ["step-3.7-flash", "step-3.5-flash-2603", "step-3.5-flash"]);
+      assert.deepEqual(models.providers.stepfun.models.map(({ id }) => id), ["step-5-preview", "step-3.7-flash", "step-3.5-flash-2603", "step-3.5-flash"]);
+      assert.deepEqual(models.providers["stepfun-cn"].models.map(({ id }) => id), ["step-5-preview", "step-3.7-flash", "step-3.5-flash-2603", "step-3.5-flash"]);
       assert.equal(JSON.stringify(models).includes("apiKey"), false);
       assert.equal(auth.agnes.type, "api_key");
       assert.equal(Buffer.byteLength(await readFile(join(setup.server, "agnes.key"))), 52);
       assert.equal(auth.agnes.key, syntheticAgnesKey);
       assert.equal(Buffer.byteLength(auth.agnes.key), 51);
       assert.equal((await readFile(setup.environment.COCO_TEST_DOWNLOAD_LOG, "utf8")).includes(agnesAssetUrl), true);
-      assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "settings.json"), "utf8")), { defaultModel: "agnes-2.5-flash", defaultProvider: "agnes", defaultThinkingLevel: "max", theme: "coco-orange-light/coco-orange" });
+      assert.equal(auth.groq.type, "api_key");
+      assert.equal(Buffer.byteLength(await readFile(join(setup.server, "groq.key"))), 56);
+      assert.equal(auth.groq.key, syntheticGroqKey);
+      assert.equal(Buffer.byteLength(auth.groq.key), 55);
+      assert.equal((await readFile(setup.environment.COCO_TEST_DOWNLOAD_LOG, "utf8")).includes(groqAssetUrl), true);
+      assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "settings.json"), "utf8")), { defaultModel: "qwen/qwen3.8-27b", defaultProvider: "groq", defaultThinkingLevel: "max", theme: "coco-orange-light/coco-orange" });
       const ownership = JSON.parse(await readFile(join(setup.agent, "ownership.json"), "utf8"));
       assert.equal(ownership.schemaVersion, 1);
       assert.ok(ownership.managedFiles["models.json"].ownedJsonPointers.includes("/providers/agnes/models"));
@@ -178,19 +195,22 @@ for (const installer of installers) {
     try {
       const explicitKey = "test-agnes-key\n";
       assert.equal(await runInstaller(installer, { ...setup.environment, AGNES_API_KEY: explicitKey, COCO_INSTALL_TEST_MODE: "0" }), 0);
-      assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8")), { agnes: { type: "api_key", key: explicitKey } });
-      assert.equal((await readFile(setup.environment.COCO_TEST_DOWNLOAD_LOG, "utf8")).includes(agnesAssetUrl), false);
+      assert.deepEqual(JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8")), { agnes: { type: "api_key", key: explicitKey }, groq: { type: "api_key", key: syntheticGroqKey } });
+      const downloads = await readFile(setup.environment.COCO_TEST_DOWNLOAD_LOG, "utf8");
+      assert.equal(downloads.includes(agnesAssetUrl), false);
+      assert.equal(downloads.includes(groqAssetUrl), true);
     } finally {
       await rm(setup.root, { force: true, recursive: true });
     }
   });
 
-  test(`Given an explicit Achai key, when ${installer} installs, then Achai is immediately authenticated`, async () => {
+  test(`Given an explicit Groq key, when ${installer} installs, then Groq is immediately authenticated without a Groq key download`, async () => {
     const setup = await fixture();
     try {
-      assert.equal(await runInstaller(installer, { ...setup.environment, ACHAI_API_KEY: "test-achai-key", COCO_INSTALL_TEST_MODE: "0" }), 0);
+      assert.equal(await runInstaller(installer, { ...setup.environment, GROQ_API_KEY: "test-groq-key", COCO_INSTALL_TEST_MODE: "0" }), 0);
       const auth = JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8"));
-      assert.deepEqual(auth.achai, { type: "api_key", key: "test-achai-key" });
+      assert.deepEqual(auth.groq, { type: "api_key", key: "test-groq-key" });
+      assert.equal((await readFile(setup.environment.COCO_TEST_DOWNLOAD_LOG, "utf8")).includes(groqAssetUrl), false);
     } finally {
       await rm(setup.root, { force: true, recursive: true });
     }
@@ -210,7 +230,7 @@ for (const installer of installers) {
     }
   });
 
-  test(`Given an existing OpenCode Achai secret, when ${installer} installs, then CoCo imports it without user configuration`, async () => {
+  test(`Given a legacy OpenCode secret, when ${installer} installs, then CoCo no longer imports it`, async () => {
     const setup = await fixture();
     const secret = join(setup.root, ".config", "opencode", "secrets", "achai-api-key");
     try {
@@ -218,7 +238,8 @@ for (const installer of installers) {
       await writeFile(secret, "test-opencode-achai-key\n", { mode: 0o600 });
       assert.equal(await runInstaller(installer, { ...setup.environment, COCO_INSTALL_TEST_MODE: "0" }), 0);
       const auth = JSON.parse(await readFile(join(setup.agent, "auth.json"), "utf8"));
-      assert.deepEqual(auth.achai, { type: "api_key", key: "test-opencode-achai-key" });
+      assert.equal(auth.achai, undefined);
+      assert.equal(auth.groq.key, syntheticGroqKey);
     } finally {
       await rm(setup.root, { force: true, recursive: true });
     }
@@ -278,8 +299,8 @@ for (const installer of installers) {
     }
   });
 
-  for (const failureMode of ["COCO_TEST_FAIL_AGNES_DOWNLOAD", "COCO_TEST_BAD_AGNES_DIGEST"]) {
-    test(`Given a fresh auth store and ${failureMode}, when ${installer} fails to retrieve verified Agnes auth, then it rolls back the installation`, async () => {
+  for (const failureMode of ["COCO_TEST_FAIL_AGNES_DOWNLOAD", "COCO_TEST_BAD_AGNES_DIGEST", "COCO_TEST_FAIL_GROQ_DOWNLOAD", "COCO_TEST_BAD_GROQ_DIGEST"]) {
+    test(`Given a fresh auth store and ${failureMode}, when ${installer} fails to retrieve a verified embedded provider key, then it rolls back the installation`, async () => {
       const setup = await fixture();
       try {
         assert.equal(await runInstaller(installer, setup.environment), 0);

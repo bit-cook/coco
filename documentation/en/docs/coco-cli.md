@@ -13,8 +13,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 To install a reviewed release, download that release's `install.sh` and run it with the matching `COCO_VERSION`:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.3/install.sh
-COCO_VERSION=0.8.3 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v1.0.0/install.sh
+COCO_VERSION=1.0.0 bash install.sh
 ```
 
 Upgrade by running the stable installer again. It verifies the release artifact and preserves existing `~/.coco/agent` configuration during updates and reinstalls. `coco update` is not available.
@@ -89,7 +89,7 @@ The selection localizes CoCo-owned commands and response guidance. Some inherite
 
 ## Managed providers and authentication
 
-CoCo manages exactly these providers: `agnes`, `idepub`, `achai`, `stepfun`, and `deepseek`. A fresh installer configures Agnes as the default (`agnes/agnes-2.5-flash` with `max` thinking); it does not bundle provider credentials in source.
+CoCo manages exactly these providers: `agnes`, `deepseek`, `groq`, `idepub`, `stepfun`, and `stepfun-cn`. A fresh installer configures Groq as the default (`groq/qwen/qwen3.8-27b` with `max` thinking); it does not bundle provider credentials in source.
 
 Do not pass credentials on the command line: `--api-key` is rejected. Store a key without exposing it in shell history with the interactive command, which does not echo the key:
 

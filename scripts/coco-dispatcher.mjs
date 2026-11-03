@@ -59,12 +59,14 @@ Interactive loops:
   /loop cancel <id>          Cancel a loop by ID or unique prefix
 
 Managed providers:
-  idepub, achai, agnes, deepseek, stepfun
+  idepub, agnes, deepseek, groq, stepfun, stepfun-cn
 
 Credentials:
   Set a provider credential interactively with "coco manage auth set <provider>",
   or read it from standard input with --stdin. Do not put credentials on the
   command line. "auth status" reports availability and source, never a value.
+  Setting a credential also refreshes that provider's model catalog (best
+  effort; use "coco models sync" to refresh every provider).
 
 Offline and resources:
   CoCo starts offline unless PI_OFFLINE is explicitly set. Network-dependent
@@ -261,7 +263,7 @@ async function native(argv, root) {
   }
   const validation = parseManage(argv.slice(1));
   if (validation !== null) return validation;
-  if (argv[1] === "auth") return manageAuth(argv.slice(2));
+  if (argv[1] === "auth") return manageAuth(argv.slice(2), root);
   if (argv[1] === "models") return manageModels(argv.slice(2), root);
   if (argv[1] === "providers") {
     try {
@@ -308,7 +310,7 @@ function authOutput(value, json, action) {
   return { exitCode: 0, kind: "native" };
 }
 
-async function manageAuth(argv) {
+async function manageAuth(argv, root) {
   const { agentDirectory } = await import("./state-paths.mjs");
   const { confirmInteractiveRemove, getAuthStatus, readInteractiveKey, readStdinKey, removeAuthKey, setAuthKey } = await import("./auth-management.mjs");
   const [action, provider, ...flags] = argv;
@@ -318,7 +320,14 @@ async function manageAuth(argv) {
     if (action === "status") return authOutput(await getAuthStatus({ agentDir, provider: provider === "--json" ? undefined : provider }), json, "status");
     if (action === "set") {
       const key = flags.includes("--stdin") ? await readStdinKey(process.stdin) : await readInteractiveKey(process.stdin, process.stderr);
-      return authOutput(await setAuthKey({ agentDir, key, provider }), json, "set");
+      const value = await setAuthKey({ agentDir, key, provider });
+      // 连接提供商后立即拉取该提供商的最新模型清单（best-effort：网络异常不影响凭据保存，
+      // 失败时保留种子清单；全量刷新用 coco models sync）
+      try {
+        const { syncProviderModels } = await import("./provider-sync.mjs");
+        await syncProviderModels({ agentDir, allowEmpty: false, providerIds: [provider], root });
+      } catch { }
+      return authOutput(value, json, "set");
     }
     if (action === "remove") {
       if (!flags.includes("--yes") && !process.stdin.isTTY) return usage("CONFIRMATION_REQUIRED");

@@ -1,6 +1,6 @@
 # CoCo Agent
 
-CoCo Agent 是通用 AI 助手，具备强大的编码和终端能力。它作为 [Pi Coding Agent](https://github.com/earendil-works/pi) 的下游发行版构建，并将 `agnes/agnes-2.5-flash` 和最高思考级别 `max` 设为默认配置。CoCo 源码不包含提供商凭据。
+CoCo Agent 是通用 AI 助手，具备强大的编码和终端能力。它作为 [Pi Coding Agent](https://github.com/earendil-works/pi) 的下游发行版构建，并将 `groq/qwen/qwen3.8-27b` 和最高思考级别 `max` 设为默认配置。CoCo 源码不包含提供商凭据。
 
 [English](../en/README.md) | [简体中文](README.md) | [文档](../)
 
@@ -17,8 +17,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 或者安装经过明确审阅的固定版本：
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.3/install.sh
-COCO_VERSION=0.8.3 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v1.0.0/install.sh
+COCO_VERSION=1.0.0 bash install.sh
 ```
 
 安装程序会根据已发布的 SHA-256 值验证固定标签发行包和公开 Agnes 凭据，安全解压 CoCo，并在更新或重新安装时保留现有的 `~/.coco/agent` 配置。
@@ -69,7 +69,7 @@ CoCo 可通过 `/language` 在英文和简体中文之间切换，也可以安�
 
 ```bash
 coco manage auth set idepub
-coco manage auth set achai
+coco manage auth set groq
 coco manage auth set agnes
 coco manage auth set stepfun
 coco manage auth set deepseek

@@ -25,14 +25,14 @@ test("CoCo operational documentation is locale-paired and records the native CLI
   for (const page of [englishCli, chineseCli]) {
     for (const command of [
       "curl -fsSL https://bit-cook.github.io/coco/install.sh | bash",
-      "COCO_VERSION=0.8.3 bash install.sh",
+      "COCO_VERSION=1.0.0 bash install.sh",
       "PI_OFFLINE=0 coco",
       "coco manage auth set idepub",
       "coco manage auth set idepub --stdin",
       "coco manage auth status",
       "coco manage auth remove idepub",
     ]) assert.ok(page.includes(command), command);
-    assert.match(page, /agnes.*idepub.*achai.*stepfun.*deepseek/s);
+    assert.match(page, /agnes.*deepseek.*groq.*idepub.*stepfun.*stepfun-cn/s);
     assert.match(page, /--api-key.*rejected|--api-key.*拒绝/s);
     assert.match(page, /PI_OFFLINE=1/);
     assert.match(page, /coco update.*(?:not available|不可用)/);

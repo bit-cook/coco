@@ -44,8 +44,8 @@ The stable launcher selects the newest non-prerelease release and runs that rele
 To install an explicitly reviewed release, download the installer for that exact tag and pass the matching version:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.3/install.sh
-COCO_VERSION=0.8.3 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v1.0.0/install.sh
+COCO_VERSION=1.0.0 bash install.sh
 ```
 
 The installer verifies checksums and archive structure before replacing an installation. It uses a candidate-and-rollback process so a failed update does not intentionally destroy a working installation.
@@ -61,7 +61,7 @@ Default locations are:
 
 Installation locations can be changed with `COCO_INSTALL_DIR`, `COCO_BIN_DIR`, and `COCO_AGENT_DIR`. `COCO_CODING_AGENT_DIR` is also accepted for the agent directory.
 
-On a fresh installation, CoCo defaults to provider `agnes`, model `agnes/agnes-2.5-flash`, and thinking level `max`.
+On a fresh installation, CoCo defaults to provider `groq`, model `groq/qwen/qwen3.8-27b`, and thinking level `max`.
 
 To upgrade, run the stable installer command again. Existing `settings.json`, `models.json`, and `auth.json` are preserved during a normal reinstall.
 
@@ -186,15 +186,16 @@ Other supported arguments are forwarded to the bundled Pi runtime with CoCo's gu
 
 ## Managed Providers
 
-CoCo manages exactly five providers:
+CoCo manages exactly six providers:
 
 - `agnes`
-- `idepub`
-- `achai`
-- `stepfun`
 - `deepseek`
+- `groq`
+- `idepub`
+- `stepfun`
+- `stepfun-cn`
 
-Managed means that CoCo can store credentials and synchronize model metadata for the provider. It does not mean that CoCo supplies your private provider credential in source.
+Managed means that CoCo can store credentials and synchronize model metadata for the provider. It does not mean that CoCo supplies your private provider credential in source. Storing a credential for a managed provider also refreshes that provider's live model catalog on a best-effort basis (network failures keep the seeded list); run `coco models sync` to refresh every provider.
 
 ### Store A Credential
 
@@ -718,7 +719,7 @@ Read [CoCo security](coco-security.md) before high-risk use.
 | `AUTH_TTY_UNAVAILABLE` | Hidden interactive key entry has no TTY | Pipe the key to `--stdin` securely |
 | `AUTH_CONFIRMATION_MISMATCH` | The two hidden entries differ | Run the command again |
 | `AUTH_KEY_INVALID` | The key is empty, malformed, multiline, or too large | Supply one valid line without surrounding whitespace |
-| `AUTH_PROVIDER_INVALID` | Provider is not managed | Use `agnes`, `idepub`, `achai`, `stepfun`, or `deepseek` |
+| `AUTH_PROVIDER_INVALID` | Provider is not managed | Use `agnes`, `deepseek`, `groq`, `idepub`, `stepfun`, or `stepfun-cn` |
 | Model absent from `/model` | Registration or auth is missing | Check auth status and `coco --list-models`; synchronize if needed |
 | `EMPTY_CATALOG_REJECTED` | Sync returned no models | Fix provider/network problems; use `--allow-empty` only intentionally |
 | Project extension does not load | CoCo blocks project-local resources | Install a reviewed extension globally or pass it explicitly |

@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.0.0] - 2026-11-03
+
+### Provider registry rework (achai removed, groq default, StepFun China added)
+
+- Removed the `achai` provider end to end: registry, model seeds, product manifest, generated identity, dispatcher help, transformations, state catalog, installer (including the legacy OpenCode secret import), schemas, tests, and documentation.
+- Added `groq` (OpenAI-compatible, `https://api.groq.com/openai/v1`) as the new default provider with `qwen/qwen3.8-27b` at `max` thinking. The installer embeds the Groq key as a release asset fetched at install time and verified by size plus SHA-256, exactly like the Agnes key; the key never enters the repository.
+- Added `stepfun-cn` (the regular `https://api.stepfun.com/v1` endpoint) alongside the existing `stepfun` step_plan line, so both StepFun stations are selectable. `step-5-preview` and the current Step 3.x lineup are seeded on both lines.
+- Model seeds and transformation overrides were resynchronized against the official provider catalogs (Groq, StepFun, Agnes, DeepSeek): reasoning flags, context windows, and pricing now match the published listings, and delisted models were removed.
+- The architecture contract, frozen provider-contract digests, generated product identity, asset map, and runtime integrity manifest were all regenerated; the managed provider count moved from five to six.
+
+### Reasoning setting revamp
+
+- The `hide-thinking` setting is now `Reasoning process`: the label and description were rewritten, the value semantics were inverted (on = show reasoning), and the default is off, so a fresh install no longer prints reasoning blocks. Labels and descriptions route through the CoCo localization map, and the value renders as 开启/关闭 in Chinese.
+
+### Live model catalogs
+
+- Storing a credential for a managed provider (`coco manage auth set <provider>`) now refreshes that provider's model catalog from its live `/models` endpoint on a best-effort basis, so newly released models no longer wait for a CoCo release. `coco models sync` still refreshes every provider; failed refreshes keep the seeded list.
+
+### Release plumbing
+
+- All version surfaces are synchronized to 1.0.0 (package.json, package-lock, vscode extension, capability matrix, manifest, generated identity, installer, site bootstrapper, documentation). The public bootstrapper's hotfix channel (commit-SHA pinned since v0.8.1) is retired in favour of the immutable tag channel.
+- Fixed a pre-existing red unit test: the offline tool-notice drift fixture still simulated the pre-0.82.1 upstream shape, so it failed before reaching the patch under test. The fixture now drifts the real upstream anchor.
+
+### Verified
+
+- `npm run verify:architecture` approved (6 providers, 11 registered patch functions), `npm run verify:product-identity` approved, full core test suite green, installer suite green including the new Groq key download/verification and rollback seams.
+
 ## [0.8.2] - 2026-11-01
 
 ### Installer repairs (all user-facing install paths)

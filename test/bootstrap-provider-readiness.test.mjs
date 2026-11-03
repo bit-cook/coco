@@ -13,28 +13,31 @@ test("fresh bootstrap dry run reports current and projected all-managed readines
   try {
     const result = await bootstrapState({ agentDir, dryRun: true, root });
     assert.equal(result.status, "planned"); assert.equal(result.providerReadiness.scope, "all-managed");
-    assert.deepEqual(result.providerReadiness.current.map(({ localStatus }) => localStatus), Array(5).fill("provider-missing"));
-    assert.deepEqual(result.providerReadiness.projected.map(({ provider }) => provider), ["achai", "agnes", "deepseek", "idepub", "stepfun"]);
+    assert.deepEqual(result.providerReadiness.current.map(({ localStatus }) => localStatus), Array(6).fill("provider-missing"));
+    assert.deepEqual(result.providerReadiness.projected.map(({ provider }) => provider), ["agnes", "deepseek", "groq", "idepub", "stepfun", "stepfun-cn"]);
     const agnes = result.providerReadiness.projected.find(({ provider }) => provider === "agnes");
-    assert.equal(agnes.configuration.status, "configured"); assert.deepEqual(agnes.model, { id: "agnes-2.5-flash", status: "available" });
+    assert.equal(agnes.configuration.status, "configured"); assert.deepEqual(agnes.model, { id: null, status: "available" });
+    const groq = result.providerReadiness.projected.find(({ provider }) => provider === "groq");
+    assert.equal(groq.configuration.status, "configured"); assert.deepEqual(groq.model, { id: "qwen/qwen3.8-27b", status: "available" });
     assert.equal(agnes.catalog.status, "seeded"); assert.equal(agnes.credential.rotationRequired, false); assert.equal(agnes.localStatus, "credential-missing");
+    assert.equal(groq.catalog.status, "seeded"); assert.equal(groq.credential.rotationRequired, false); assert.equal(groq.localStatus, "credential-missing");
     await assert.rejects(readFile(join(agentDir, "models.json")), (error) => error.code === "ENOENT");
   } finally { await rm(sandbox, { force: true, recursive: true }); }
 });
 
 test("bootstrap readiness observes auth, environment, legacy, and rotation without exposing values", async () => {
   const sandbox = await mkdtemp(join(tmpdir(), "coco-bootstrap-credentials-")); const agentDir = join(sandbox, "agent");
-  const previous = process.env.ACHAI_API_KEY;
+  const previous = process.env.GROQ_API_KEY;
   try {
     await mkdir(agentDir, { recursive: true, mode: 0o700 });
-    process.env.ACHAI_API_KEY = "environment-secret";
+    process.env.GROQ_API_KEY = "environment-secret";
     await writeFile(join(agentDir, "auth.json"), JSON.stringify({ agnes: { key: "auth-secret", type: "api_key" } }));
     await writeFile(join(agentDir, "models.json"), JSON.stringify({ providers: { deepseek: { apiKey: "legacy-secret" } } }));
     await writeFile(join(agentDir, "migration.json"), JSON.stringify({ rotationRequired: ["agnes"], schemaVersion: 1 }));
     const result = await bootstrapState({ agentDir, dryRun: true, root });
     const projected = Object.fromEntries(result.providerReadiness.projected.map((entry) => [entry.provider, entry]));
-    assert.deepEqual(projected.achai.credential, { rotationRequired: false, source: "environment", status: "available" });
-    assert.equal(projected.achai.localStatus, "ready");
+    assert.deepEqual(projected.groq.credential, { rotationRequired: false, source: "environment", status: "available" });
+    assert.equal(projected.groq.localStatus, "ready");
     assert.deepEqual(projected.agnes.credential, { rotationRequired: true, source: "auth", status: "available" });
     assert.equal(projected.agnes.localStatus, "rotation-required");
     assert.deepEqual(projected.deepseek.credential, { rotationRequired: false, source: "legacy", status: "available" });

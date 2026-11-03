@@ -3,12 +3,15 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-0.8.3}"
+COCO_VERSION="${COCO_VERSION:-1.0.0}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/bit-cook/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key"
 AGNES_KEY_SIZE=52
 AGNES_KEY_SHA256="4d78028a0a60a7d752e6e57cbcb3113e9de99ab81bde608a0b9610a83cd42f6e"
+GROQ_KEY_URL="https://github.com/bit-cook/coco/releases/download/installer-v1.0.0/groq.key"
+GROQ_KEY_SIZE=56
+GROQ_KEY_SHA256="f0c38aeca0d88069f89a7cb1f06eea0fd40fddb794a0154d0116830feefedfc0"
 COCO_INSTALL_DIR="${COCO_INSTALL_DIR:-$HOME/.coco}"
 # 发行包缓存目录：命中后复核 SHA-256 直接复用，跳过网络（历史 bug：该变量
 # 曾从未赋值，set -u 下安装必崩 "COCO_CACHE_DIR: unbound variable"）。
@@ -401,8 +404,29 @@ install_coco() {
   fail_at_test_seam COCO_INSTALL_TEST_FAIL_AFTER_SWAP "Injected failure after candidate swap"
 }
 
+download_groq_key() {
+  local key_path="${TMPDIR_install}/groq.key" actual size u ok=0
+  local urls=()
+  if use_cn; then
+    local prefix
+    for prefix in "${GH_PROXY_PREFIXES[@]}"; do urls+=("${prefix}${GROQ_KEY_URL}"); done
+  fi
+  urls+=("${GROQ_KEY_URL}")
+  for u in "${urls[@]}"; do
+    if fetch_url "$u" "$key_path"; then ok=1; break; fi
+    info "Key source unreachable: ${u}; trying next mirror …"
+  done
+  [ "$ok" = 1 ] || die "Groq key download failed from all mirrors"
+  [ -f "$key_path" ] || die "Groq API key download produced no file"
+  size="$(wc -c < "$key_path" | tr -d '[:space:]')"
+  [ "$size" = "$GROQ_KEY_SIZE" ] || die "Groq API key size verification failed"
+  if command -v sha256sum >/dev/null 2>&1; then actual="$(sha256sum "$key_path" | cut -d ' ' -f1)"; elif command -v shasum >/dev/null 2>&1; then actual="$(shasum -a 256 "$key_path" | cut -d ' ' -f1)"; else die "Neither sha256sum nor shasum found. Install one and retry."; fi
+  [ "$(printf '%s' "$actual" | tr '[:upper:]' '[:lower:]')" = "$GROQ_KEY_SHA256" ] || die "Groq API key SHA-256 verification failed"
+  printf '%s' "$key_path"
+}
+
 write_config() {
-  local achai_key_path="" agnes_key_path=""
+  local agnes_key_path="" groq_key_path=""
   mkdir -p "$COCO_AGENT_DIR"
   [ ! -L "$COCO_AGENT_DIR" ] || die "Refusing symlinked agent directory: ${COCO_AGENT_DIR}"
   chmod 700 "$COCO_AGENT_DIR"
@@ -423,23 +447,21 @@ write_config() {
   fi
   if [ ! -e "$COCO_AGENT_DIR/auth.json" ]; then
     if [ -z "${AGNES_API_KEY:-}" ]; then agnes_key_path="$(download_agnes_key)"; fi
-    if [ -z "${ACHAI_API_KEY:-}" ] && [ -f "$HOME/.config/opencode/secrets/achai-api-key" ] && [ ! -L "$HOME/.config/opencode/secrets/achai-api-key" ]; then
-      achai_key_path="$HOME/.config/opencode/secrets/achai-api-key"
-    fi
+    if [ -z "${GROQ_API_KEY:-}" ]; then groq_key_path="$(download_groq_key)"; fi
     (umask 077; set -C; printf '{}\n' > "$COCO_AGENT_DIR/auth.json") || die "Could not create auth configuration exclusively"
     CREATED_AUTH=1
   fi
   if [ "$CREATED_MODELS" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/models.json"; fi
   if [ "$CREATED_AUTH" -eq 1 ]; then chmod 600 "$COCO_AGENT_DIR/auth.json"; fi
-  if [ "$CREATED_AUTH" -eq 1 ] && { [ -n "${AGNES_API_KEY:-}" ] || [ -n "$agnes_key_path" ] || [ -n "${ACHAI_API_KEY:-}" ] || [ -n "$achai_key_path" ] || [ -n "${DEEPSEEK_API_KEY:-}" ]; }; then
-    "$NODE_BIN" - "$COCO_AGENT_DIR/auth.json" "$agnes_key_path" "$achai_key_path" <<'NODE'
+  if [ "$CREATED_AUTH" -eq 1 ] && { [ -n "${AGNES_API_KEY:-}" ] || [ -n "$agnes_key_path" ] || [ -n "${GROQ_API_KEY:-}" ] || [ -n "$groq_key_path" ] || [ -n "${DEEPSEEK_API_KEY:-}" ]; }; then
+    "$NODE_BIN" - "$COCO_AGENT_DIR/auth.json" "$agnes_key_path" "$groq_key_path" <<'NODE'
 const fs = require("fs");
-const [authPath, agnesKeyPath, achaiKeyPath] = process.argv.slice(2);
-const key = process.env.AGNES_API_KEY || fs.readFileSync(agnesKeyPath, "utf8").replace(/\r?\n$/, "");
+const [authPath, agnesKeyPath, groqKeyPath] = process.argv.slice(2);
 const auth = JSON.parse(fs.readFileSync(authPath, "utf8"));
+const key = process.env.AGNES_API_KEY || fs.readFileSync(agnesKeyPath, "utf8").replace(/\r?\n$/, "");
 auth.agnes = { type: "api_key", key };
-const achaiKey = process.env.ACHAI_API_KEY || (achaiKeyPath ? fs.readFileSync(achaiKeyPath, "utf8").replace(/\r?\n$/, "") : "");
-if (achaiKey) auth.achai = { type: "api_key", key: achaiKey };
+const groqKey = process.env.GROQ_API_KEY || fs.readFileSync(groqKeyPath, "utf8").replace(/\r?\n$/, "");
+auth.groq = { type: "api_key", key: groqKey };
 if (process.env.DEEPSEEK_API_KEY) auth.deepseek = { type: "api_key", key: process.env.DEEPSEEK_API_KEY };
 fs.writeFileSync(authPath, JSON.stringify(auth) + "\n", { mode: 0o600 });
 NODE
@@ -457,30 +479,12 @@ const settingsPath = `${agentDir}/settings.json`;
 const agnes = registry.providers.agnes;
 if (createdModels === "1") {
 const models = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
-const achai = registry.providers.achai;
 const deepseek = registry.providers.deepseek;
+const groq = registry.providers.groq;
 const idepub = registry.providers.idepub;
 const stepfun = registry.providers.stepfun;
+const stepfunCn = registry.providers["stepfun-cn"];
 const standard = (id, name, reasoning = false) => ({ id, name, reasoning, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 });
-models.providers.achai = {
-  api: achai.api,
-  authHeader: achai.authHeader,
-  baseUrl: achai.baseUrl,
-  compat: achai.compat,
-  models: [
-    standard("deepseek-v4-flash", "DeepSeek V4 Flash"),
-    standard("grok-4.20-0309", "Grok 4.20"),
-    standard("grok-4.20-0309-reasoning", "Grok 4.20 Reasoning", true),
-    standard("grok-4.20-multi-agent-0309", "Grok 4.20 Multi-Agent"),
-    standard("grok-4.3", "Grok 4.3", true),
-    standard("grok-4.5", "Grok 4.5", true),
-    standard("grok-build-0.1", "Grok Build 0.1"),
-    standard("grok-chat-fast", "Grok Chat Fast"),
-    standard("mimo-v2.5", "Mimo v2.5"),
-    standard("nemotron-3-ultra", "Nemotron 3 Ultra"),
-    standard("north-mini-code", "North Mini Code")
-  ]
-};
 models.providers.agnes = {
   api: agnes.api,
   authHeader: true,
@@ -506,6 +510,21 @@ models.providers.deepseek = {
     { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", reasoning: true, input: ["text"], cost: { input: 0.435, output: 0.87, cacheRead: 0.003625, cacheWrite: 0 }, contextWindow: 1000000, maxTokens: 384000, compat: { supportsStore: false, supportsDeveloperRole: false, requiresReasoningContentOnAssistantMessages: true, thinkingFormat: "deepseek" }, thinkingLevelMap: { minimal: null, low: null, medium: null, high: "high", max: "max" } }
   ]
 };
+models.providers.groq = {
+  api: groq.api,
+  authHeader: groq.authHeader,
+  baseUrl: groq.baseUrl,
+  compat: groq.compat,
+  models: [
+    standard("qwen/qwen3.8-27b", "Qwen3.8 27B", true),
+    standard("qwen/qwen3.6-27b", "Qwen3.6 27B", true),
+    standard("openai/gpt-oss-120b", "GPT OSS 120B", true),
+    standard("openai/gpt-oss-20b", "GPT OSS 20B", true),
+    standard("openai/gpt-oss-safeguard-20b", "Safety GPT OSS 20B", true),
+    standard("llama-3.3-70b-versatile", "Llama 3.3 70B"),
+    standard("llama-3.1-8b-instant", "Llama 3.1 8B")
+  ]
+};
 models.providers.idepub = {
   api: idepub.api,
   authHeader: idepub.authHeader,
@@ -524,9 +543,22 @@ models.providers.stepfun = {
   baseUrl: stepfun.baseUrl,
   compat: stepfun.compat,
   models: [
+    { id: "step-5-preview", name: "Step 5 Preview", reasoning: true, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 },
     { id: "step-3.7-flash", name: "Step 3.7 Flash", reasoning: true, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 },
     { id: "step-3.5-flash-2603", name: "Step 3.5 Flash 2603", reasoning: true, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 },
     { id: "step-3.5-flash", name: "Step 3.5 Flash", reasoning: true, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 16384 }
+  ]
+};
+models.providers["stepfun-cn"] = {
+  api: stepfunCn.api,
+  authHeader: stepfunCn.authHeader,
+  baseUrl: stepfunCn.baseUrl,
+  compat: stepfunCn.compat,
+  models: [
+    standard("step-5-preview", "Step 5 Preview", true),
+    standard("step-3.7-flash", "Step 3.7 Flash", true),
+    standard("step-3.5-flash-2603", "Step 3.5 Flash 2603", true),
+    standard("step-3.5-flash", "Step 3.5 Flash", true)
   ]
 };
 const seeded = (model) => ({ contextWindow: 128000, maxTokens: 16384, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, reasoning: false, ...model });
@@ -536,8 +568,8 @@ fs.writeFileSync(modelsPath, JSON.stringify(models) + "\n", { mode: 0o600 });
 const settingsExisted = fs.existsSync(settingsPath);
 const settings = settingsExisted ? JSON.parse(fs.readFileSync(settingsPath, "utf8")) : {};
 let settingsChanged = false;
-settings.defaultProvider = "agnes";
-settings.defaultModel = "agnes-2.5-flash";
+settings.defaultProvider = "groq";
+settings.defaultModel = "qwen/qwen3.8-27b";
 settings.defaultThinkingLevel = "max";
 const ownershipPath = `${agentDir}/ownership.json`;
 let ownership = fs.existsSync(ownershipPath) ? JSON.parse(fs.readFileSync(ownershipPath, "utf8")) : null;

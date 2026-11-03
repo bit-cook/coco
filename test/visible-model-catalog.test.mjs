@@ -28,7 +28,7 @@ test("managed bootstrap seeds stable idepub and default models without forcing a
     const models = JSON.parse(await readFile(join(directory, "models.json"), "utf8"));
     const settings = JSON.parse(await readFile(join(directory, "settings.json"), "utf8"));
     assert.deepEqual(models.providers.idepub.models.map((model) => model.id), ["gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]);
-    assert.deepEqual(models.providers.agnes.models.map((model) => model.id), ["agnes-2.5-flash"]);
+    assert.deepEqual(models.providers.agnes.models.map((model) => model.id), ["agnes-3.0-flash", "agnes-2.5-pro-alpha", "agnes-2.5-flash", "agnes-2.0-flash"]);
     assert.equal("enabledModels" in settings, false);
   } finally {
     await rm(directory, { force: true, recursive: true });

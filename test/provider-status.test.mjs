@@ -22,27 +22,28 @@ test("provider status observes fresh state in deterministic all-managed order wi
   const sandbox = await mkdtemp(join(tmpdir(), "coco-provider-status-")); const agentDir = join(sandbox, "agent");
   try {
     const result = await providerStatus({ agentDir });
-    assert.deepEqual(result.providers.map(({ provider }) => provider), ["achai", "agnes", "deepseek", "idepub", "stepfun"]);
-    assert.deepEqual(result.providers.map(({ localStatus }) => localStatus), Array(5).fill("provider-missing"));
+    assert.deepEqual(result.providers.map(({ provider }) => provider), ["agnes", "deepseek", "groq", "idepub", "stepfun", "stepfun-cn"]);
+    assert.deepEqual(result.providers.map(({ localStatus }) => localStatus), Array(6).fill("provider-missing"));
     assert.deepEqual(result.defaultModel, { id: null, provider: null }); assert.equal(result.scope, "all-managed");
     await assert.rejects(lstat(agentDir), (error) => error.code === "ENOENT");
   } finally { await rm(sandbox, { force: true, recursive: true }); }
 });
 
 test("provider status reports default exact-model and sanitized credential lifecycle", async () => {
-  const sandbox = await mkdtemp(join(tmpdir(), "coco-provider-state-")); const agentDir = join(sandbox, "agent"); const previous = process.env.ACHAI_API_KEY;
+  const sandbox = await mkdtemp(join(tmpdir(), "coco-provider-state-")); const agentDir = join(sandbox, "agent"); const previous = process.env.GROQ_API_KEY;
   try {
-    await bootstrapState({ agentDir, root }); process.env.ACHAI_API_KEY = "environment-status-secret";
+    await bootstrapState({ agentDir, root }); process.env.GROQ_API_KEY = "environment-status-secret";
     await writeFile(join(agentDir, "auth.json"), JSON.stringify({ agnes: { key: "auth-status-secret", type: "api_key" } }));
     const modelsPath = join(agentDir, "models.json"); const models = JSON.parse(await readFile(modelsPath, "utf8")); models.providers.deepseek.apiKey = "legacy-status-secret"; await writeFile(modelsPath, `${JSON.stringify(models)}\n`);
     await writeFile(join(agentDir, "migration.json"), JSON.stringify({ rotationRequired: ["deepseek"], schemaVersion: 1 }));
     const result = await providerStatus({ agentDir }); const byId = Object.fromEntries(result.providers.map((entry) => [entry.provider, entry]));
-    assert.equal(byId.achai.localStatus, "ready"); assert.equal(byId.achai.credential.source, "environment");
-    assert.equal(byId.agnes.localStatus, "ready"); assert.deepEqual(byId.agnes.model, { id: "agnes-2.5-flash", status: "available" });
+    assert.equal(byId.groq.localStatus, "ready"); assert.equal(byId.groq.credential.source, "environment");
+    assert.deepEqual(byId.groq.model, { id: "qwen/qwen3.8-27b", status: "available" });
+    assert.equal(byId.agnes.localStatus, "ready"); assert.deepEqual(byId.agnes.model, { id: null, status: "available" });
     assert.equal(byId.deepseek.localStatus, "rotation-required"); assert.equal(byId.deepseek.credential.source, "legacy");
     assert.ok(result.providers.every(({ verification }) => verification.scope === null && verification.status === "not-checked"));
-    const text = formatProviderStatus(result); const serialized = JSON.stringify(result); for (const secret of ["environment-status-secret", "auth-status-secret", "legacy-status-secret", "ACHAI_API_KEY"]) { assert.equal(text.includes(secret), false); assert.equal(serialized.includes(secret), false); }
-  } finally { if (previous === undefined) delete process.env.ACHAI_API_KEY; else process.env.ACHAI_API_KEY = previous; await rm(sandbox, { force: true, recursive: true }); }
+    const text = formatProviderStatus(result); const serialized = JSON.stringify(result); for (const secret of ["environment-status-secret", "auth-status-secret", "legacy-status-secret", "GROQ_API_KEY"]) { assert.equal(text.includes(secret), false); assert.equal(serialized.includes(secret), false); }
+  } finally { if (previous === undefined) delete process.env.GROQ_API_KEY; else process.env.GROQ_API_KEY = previous; await rm(sandbox, { force: true, recursive: true }); }
 });
 
 test("provider status selects one provider and leaves pending transactions untouched", async () => {
@@ -113,7 +114,7 @@ test("provider status includes configured custom providers after managed provide
     await writeFile(join(agentDir, "auth.json"), canonicalJson({ "custom-alpha": { key: "custom-secret", type: "api_key" } }));
     await writeFile(join(agentDir, "settings.json"), canonicalJson({ defaultModel: "alpha-model", defaultProvider: "custom-alpha" }));
     const result = await providerStatus({ agentDir });
-    assert.deepEqual(result.providers.map(({ provider }) => provider), ["achai", "agnes", "deepseek", "idepub", "stepfun", "custom-alpha", "custom-zeta"]);
+    assert.deepEqual(result.providers.map(({ provider }) => provider), ["agnes", "deepseek", "groq", "idepub", "stepfun", "stepfun-cn", "custom-alpha", "custom-zeta"]);
     const alpha = result.providers.at(-2); const zeta = result.providers.at(-1);
     assert.equal(alpha.localStatus, "ready"); assert.deepEqual(alpha.model, { id: "alpha-model", status: "available" }); assert.equal(alpha.catalog.status, "unknown");
     assert.equal(zeta.localStatus, "credential-missing"); assert.deepEqual(zeta.model, { id: null, status: "available" });

@@ -12,18 +12,20 @@ import { resolveCredential } from "../scripts/state-schema.mjs";
 
 const providers = [
   ["idepub", "IDEPUB_API_KEY"],
-  ["achai", "ACHAI_API_KEY"],
+  ["groq", "GROQ_API_KEY"],
   ["deepseek", "DEEPSEEK_API_KEY"],
   ["agnes", "AGNES_API_KEY"],
   ["stepfun", "STEPFUN_API_KEY"],
+  ["stepfun-cn", "STEPFUN_API_KEY"],
 ];
 
 const publicEndpoints = {
-  achai: { baseUrl: "https://www.achai.cc/v1", chatPath: "/v1/chat/completions", modelsPath: "/v1/models", origin: "https://www.achai.cc" },
   agnes: { baseUrl: "https://apihub.agnes-ai.com/v1", chatPath: "/v1/chat/completions", modelsPath: "/v1/models", origin: "https://apihub.agnes-ai.com" },
   deepseek: { baseUrl: "https://api.deepseek.com", chatPath: "/chat/completions", modelsPath: "/models", origin: "https://api.deepseek.com" },
+  groq: { baseUrl: "https://api.groq.com/openai/v1", chatPath: "/chat/completions", modelsPath: "/models", origin: "https://groq.com" },
   idepub: { baseUrl: "https://api.ide.pub/v1", chatPath: "/v1/chat/completions", modelsPath: "/v1/models", origin: "https://api.ide.pub" },
   stepfun: { baseUrl: "https://api.stepfun.com/step_plan/v1", chatPath: "/step_plan/v1/chat/completions", modelsPath: "/step_plan/v1/models", origin: "https://api.stepfun.com" },
+  "stepfun-cn": { baseUrl: "https://api.stepfun.com/v1", chatPath: "/chat/completions", modelsPath: "/models", origin: "https://api.stepfun.com" },
 };
 
 test("Given each canonical provider, when auth is set, inspected, resolved, and removed, then every management path uses its mapped environment variable", async () => {
@@ -69,13 +71,13 @@ test("Given a fresh agent directory, when CoCo bootstraps public provider state,
     assert.deepEqual(Object.fromEntries(Object.entries(models.providers).map(([provider, model]) => [provider, model.baseUrl])), Object.fromEntries(Object.entries(publicEndpoints).map(([provider, endpoint]) => [provider, endpoint.baseUrl])));
     const ownership = JSON.parse(await readFile(join(agentDir, "ownership.json"), "utf8"));
     const providerOrder = ownership.managedFiles["models.json"].ownedJsonPointers.filter((pointer) => pointer.endsWith("/baseUrl")).map((pointer) => pointer.split("/")[2]);
-    assert.deepEqual(providerOrder, ["idepub", "achai", "agnes", "deepseek", "stepfun"]);
+    assert.deepEqual(providerOrder, ["idepub", "agnes", "deepseek", "groq", "stepfun", "stepfun-cn"]);
   } finally {
     await rm(root, { force: true, recursive: true });
   }
 });
 
-test("Given the frozen public registry, when its five providers are inspected, then their exact endpoint metadata is credential-free", async () => {
+test("Given the frozen public registry, when its six providers are inspected, then their exact endpoint metadata is credential-free", async () => {
   const cocoRoot = new URL("..", import.meta.url).pathname;
   const registry = JSON.parse(await readFile(join(cocoRoot, "resources", "provider-registry.v1.json"), "utf8"));
 
@@ -123,7 +125,7 @@ test("Given legacy official DeepSeek credentials, when state migrates, then the 
 test("Given all legacy managed credentials, when state migrates, then persisted compatibility order remains stable", async () => {
   const root = await mkdtemp(join(tmpdir(), "coco-provider-order-"));
   const agentDir = join(root, "agent");
-  const legacyOrder = ["idepub", "achai", "agnes", "deepseek", "stepfun"];
+  const legacyOrder = ["idepub", "agnes", "deepseek", "groq", "stepfun", "stepfun-cn"];
   try {
     await mkdir(agentDir, { recursive: true, mode: 0o700 });
     await writeFile(join(agentDir, "models.json"), JSON.stringify({ providers: Object.fromEntries(legacyOrder.map((provider) => [provider, { apiKey: `${provider}-legacy` }])) }));

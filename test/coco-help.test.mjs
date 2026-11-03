@@ -39,7 +39,7 @@ test("CoCo help forms are native and document the active native grammar", async 
     assert.match(stdout, /\/goal continue\s+Resume and ask the agent to continue/);
     assert.match(stdout, /\/goal complete\|clear\s+Complete or remove the goal/);
     assert.match(stdout, /\/language <locale>\s+Switch language and persist the selection/);
-    assert.match(stdout, /idepub, achai, agnes, deepseek, stepfun/);
+    assert.match(stdout, /idepub, agnes, deepseek, groq, stepfun, stepfun-cn/);
     assert.match(stdout, new RegExp(`bundled Pi ${CORE_VERSION.replaceAll(".", "\\.")}`));
   }
 });

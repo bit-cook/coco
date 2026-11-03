@@ -46,7 +46,7 @@ test("generator rejects noncanonical or incomplete product manifests", async () 
     const incomplete = structuredClone(manifest); delete incomplete.product.command;
     await writeFile(join(root, "resources", "product-manifest.v1.json"), canonicalJson(incomplete));
     await assert.rejects(() => generateProductIdentity({ check: true, root }), (error) => error.code === "PRODUCT_MANIFEST_INVALID");
-    const invalidEnvironment = structuredClone(manifest); invalidEnvironment.providers.achai.credentialEnv = "not-valid";
+    const invalidEnvironment = structuredClone(manifest); invalidEnvironment.providers.groq.credentialEnv = "not-valid";
     await writeFile(join(root, "resources", "product-manifest.v1.json"), canonicalJson(invalidEnvironment));
     await assert.rejects(() => generateProductIdentity({ check: true, root }), (error) => error.code === "PRODUCT_MANIFEST_INVALID");
   } finally { await rm(root, { force: true, recursive: true }); }

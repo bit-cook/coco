@@ -9,7 +9,7 @@ const root = new URL("..", import.meta.url);
 
 test("M0 architecture contracts approve the committed product, patch, capability, and upstream baseline", async () => {
   const manifest = JSON.parse(await readFile(new URL("../resources/product-manifest.v1.json", import.meta.url), "utf8"));
-  assert.deepEqual(await verifyArchitectureContracts(), { capabilities: 22, patches: 9, providers: 5, status: "approved", upstream: "0.82.1", version: manifest.product.version });
+  assert.deepEqual(await verifyArchitectureContracts(), { capabilities: 22, patches: 10, providers: 6, status: "approved", upstream: "0.82.1", version: manifest.product.version });
 });
 
 test("an artifact patch function cannot be added without an inventory domain and removal contract", async () => {

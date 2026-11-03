@@ -1,6 +1,6 @@
 # CoCo Agent
 
-CoCo Agent is a general AI assistant with strong coding and terminal capabilities, built as a downstream distribution of [Pi Coding Agent](https://github.com/earendil-works/pi) with `agnes/agnes-2.5-flash` at `max` thinking as the default model. CoCo includes no provider credentials in source.
+CoCo Agent is a general AI assistant with strong coding and terminal capabilities, built as a downstream distribution of [Pi Coding Agent](https://github.com/earendil-works/pi) with `groq/qwen/qwen3.8-27b` at `max` thinking as the default model. CoCo includes no provider credentials in source.
 
 [English](../../README.md) | [简体中文](../zh-CN/README.md) | [Documentation](../)
 
@@ -34,8 +34,8 @@ curl -fsSL https://bit-cook.github.io/coco/install.sh | bash
 Or install an explicitly reviewed release:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v0.8.3/install.sh
-COCO_VERSION=0.8.3 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v1.0.0/install.sh
+COCO_VERSION=1.0.0 bash install.sh
 ```
 
 The installer verifies the exact-tag release tarball and the pinned public Agnes credential against their published SHA-256 values, safely extracts CoCo, and preserves existing `~/.coco/agent` configuration during updates and reinstalls. Fresh installs work with Agnes max immediately and show models for Agnes, IDEPub, StepFun, Achai, and DeepSeek, including `deepseek-v4-flash` and `deepseek-v4-pro`. Achai credentials come from `ACHAI_API_KEY` or an existing OpenCode secret; CoCo does not bundle an Achai key. Set `AGNES_API_KEY` to override the default Agnes credential, set `DEEPSEEK_API_KEY` on a fresh install to import a DeepSeek credential, or configure another provider after installation.
@@ -66,7 +66,7 @@ Set an API key interactively for one of CoCo's five managed providers. The promp
 
 ```bash
 coco manage auth set idepub
-coco manage auth set achai
+coco manage auth set groq
 coco manage auth set agnes
 coco manage auth set stepfun
 coco manage auth set deepseek

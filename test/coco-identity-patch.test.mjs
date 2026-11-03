@@ -101,6 +101,60 @@ const tuiSource = `const fullRender = (clear) => {
                 buffer += "\\x1b[2J\\x1b[H\\x1b[3J"; // Clear screen, home, then clear scrollback
     }
 };`;
+const settingsSelectorSource = `import { Container, getCapabilities, SelectList, SettingsList, Spacer, Text, } from "@earendil-works/pi-tui";
+export class SettingsSelector {
+    build(config) {
+        return [
+            {
+                id: "http-idle-timeout",
+                label: "HTTP idle timeout",
+                description: "Maximum idle gap while waiting for HTTP headers or body chunks.",
+                currentValue: formatHttpIdleTimeoutMs(config.httpIdleTimeoutMs),
+                values: HTTP_IDLE_TIMEOUT_CHOICES.map((choice) => choice.label),
+            },
+            {
+                id: "hide-thinking",
+                label: "Hide thinking",
+                description: "Hide thinking blocks in assistant responses",
+                currentValue: config.hideThinkingBlock ? "true" : "false",
+                values: ["true", "false"],
+            },
+            {
+                id: "cache-miss-notices",
+                label: "Cache miss notices",
+                description: "Show transcript notices for significant prompt-cache misses",
+                currentValue: config.showCacheMissNotices ? "true" : "false",
+                values: ["true", "false"],
+            },
+        ];
+    }
+    handleSelect(id, newValue, callbacks) {
+        switch (id) {
+            case "http-idle-timeout":
+                callbacks.onHttpIdleTimeoutChange(newValue);
+                break;
+                case "hide-thinking":
+                    callbacks.onHideThinkingBlockChange(newValue === "true");
+                    break;
+            case "cache-miss-notices":
+                callbacks.onShowCacheMissNoticesChange(newValue === "true");
+                break;
+        }
+    }
+}`;
+const settingsManagerSource = `export class SettingsManager {
+    getHideThinkingBlock() {
+        return this.settings.hideThinkingBlock ?? false;
+    }
+    getShowCacheMissNotices() {
+        return this.settings.showCacheMissNotices ?? false;
+    }
+    setHideThinkingBlock(hide) {
+        this.globalSettings.hideThinkingBlock = hide;
+        this.markModified("hideThinkingBlock");
+        this.save();
+    }
+}`;
 const interactiveModelSelectionSource = `    currentTheme: this.settingsManager.getThemeSetting() || "dark",
     showModelSelector(initialSearchInput) {
         this.showSelector((done) => {
@@ -205,6 +259,8 @@ const patchTargets = [
   "dist/core/model-runtime.d.ts",
   "dist/modes/interactive/components/model-selector.js",
   "dist/modes/interactive/components/model-selector.d.ts",
+  "dist/modes/interactive/components/settings-selector.js",
+  "dist/core/settings-manager.js",
   "dist/core/system-prompt.js",
   "dist/modes/interactive/components/first-time-setup.js",
   "dist/modes/interactive/interactive-mode.js",
@@ -241,6 +297,8 @@ async function createFixture({ tuiLayout = "nested" } = {}) {
   await writeFile(join(tui, "dist/tui.js"), tuiSource);
   await writeFile(join(tui, "dist/components/input.js"), 'const prompt = "> ";\n');
   await writeFile(join(tui, "dist/components/settings-list.js"), 'const valueText = this.theme.value(truncateToWidth(item.currentValue, valueMaxWidth, ""), isSelected);\nconst help = "  Enter/Space to change · Esc to cancel";\n');
+  await writeFile(join(agent, "dist/modes/interactive/components/settings-selector.js"), settingsSelectorSource);
+  await writeFile(join(agent, "dist/core/settings-manager.js"), settingsManagerSource);
   return root;
 }
 
@@ -329,6 +387,16 @@ test("Given supported upstream artifacts, when patched, then the identity, compa
     assert.doesNotMatch(toolsManager, /Offline mode enabled, skipping download/);
     assert.match(toolsManager, /not found\. Downloading/);
     assert.match(toolsManager, /Failed to download/);
+    const settingsSelector = await readPatched(root, "dist/modes/interactive/components/settings-selector.js");
+    const settingsManager = await readPatched(root, "dist/core/settings-manager.js");
+    assert.match(settingsSelector, /label: uiText\("Reasoning process"\)/);
+    assert.match(settingsSelector, /description: uiText\("Show reasoning blocks in assistant responses"\)/);
+    assert.match(settingsSelector, /currentValue: config\.hideThinkingBlock \? "false" : "true"/);
+    assert.match(settingsSelector, /callbacks\.onHideThinkingBlockChange\(newValue !== "true"\)/);
+    assert.match(settingsSelector, /import \{ uiText \} from "[^"]*resources\/coco-ui-language\.mjs";/);
+    assert.equal(settingsSelector.includes('"Hide thinking"'), false);
+    assert.match(settingsManager, /return this\.settings\.hideThinkingBlock \?\? true;/);
+    assert.doesNotMatch(settingsManager, /hideThinkingBlock \?\? false/);
   } finally {
     await rm(root, { force: true, recursive: true });
   }
@@ -538,9 +606,8 @@ test("Given the offline tool notice anchor drifts, when patch preflight runs, th
     const originalInteractive = await readFile(interactive, "utf8");
     const originalTools = await readFile(tools, "utf8");
     const driftedTools = originalTools
-      .replace("        if (!silent) {\n\n        }", "        if (!silent) {\n            console.log(\"offline notice drifted\");\n        }")
-      .replace("        // Coco keeps optional-tool discovery silent while startup is offline.", "        console.log(\"offline notice drifted\");")
-      .replace("        // CoCo keeps optional-tool discovery silent while startup is offline.", "        console.log(\"offline notice drifted\");");
+      .replace("    if (isOfflineModeEnabled()) {\n        if (!silent) {\n            console.log(chalk.yellow(`${config.name} not found. Offline mode enabled, skipping download.`));\n        }\n        return undefined;\n    }", "    if (isOfflineModeEnabled()) {\n        console.log(\"offline notice drifted\");\n        return undefined;\n    }")
+      .replace("    if (isOfflineModeEnabled()) {\n        // CoCo keeps optional-tool discovery silent while startup is offline.\n        return undefined;\n    }", "    if (isOfflineModeEnabled()) {\n        console.log(\"offline notice drifted\");\n        return undefined;\n    }");
     assert.notEqual(driftedTools, originalTools);
     await writeFile(tools, driftedTools);
     await assert.rejects(applyCocoIdentityPatch({ root }), { message: /COCO_PATCH_UNKNOWN_ANCHOR/ });

@@ -24,13 +24,13 @@ test("doctor checks auth for the configured default provider rather than an arbi
   const previous = process.env.COCO_CODING_AGENT_DIR;
   try {
     process.env.COCO_CODING_AGENT_DIR = agentDir;
-    await setAuthKey({ agentDir, key: "default-provider-only", provider: "agnes" });
+    await setAuthKey({ agentDir, key: "default-provider-only", provider: "groq" });
     const result = await doctor({ root: cocoRoot });
     const auth = result.checks.find((entry) => entry.id === "AUTH_STATUS");
-    assert.deepEqual(auth.details, { present: true, provider: "agnes", rotationRequired: false, source: "auth" });
+    assert.deepEqual(auth.details, { present: true, provider: "groq", rotationRequired: false, source: "auth" });
     assert.equal(auth.status, "pass");
     assert.equal(result.providers.length, 1);
-    assert.equal(result.providers[0].provider, "agnes");
+    assert.equal(result.providers[0].provider, "groq");
     assert.equal(result.providers[0].localStatus, "ready");
     assert.deepEqual(result.providers[0].verification, { scope: null, status: "not-checked" });
   } finally {
@@ -46,10 +46,10 @@ test("doctor connectivity probes configured providers only and skips when none a
     process.env.COCO_CODING_AGENT_DIR = agentDir;
     const noCredentials = await doctor({ connectivity: true, root: cocoRoot, providerProbe: () => { throw new Error("PROBE_NOT_EXPECTED"); } });
     assert.equal(noCredentials.checks.find((entry) => entry.id === "PROVIDER_CONNECTIVITY").status, "skipped");
-    await setAuthKey({ agentDir, key: "configured-provider-only", provider: "agnes" });
+    await setAuthKey({ agentDir, key: "configured-provider-only", provider: "groq" });
     const calls = [];
     const configured = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async (url, key) => { calls.push({ key, url: url.href }); return { kind: "ok" }; } });
-    assert.deepEqual(calls, [{ key: "configured-provider-only", url: "https://apihub.agnes-ai.com/v1/models" }]);
+    assert.deepEqual(calls, [{ key: "configured-provider-only", url: "https://groq.com/models" }]);
     assert.equal(configured.checks.find((entry) => entry.id === "PROVIDER_CONNECTIVITY").status, "pass");
     assert.equal(configured.providers[0].localStatus, "ready");
     assert.deepEqual(configured.providers[0].verification, { scope: "models-endpoint", status: "verified" });
@@ -62,18 +62,18 @@ test("doctor connectivity probes configured providers only and skips when none a
 test("doctor connectivity projects every configured provider without changing aggregate failure semantics or exposing credentials", async () => {
   const { agentDir, root } = await fixture();
   const previous = process.env.COCO_CODING_AGENT_DIR;
-  const providers = ["achai", "agnes", "deepseek", "idepub", "stepfun"];
-  const outcomes = { achai: { kind: "ok" }, agnes: { kind: "auth", status: 401 }, deepseek: { kind: "http", status: 429 }, idepub: { kind: "schema" }, stepfun: { failureCode: "TIMEOUT", kind: "error" } };
+  const providers = ["groq", "agnes", "deepseek", "idepub", "stepfun", "stepfun-cn"];
+  const outcomes = { groq: { kind: "ok" }, agnes: { kind: "auth", status: 401 }, deepseek: { kind: "http", status: 429 }, idepub: { kind: "schema" }, stepfun: { failureCode: "TIMEOUT", kind: "error" }, "stepfun-cn": { kind: "ok" } };
   const calls = [];
   try {
     process.env.COCO_CODING_AGENT_DIR = agentDir;
     for (const provider of providers) await setAuthKey({ agentDir, key: `${provider}-doctor-secret`, provider });
-    const result = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async (url, key) => { const provider = key.split("-")[0]; calls.push({ key, provider, url: url.href }); return outcomes[provider]; } });
-    assert.equal(calls.length, 5);
-    assert.equal(new Set(calls.map(({ provider }) => provider)).size, 5);
-    assert.deepEqual(result.providers.map(({ provider }) => provider), ["agnes", "achai", "deepseek", "idepub", "stepfun"]);
+    const result = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async (url, key) => { const provider = key.replace("-doctor-secret", ""); calls.push({ key, provider, url: url.href }); return outcomes[provider]; } });
+    assert.equal(calls.length, 6);
+    assert.equal(new Set(calls.map(({ provider }) => provider)).size, 6);
+    assert.deepEqual(result.providers.map(({ provider }) => provider), ["groq", "agnes", "deepseek", "idepub", "stepfun", "stepfun-cn"]);
     assert.deepEqual(Object.fromEntries(result.providers.map(({ provider, verification }) => [provider, verification])), {
-      achai: { scope: "models-endpoint", status: "verified" }, agnes: { scope: "models-endpoint", status: "rejected" }, deepseek: { scope: "models-endpoint", status: "inconclusive" }, idepub: { scope: "models-endpoint", status: "inconclusive" }, stepfun: { scope: "models-endpoint", status: "inconclusive" },
+      groq: { scope: "models-endpoint", status: "verified" }, agnes: { scope: "models-endpoint", status: "rejected" }, deepseek: { scope: "models-endpoint", status: "inconclusive" }, idepub: { scope: "models-endpoint", status: "inconclusive" }, stepfun: { scope: "models-endpoint", status: "inconclusive" }, "stepfun-cn": { scope: "models-endpoint", status: "verified" },
     });
     assert.equal(result.providers[0].localStatus, "ready");
     assert.deepEqual(result.checks.find((entry) => entry.id === "PROVIDER_CONNECTIVITY"), { details: { failureCode: "AUTH_REJECTED", httpStatus: 401 }, id: "PROVIDER_CONNECTIVITY", message: "Provider rejected credentials.", severity: "fatal", status: "fail" });
@@ -92,7 +92,7 @@ test("doctor keeps an uncredentialed default projection when a non-default provi
     await setAuthKey({ agentDir, key: "deepseek-only", provider: "deepseek" });
     const result = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async (url) => { calls.push(url.href); return { kind: "ok" }; } });
     assert.deepEqual(calls, ["https://api.deepseek.com/models"]);
-    assert.deepEqual(result.providers.map(({ provider }) => provider), ["agnes", "deepseek"]);
+    assert.deepEqual(result.providers.map(({ provider }) => provider), ["groq", "deepseek"]);
     assert.equal(result.providers[0].localStatus, "credential-missing");
     assert.deepEqual(result.providers[0].verification, { scope: null, status: "not-checked" });
     assert.equal(result.providers[1].localStatus, "ready");
@@ -104,20 +104,20 @@ test("doctor keeps an uncredentialed default projection when a non-default provi
 });
 
 test("doctor recognizes and probes a legacy default-provider credential without exposing it", async () => {
-  const { agentDir, root } = await fixture(); const previousAgent = process.env.COCO_CODING_AGENT_DIR; const previousKey = process.env.AGNES_API_KEY; const calls = [];
+  const { agentDir, root } = await fixture(); const previousAgent = process.env.COCO_CODING_AGENT_DIR; const previousKey = process.env.GROQ_API_KEY; const calls = [];
   try {
-    process.env.COCO_CODING_AGENT_DIR = agentDir; delete process.env.AGNES_API_KEY;
+    process.env.COCO_CODING_AGENT_DIR = agentDir; delete process.env.GROQ_API_KEY;
     await writeFile(join(agentDir, "auth.json"), "{}\n");
-    const modelsPath = join(agentDir, "models.json"); const models = JSON.parse(await readFile(modelsPath, "utf8")); models.providers.agnes.apiKey = "agnes-legacy-doctor-secret"; await writeFile(modelsPath, `${JSON.stringify(models)}\n`);
+    const modelsPath = join(agentDir, "models.json"); const models = JSON.parse(await readFile(modelsPath, "utf8")); models.providers.groq.apiKey = "groq-legacy-doctor-secret"; await writeFile(modelsPath, `${JSON.stringify(models)}\n`);
     const result = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async (url, key) => { calls.push({ key, url: url.href }); return { kind: "ok" }; } });
-    assert.deepEqual(calls, [{ key: "agnes-legacy-doctor-secret", url: "https://apihub.agnes-ai.com/v1/models" }]);
-    assert.deepEqual(result.checks.find(({ id }) => id === "AUTH_STATUS").details, { present: true, provider: "agnes", rotationRequired: false, source: "legacy" });
+    assert.deepEqual(calls, [{ key: "groq-legacy-doctor-secret", url: "https://groq.com/models" }]);
+    assert.deepEqual(result.checks.find(({ id }) => id === "AUTH_STATUS").details, { present: true, provider: "groq", rotationRequired: false, source: "legacy" });
     assert.deepEqual(result.providers[0].credential, { rotationRequired: false, source: "legacy", status: "available" });
     assert.equal(result.providers[0].localStatus, "ready"); assert.deepEqual(result.providers[0].verification, { scope: "models-endpoint", status: "verified" });
-    assert.equal(JSON.stringify(result).includes("agnes-legacy-doctor-secret"), false); assert.equal(JSON.stringify(result).includes("AGNES_API_KEY"), false);
+    assert.equal(JSON.stringify(result).includes("groq-legacy-doctor-secret"), false); assert.equal(JSON.stringify(result).includes("GROQ_API_KEY"), false);
   } finally {
     if (previousAgent === undefined) delete process.env.COCO_CODING_AGENT_DIR; else process.env.COCO_CODING_AGENT_DIR = previousAgent;
-    if (previousKey === undefined) delete process.env.AGNES_API_KEY; else process.env.AGNES_API_KEY = previousKey;
+    if (previousKey === undefined) delete process.env.GROQ_API_KEY; else process.env.GROQ_API_KEY = previousKey;
     await rm(root, { force: true, recursive: true });
   }
 });
@@ -125,7 +125,7 @@ test("doctor recognizes and probes a legacy default-provider credential without 
 test("doctor credential observation does not recover or mutate a pending transaction", async () => {
   const { agentDir, root } = await fixture(); const previous = process.env.COCO_CODING_AGENT_DIR;
   try {
-    process.env.COCO_CODING_AGENT_DIR = agentDir; await setAuthKey({ agentDir, key: "doctor-read-only", provider: "agnes" });
+    process.env.COCO_CODING_AGENT_DIR = agentDir; await setAuthKey({ agentDir, key: "doctor-read-only", provider: "groq" });
     const transactions = join(agentDir, "transactions"); await mkdir(transactions, { recursive: true }); const pending = join(transactions, "pending.json"); await writeFile(pending, "{broken"); const before = await readFile(pending);
     const result = await doctor({ connectivity: true, root: cocoRoot, providerProbe: async () => ({ kind: "ok" }) });
     assert.equal(result.checks.find(({ id }) => id === "AUTH_STATUS").status, "pass"); assert.equal(result.checks.find(({ id }) => id === "PROVIDER_CONNECTIVITY").status, "pass");
