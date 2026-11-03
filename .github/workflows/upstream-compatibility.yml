@@ -21,12 +21,13 @@ jobs:
   probe:
     runs-on: [self-hosted, Linux, X64, coco-upstream]
     timeout-minutes: 15
-    env:
-      # runner 以 ghrunner（非 root）运行，/root 不可穿越；用 runner 自有临时目录
-      TMPDIR: ${{ runner.temp }}/coco-tmp
     steps:
-      - name: Prepare scratch directory
-        run: mkdir -p "$TMPDIR"
+      # runner 以 ghrunner（非 root）运行，/root 不可穿越；TMPDIR 经 GITHUB_ENV
+      # 注入 RUNNER_TEMP 下的 scratch 目录（runner 上下文在 job 级 env 不可用）
+      - name: Configure hosted temporary directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/coco-tmp"
+          printf 'TMPDIR=%s\n' "$RUNNER_TEMP/coco-tmp" >> "$GITHUB_ENV"
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
