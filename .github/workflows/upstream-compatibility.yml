@@ -17,14 +17,16 @@ concurrency:
   group: upstream-compatibility
   cancel-in-progress: true
 
-env:
-  TMPDIR: /root/coco-tmp
-
 jobs:
   probe:
     runs-on: [self-hosted, Linux, X64, coco-upstream]
     timeout-minutes: 15
+    env:
+      # runner 以 ghrunner（非 root）运行，/root 不可穿越；用 runner 自有临时目录
+      TMPDIR: ${{ runner.temp }}/coco-tmp
     steps:
+      - name: Prepare scratch directory
+        run: mkdir -p "$TMPDIR"
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:

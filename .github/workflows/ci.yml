@@ -94,9 +94,12 @@ jobs:
     runs-on: [self-hosted, Linux, X64, coco-upstream]
     timeout-minutes: 30
     env:
-      TMPDIR: /root/coco-tmp
-      COCO_SCANNER_TMPDIR: /root/coco-tmp
+      # runner 以 ghrunner（非 root）运行，/root 不可穿越；用 runner 自有临时目录
+      TMPDIR: ${{ runner.temp }}/coco-tmp
+      COCO_SCANNER_TMPDIR: ${{ runner.temp }}/coco-tmp
     steps:
+      - name: Prepare scratch directory
+        run: mkdir -p "$TMPDIR"
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - name: Select pinned self-hosted Node
         run: |
