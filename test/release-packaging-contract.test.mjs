@@ -169,7 +169,7 @@ test("Given release workflows, when GitHub Actions and execution controls are co
   assert.match(ciWorkflow, /verify-pr:[\s\S]*?timeout-minutes: 45/);
   assert.match(pagesWorkflow, /timeout-minutes: 20/);
   assert.match(releaseWorkflow, /timeout-minutes: 75/);
-  assert.match(ciWorkflow, /verify-main-integrity:[\s\S]*?timeout-minutes: 30/);
+  assert.match(ciWorkflow, /verify-main-integrity:[\s\S]*?timeout-minutes: 60/);
   for (const workflow of [ciWorkflow, releaseWorkflow, pagesWorkflow, promotionWorkflow]) assert.match(workflow, /actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09/);
   for (const workflow of [ciWorkflow, releaseWorkflow]) assert.match(workflow, /actions\/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38/);
   assert.match(ciWorkflow, /actions\/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4/);
