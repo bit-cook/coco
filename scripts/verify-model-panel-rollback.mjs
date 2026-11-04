@@ -14,6 +14,7 @@ const required = ["builtin-model-selector-ownership", "visible-model-projection"
 
 export async function verifyModelPanelRollback({ run = execute } = {}) {
   const evidence = JSON.parse(await readFile(join(root, "resources", "selective-fork-promotion-evidence.v1.json"), "utf8"));
+  const expectedVersion = JSON.parse(await readFile(join(root, "package.json"), "utf8")).version;
   const packageEvidence = evidence.candidate.package;
   const remoteReceipt = { artifact: packageEvidence.artifact, bytes: packageEvidence.bytes, integrity: packageEvidence.integrity, promotionAuthorized: false, sha256: packageEvidence.sha256, sourceCommit: evidence.candidate.sourceCommit, sourceTag: evidence.candidate.sourceTag, status: "approved" };
   const capabilities = { artifact: { package: packageEvidence.name, state: "candidate-before-patch", version: packageEvidence.version }, capabilities: required.map((id) => ({ id, status: "present" })), contract: { id: "coco.model-panel-runtime-adapter", version: 1 }, schemaVersion: 1, status: "present" };
@@ -28,8 +29,8 @@ export async function verifyModelPanelRollback({ run = execute } = {}) {
   try {
     const result = await run(process.execPath, [join(root, "bin", "coco"), "--version"], { env: { ...process.env, COCO_CODING_AGENT_DIR: agentDir }, timeout: 30_000 });
     const version = result.stdout.trim();
-    const approved = JSON.stringify(failures) === JSON.stringify(expected) && version === "0.5.3";
-    return { failures, officialRuntime: { status: version === "0.5.3" ? "passed" : "failed", version }, owner: "fallback", productionRegistration: "blocked", schemaVersion: 1, status: approved ? "approved" : "rejected" };
+    const approved = JSON.stringify(failures) === JSON.stringify(expected) && version === expectedVersion;
+    return { failures, officialRuntime: { status: version === expectedVersion ? "passed" : "failed", version }, owner: "fallback", productionRegistration: "blocked", schemaVersion: 1, status: approved ? "approved" : "rejected" };
   } catch {
     return { code: "MODEL_PANEL_ROLLBACK_RUNTIME_FAILED", owner: "fallback", productionRegistration: "blocked", schemaVersion: 1, status: "rejected" };
   } finally { await rm(agentDir, { force: true, recursive: true }); }
