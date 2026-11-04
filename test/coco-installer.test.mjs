@@ -570,6 +570,61 @@ test("Given a coco auto-linked outside its bin dir, when CoCo is uninstalled, th
   }
 });
 
+test("Given a one-key install with the default bin dir, when CoCo is uninstalled without environment overrides, then the auto-link and the launcher are both removed", async () => {
+  // 真实一键流程：安装器用非 root 默认 ~/.local/bin，用户卸载时不带任何环境变量
+  // （历史 bug：卸载端扫描曾依赖 COCO_BIN_DIR，默认空 -> 扫描被跳过，/usr/local/bin
+  //  里的自动链接成悬挂链接残留）。
+  const setup = await fixture();
+  const pathBin = join(setup.root, "pathbin");
+  const userBin = join(setup.root, ".local", "bin");
+  try {
+    await mkdir(pathBin);
+    const installEnv = { ...setup.environment, COCO_BIN_DIR: userBin, PATH: `${pathBin}:${setup.environment.PATH}`, COCO_INSTALL_TEST_MODE: "0" };
+    assert.equal(await runInstaller(installers[0], installEnv), 0);
+    assert.equal(await readlink(join(pathBin, "coco")), join(userBin, "coco"));
+    const { COCO_BIN_DIR: _omitted, ...baseEnv } = setup.environment;
+    // 卸载沿用安装时的 PATH（真实一键流程：同一 shell 环境），仅去掉 COCO_BIN_DIR
+    const uninstallEnv = { ...baseEnv, PATH: `${pathBin}:${setup.environment.PATH}` };
+    assert.equal(await runInstaller(uninstaller, uninstallEnv), 0);
+    await assert.rejects(lstat(join(pathBin, "coco")));
+    await assert.rejects(lstat(join(userBin, "coco")));
+    await assert.rejects(lstat(setup.install));
+  } finally {
+    await rm(setup.root, { force: true, recursive: true });
+  }
+});
+
+test("Given rc files carrying the installer PATH block, when CoCo is uninstalled, then the block is removed", async () => {
+  // install.sh 在非 root 安装时往 rc 写 "# >>> coco >>>" 幂等 PATH 块；卸载必须
+  // 同步摘除，否则 rc 里残留指向已不存在目录的 export（v1.0.0 缺口，新机实测发现）。
+  // 注：CI/root 下安装器本身跳过 rc 分支（id -u = 0），故这里直接验证删除逻辑。
+  const setup = await fixture();
+  try {
+    await mkdir(join(setup.install, "bin"), { recursive: true });
+    await mkdir(join(setup.install, "resources"), { recursive: true });
+    await mkdir(join(setup.install, "node_modules"), { recursive: true });
+    await writeFile(join(setup.install, "bin", "coco"), "#!/usr/bin/env bash\n");
+    await writeFile(join(setup.install, "resources", "provider-registry.v1.json"), "{}\n");
+    await writeFile(join(setup.install, ".coco-install-owner"), "coco-install-v1\n");
+    await chmod(join(setup.install, "bin", "coco"), 0o755);
+    const block = '\n# >>> coco >>>\nexport PATH="/opt/coco/bin:$PATH"\n# <<< coco <<<\n';
+    for (const rc of [".bashrc", ".profile", ".zshrc"]) {
+      await writeFile(join(setup.root, rc), `# pre-existing\nexport FOO=1${block}`);
+    }
+    assert.equal(await runInstaller(uninstaller, setup.environment), 0);
+    for (const rc of [".bashrc", ".profile", ".zshrc"]) {
+      const text = await readFile(join(setup.root, rc), "utf8");
+      assert.doesNotMatch(text, /# >>> coco >>>/, `${rc} 应摘除起始标记`);
+      assert.doesNotMatch(text, /# <<< coco <<</, `${rc} 应摘除结束标记`);
+      assert.doesNotMatch(text, /coco/, `${rc} 不应再提及 coco`);
+      assert.match(text, /export FOO=1/, `${rc} 的原有内容应保留`);
+    }
+    await assert.rejects(lstat(setup.install));
+  } finally {
+    await rm(setup.root, { force: true, recursive: true });
+  }
+});
+
 test("Given destructive or unrecognized install paths, when CoCo is uninstalled, then they are preserved", async () => {
   const setup = await fixture();
   const unrelated = join(setup.root, "unrelated");

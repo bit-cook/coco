@@ -68,6 +68,20 @@ remove_managed_coweb() {
   rm -f "$path"
 }
 
+# install.sh 会在 .bashrc/.profile/.zshrc 里写 "# >>> coco >>>" 幂等 PATH 块；
+# 卸载时同步摘除，否则 rc 里残留指向已不存在目录的 export（v1.0.0 缺口）。
+remove_config_block() {
+  local rc start="# >>> coco >>>" end="# <<< coco <<<"
+  for rc in "$HOME_DIR/.bashrc" "$HOME_DIR/.profile" "$HOME_DIR/.zshrc" "${ZDOTDIR:-$HOME_DIR}/.zshrc"; do
+    [ -f "$rc" ] || continue
+    grep -qF "$start" "$rc" 2>/dev/null || continue
+    grep -qF "$end" "$rc" 2>/dev/null || continue
+    if [ -w "$rc" ]; then sed -i "/^${start}\$/,/^${end}\$/d" "$rc"
+    elif command -v sudo >/dev/null 2>&1; then sudo sed -i "/^${start}\$/,/^${end}\$/d" "$rc"
+    fi
+  done
+}
+
 [ "$HOME_DIR" != "/" ] || die "Refusing to uninstall with HOME=/"
 [ -n "$COCO_INSTALL_DIR" ] || die "COCO_INSTALL_DIR is empty"
 [ "$COCO_INSTALL_DIR" != "/" ] || die "Refusing to remove COCO_INSTALL_DIR=/"
@@ -117,23 +131,30 @@ done
 remove_managed_launcher "$COCO_SYSTEM_BIN"
 
 # install.sh 的"当前终端即时可用"策略会在任意"已在 PATH 且可写"的目录留下指向
-# $COCO_BIN_DIR/coco 的符号链接（卸载端按 readlink 目标识别）。这里用同一策略
-# 扫描清理，否则下面的终检 command -v coco 会命中残留链接而误报卸载不完整。
-if [ -n "$COCO_BIN_DIR" ]; then
+# shim 的符号链接（卸载端按 readlink 目标识别）。这里用同一策略扫描清理，否则
+# 终检 command -v coco 会命中残留链接而误报卸载不完整。COCO_BIN_DIR 未显式
+# 传入时回退到安装器的非 root 默认值 ~/.local/bin（自动链接指向的就是那个 shim）。
+if [ -n "$COCO_BIN_DIR" ] || [ -d "$HOME_DIR/.local/bin" ]; then
+  link_target="${COCO_BIN_DIR:-$HOME_DIR/.local/bin}/coco"
   (
     IFS=':'
-    for entry in $PATH; do
+    # 除当前 PATH 外，补两个固定候选：/usr/local/bin（免密 sudo 落点）与
+    # ~/.local/bin（非 root 默认 shim 目录）——覆盖卸载时 PATH 与安装时不一致
+    # 的情况（换 shell / 脚本化卸载）。只删指向自家 shim 的链接，不碰别的。
+    for entry in $PATH /usr/local/bin "$HOME_DIR/.local/bin"; do
       [ -n "$entry" ] || continue
       case "$entry" in /*) ;; *) continue ;; esac
       path="$entry/coco"
       [ -L "$path" ] || continue
-      [ "$(readlink -- "$path" 2>/dev/null)" = "$COCO_BIN_DIR/coco" ] || continue
+      [ "$(readlink -- "$path" 2>/dev/null)" = "$link_target" ] || continue
       if [ -w "$entry" ]; then rm -f -- "$path"
       elif command -v sudo >/dev/null 2>&1; then sudo rm -f -- "$path"
       fi
     done
   )
 fi
+
+remove_config_block
 
 hash -r 2>/dev/null || true
 
