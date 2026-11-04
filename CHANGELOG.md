@@ -1,13 +1,27 @@
 # Changelog
 
-## [1.0.1] - 2026-11-04
+## [1.1.0] - 2026-11-04
 
 ### Installer: coco usable in the current terminal immediately
 
 - After a one-key install (`curl -fsSL https://bit-cook.github.io/coco/install.sh | bash`), `coco` now runs in the **current** terminal with no manual step. Previously the installer only appended a PATH block to shell rc files, so the user had to reopen the terminal or run `export PATH="~/.local/bin:$PATH"` by hand — the installer runs as a child of the invoking shell and cannot mutate its environment, and rc files only affect future shells.
-- The installer now links the launcher into a directory that is **already on the live PATH and writable** (PATH lookup is immediate, so the next command resolves `coco`). Existing `coco` entries are never clobbered — a foreign or root-owned launcher is left untouched and the scan continues to the next writable directory. When no writable PATH directory exists, a passwordless `sudo -n` copies the launcher to `/usr/local/bin` (already on the default PATH); the sudo path never prompts mid-pipe and never overwrites an existing file.
-- Uninstallation cleans up those links by the same strategy (identifying them via their `readlink` target), so the final `command -v coco` guard no longer reports a leftover executable.
-- Installer suite grew three regression tests (link creation into a writable PATH directory, foreign-launcher preservation, uninstall link cleanup); the suite is green, and the new tests fail against the previous installer.
+- The installer now links the launcher into a directory that is **already on the live PATH and writable** (PATH lookup is immediate, so the next command resolves `coco`). Existing `coco` entries are never clobbered — a foreign or root-owned launcher is left untouched and the scan continues to the next writable directory; a link that is already ours is refreshed.
+- When no writable PATH directory exists, a passwordless `sudo -n` copies the launcher to `/usr/local/bin` (already on the default PATH); the sudo path never prompts mid-pipe and never overwrites an existing file. Root installs keep their previous semantics (`/usr/local/bin` is on the default PATH, so the installer returns early).
+- The idempotent rc block is still written, so later shells behave identically.
+
+### Uninstaller: no residue after removal
+
+- PATH link cleanup previously depended on `COCO_BIN_DIR`, which uninstallation does not set by default, so the scan was skipped entirely and the auto-link in `/usr/local/bin` survived as a dangling symlink. The scan now falls back to `~/.local/bin` (the non-root installer default) and additionally probes `/usr/local/bin` and `~/.local/bin`, covering the case where the uninstall shell's PATH differs from the install shell's.
+- Since v1.0.0 the uninstaller never removed the `# >>> coco >>>` PATH block that the installer writes into shell rc files, leaving an `export` pointing at a nonexistent directory. `remove_config_block` now deletes exactly that marked block and preserves surrounding content.
+- Verified on a fresh machine: uninstall exits 0 with the link, launcher shim, and install directory all removed, rc residue at zero, and `coco` unresolvable in a new login shell.
+
+### Runtime integrity manifest
+
+- The seven `@smithy/*` `CHANGELOG.md` files under the bundled agent's `node_modules` are now excluded from the runtime integrity manifest. Their packages' `files` fields omit `CHANGELOG`, so `npm pack` strips them while the generator recorded every on-disk file, which made the package closure check reject every local pack. This follows the existing `proper-lockfile`/`which` precedent.
+
+### Tests
+
+- The installer suite grew four regression tests (link creation into a writable PATH directory, foreign-launcher preservation, uninstall with no environment overrides clearing both link and shim, rc block removal with surrounding content preserved); the suite is 36/36 green, and the new tests fail against the previous installer.
 
 ## [1.0.0] - 2026-11-03
 

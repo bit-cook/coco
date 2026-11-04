@@ -13,7 +13,7 @@ set -eu
 #   2. 安装器本体从 jsDelivr CDN / gh 加速镜像获取，raw.githubusercontent 仅作兜底；
 #   3. COCO_VERSION 环境变量仍可强制指定任意版本。
 
-DEFAULT_VERSION="1.0.1"
+DEFAULT_VERSION="1.1.0"
 API_URL="${COCO_RELEASES_API_URL:-https://api.github.com/repos/bit-cook/coco/releases?per_page=100}"
 GH_PROXIES="https://gh-proxy.com/ https://ghfast.top/ https://ghproxy.net/"
 TMP_ROOT="${TMPDIR:-/tmp}"

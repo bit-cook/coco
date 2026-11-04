@@ -20,6 +20,16 @@ const PACKAGE_EXCLUDED = new Set([
   "node_modules/@earendil-works/pi-coding-agent/node_modules/which/CHANGELOG.md",
   "node_modules/proper-lockfile/CHANGELOG.md",
   "node_modules/which/CHANGELOG.md",
+  // @smithy/* 的 CHANGELOG.md：这些包的 package.json files 字段不含 CHANGELOG，
+  // npm pack 据此把它们从 node_modules 里剥掉（本地与 CI 实测均如此），但清单
+  // 生成器按磁盘全量收录 → 闭环校验恒拒。与上面 proper-lockfile/which 同一处理。
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@aws-sdk/credential-provider-http/node_modules/@smithy/node-http-handler/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@aws-sdk/nested-clients/node_modules/@smithy/node-http-handler/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@smithy/core/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@smithy/credential-provider-imds/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@smithy/fetch-http-handler/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@smithy/signature-v4/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@smithy/types/CHANGELOG.md",
   "node_modules/@earendil-works/pi-coding-agent/.runtime-integrity-cache.json",
 ]);
 for (let task = 1; task <= 16; task += 1) PACKAGE_EXCLUDED.add(`scripts/qa-task-${task}.mjs`);
