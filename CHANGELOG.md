@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.1] - 2026-11-04
+
+### Installer: coco usable in the current terminal immediately
+
+- After a one-key install (`curl -fsSL https://bit-cook.github.io/coco/install.sh | bash`), `coco` now runs in the **current** terminal with no manual step. Previously the installer only appended a PATH block to shell rc files, so the user had to reopen the terminal or run `export PATH="~/.local/bin:$PATH"` by hand — the installer runs as a child of the invoking shell and cannot mutate its environment, and rc files only affect future shells.
+- The installer now links the launcher into a directory that is **already on the live PATH and writable** (PATH lookup is immediate, so the next command resolves `coco`). Existing `coco` entries are never clobbered — a foreign or root-owned launcher is left untouched and the scan continues to the next writable directory. When no writable PATH directory exists, a passwordless `sudo -n` copies the launcher to `/usr/local/bin` (already on the default PATH); the sudo path never prompts mid-pipe and never overwrites an existing file.
+- Uninstallation cleans up those links by the same strategy (identifying them via their `readlink` target), so the final `command -v coco` guard no longer reports a leftover executable.
+- Installer suite grew three regression tests (link creation into a writable PATH directory, foreign-launcher preservation, uninstall link cleanup); the suite is green, and the new tests fail against the previous installer.
+
 ## [1.0.0] - 2026-11-03
 
 ### Provider registry rework (achai removed, groq default, StepFun China added)

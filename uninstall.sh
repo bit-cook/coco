@@ -116,6 +116,25 @@ done
 
 remove_managed_launcher "$COCO_SYSTEM_BIN"
 
+# install.sh 的"当前终端即时可用"策略会在任意"已在 PATH 且可写"的目录留下指向
+# $COCO_BIN_DIR/coco 的符号链接（卸载端按 readlink 目标识别）。这里用同一策略
+# 扫描清理，否则下面的终检 command -v coco 会命中残留链接而误报卸载不完整。
+if [ -n "$COCO_BIN_DIR" ]; then
+  (
+    IFS=':'
+    for entry in $PATH; do
+      [ -n "$entry" ] || continue
+      case "$entry" in /*) ;; *) continue ;; esac
+      path="$entry/coco"
+      [ -L "$path" ] || continue
+      [ "$(readlink -- "$path" 2>/dev/null)" = "$COCO_BIN_DIR/coco" ] || continue
+      if [ -w "$entry" ]; then rm -f -- "$path"
+      elif command -v sudo >/dev/null 2>&1; then sudo rm -f -- "$path"
+      fi
+    done
+  )
+fi
+
 hash -r 2>/dev/null || true
 
 if command -v coco >/dev/null 2>&1; then

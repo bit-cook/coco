@@ -3,7 +3,7 @@ set -euo pipefail
 
 umask 077
 
-COCO_VERSION="${COCO_VERSION:-1.0.0}"
+COCO_VERSION="${COCO_VERSION:-1.0.1}"
 printf '%s\n' "$COCO_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { printf 'coco: COCO_VERSION must be a stable X.Y.Z version\n' >&2; exit 1; }
 COCO_RELEASE_BASE="https://github.com/bit-cook/coco/releases/download/v${COCO_VERSION}"
 AGNES_KEY_URL="https://github.com/bit-cook/coco/releases/download/installer-v0.1.1.1/agnes.key"
@@ -643,36 +643,83 @@ EOF
   fail_at_test_seam COCO_INSTALL_TEST_FAIL_AFTER_LINK "Injected failure after binary link"
 }
 
+link_is_ours() {
+  # 判断 $1 是否是我们自己创建的、指向 shim 的符号链接
+  [ -L "$1" ] && [ "$(readlink -- "$1" 2>/dev/null)" = "$COCO_BIN_DIR/coco" ]
+}
+
+link_into_path_dir() {
+  # 让"当前终端"装完即用：curl|bash 下安装器是当前 shell 的子进程，改不了父
+  # shell 的环境，rc 文件只对之后启动的新 shell 生效——唯一办法是把 shim 链到
+  # 一个当前 PATH 已包含且可写的目录（PATH 查找即时生效，下一条命令即可解析）。
+  # 成功时打印该目录名；不覆盖任何已存在的 coco（可能是 root 安装或别的实现），
+  # 已是自己的链接则刷新。卸载端按同一策略清理这些链接。
+  local entry path
+  local IFS=':'
+  for entry in $PATH; do
+    [ -n "$entry" ] || continue
+    [ "$entry" = "$COCO_BIN_DIR" ] && continue
+    case "$entry" in /*) ;; *) continue ;; esac
+    [ -d "$entry" ] && [ -w "$entry" ] || continue
+    path="$entry/coco"
+    if { [ -e "$path" ] || [ -L "$path" ]; } && ! link_is_ours "$path"; then continue; fi
+    if ln -sf -- "$COCO_BIN_DIR/coco" "$path" 2>/dev/null && [ -x "$path" ]; then
+      printf '%s\n' "$entry"
+      return 0
+    fi
+  done
+  # PATH 里没有可写目录：试免密 sudo 把 shim 复制到 /usr/local/bin（默认在 PATH 内；
+  # 卸载端 remove_managed_launcher 已按内容识别并清理该路径）。只走 sudo -n——
+  # 管道安装里弹密码交互体验更差；已有文件不覆盖（那是 root 安装或别人的实现）。
+  if [ "${COCO_INSTALL_TEST_MODE:-0}" != "1" ] && command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    path="/usr/local/bin/coco"
+    if { [ ! -e "$path" ] && [ ! -L "$path" ]; } && sudo -n install -m 755 "$COCO_BIN_DIR/coco" "$path" 2>/dev/null; then
+      printf '%s\n' "/usr/local/bin"
+      return 0
+    fi
+  fi
+  return 0
+}
+
 register_path() {
   # 非 root 安装的 shim 落在 ~/.local/bin（root 装落在 /usr/local/bin，默认 PATH 已含）。
   # 历史上安装器从不注册 PATH：该目录不在 PATH 的机器上 coco 直接 command not found，
   # 切到 root 也看不到用户的 ~/.local/bin——只有 root 安装才"能用"。
-  # 这里给当前用户的所有 shell rc 补幂等 PATH 块（AgentBoot 同款标记做法）。
-  [ "$(id -u)" = "0" ] && return 0
+  # rc 幂等块照旧写（AgentBoot 同款标记做法），保证之后的新 shell 一致可用。
   case ":$PATH:" in
     *":$COCO_BIN_DIR:"*) info "PATH 已包含 $COCO_BIN_DIR，coco 可直接使用"; return 0 ;;
   esac
-  local marker="# >>> coco >>>"
-  local block
-  block="$marker
+  local linked_dir=""
+  linked_dir="$(link_into_path_dir)" || linked_dir=""
+  if [ "$(id -u)" != "0" ]; then
+    local marker="# >>> coco >>>"
+    local block
+    block="$marker
 export PATH=\"$COCO_BIN_DIR:\$PATH\"
 # <<< coco <<<"
-  local rc updated=0 registered=0
-  for rc in "$HOME/.bashrc" "$HOME/.profile" "$HOME/.zshrc" "${ZDOTDIR:-$HOME}/.zshrc"; do
-    [ -f "$rc" ] || continue
-    [ -w "$rc" ] || continue
-    if grep -qF "$marker" "$rc" 2>/dev/null; then registered=1; continue; fi
-    printf '\n%s\n' "$block" >> "$rc"
-    updated=1
-    info "已把 $COCO_BIN_DIR 写入 $rc"
-  done
-  if [ "$updated" = "0" ] && [ "$registered" = "0" ] && [ ! -f "$HOME/.profile" ]; then
-    printf '%s\n' "$block" > "$HOME/.profile"
-    updated=1
-    info "已创建 ~/.profile 并写入 PATH"
-  fi
-  if [ "$updated" = "1" ]; then
-    info "请重开终端，或执行: export PATH=\"$COCO_BIN_DIR:\$PATH\" 后即可使用 coco"
+    local rc updated=0 registered=0
+    for rc in "$HOME/.bashrc" "$HOME/.profile" "$HOME/.zshrc" "${ZDOTDIR:-$HOME}/.zshrc"; do
+      [ -f "$rc" ] || continue
+      [ -w "$rc" ] || continue
+      if grep -qF "$marker" "$rc" 2>/dev/null; then registered=1; continue; fi
+      printf '\n%s\n' "$block" >> "$rc"
+      updated=1
+      info "已把 $COCO_BIN_DIR 写入 $rc"
+    done
+    if [ "$updated" = "0" ] && [ "$registered" = "0" ] && [ ! -f "$HOME/.profile" ]; then
+      printf '%s\n' "$block" > "$HOME/.profile"
+      updated=1
+      info "已创建 ~/.profile 并写入 PATH"
+    fi
+    if [ -n "$linked_dir" ]; then
+      info "已在 $linked_dir 链接 coco（该目录已在当前 PATH），现在输入 coco 即可启动"
+    elif [ "$updated" = "1" ]; then
+      info "请重开终端，或执行: export PATH=\"$COCO_BIN_DIR:\$PATH\" 后即可使用 coco"
+    else
+      info "当前 shell 的 PATH 不含 $COCO_BIN_DIR；请执行: export PATH=\"$COCO_BIN_DIR:\$PATH\""
+    fi
+  elif [ -n "$linked_dir" ]; then
+    info "已在 $linked_dir 提供 coco（该目录已在当前 PATH），现在输入 coco 即可启动"
   else
     info "当前 shell 的 PATH 不含 $COCO_BIN_DIR；请执行: export PATH=\"$COCO_BIN_DIR:\$PATH\""
   fi

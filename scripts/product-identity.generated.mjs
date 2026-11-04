@@ -4,7 +4,7 @@
 export const PRODUCT_COMMAND = "coco";
 export const PRODUCT_CONFIG_DIR = ".coco";
 export const PRODUCT_NAME = "coco";
-export const PRODUCT_VERSION = "1.0.0";
+export const PRODUCT_VERSION = "1.0.1";
 export const UPSTREAM_PACKAGE = "@earendil-works/pi-coding-agent";
 export const UPSTREAM_VERSION = "0.82.1";
 export const MANAGED_PROVIDER_IDS = Object.freeze(["agnes","deepseek","groq","idepub","stepfun","stepfun-cn"]);

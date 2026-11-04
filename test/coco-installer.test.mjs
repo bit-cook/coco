@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmod, lstat, mkdtemp, mkdir, readFile, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdtemp, mkdir, readFile, readlink, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { execFile, spawn } from "node:child_process";
 import { access, constants } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -490,6 +490,81 @@ test("Given a legacy default v0.1.7 install, when CoCo is uninstalled, then its 
     assert.equal(await runInstaller(uninstaller, environment), 0);
     await assert.rejects(lstat(join(setup.bin, "coco")));
     await assert.rejects(lstat(install));
+  } finally {
+    await rm(setup.root, { force: true, recursive: true });
+  }
+});
+
+test("Given a binary directory outside PATH, when the installer runs, then it links coco into a writable PATH directory so the current shell can launch it", async () => {
+  // 一键脚本（curl | bash）里安装器是当前 shell 的子进程，改不了父 shell 的环境，
+  // rc 块只对之后启动的新 shell 生效。安装器必须把 shim 链到一个"当前 PATH 已包含
+  // 且可写"的目录——PATH 查找即时生效，装完当前终端输入 coco 即可启动，零手动操作。
+  const setup = await fixture();
+  const userBin = join(setup.root, "userbin");
+  const pathBin = join(setup.root, "pathbin");
+  try {
+    await mkdir(userBin);
+    await mkdir(pathBin);
+    const environment = {
+      ...setup.environment,
+      COCO_BIN_DIR: userBin,
+      PATH: `${pathBin}:${setup.environment.PATH}`,
+      COCO_INSTALL_TEST_MODE: "0",
+    };
+    assert.equal(await runInstaller(installers[0], environment), 0);
+    const link = join(pathBin, "coco");
+    assert.equal((await lstat(link)).isSymbolicLink(), true, "coco must be a symlink in the PATH directory");
+    assert.equal(await readlink(link), join(userBin, "coco"));
+    await access(link, constants.X_OK);
+    await lstat(join(userBin, "coco"));
+  } finally {
+    await rm(setup.root, { force: true, recursive: true });
+  }
+});
+
+test("Given a foreign coco in a PATH directory, when the installer runs, then it preserves it and links into the next writable directory", async () => {
+  const setup = await fixture();
+  const userBin = join(setup.root, "userbin");
+  const pathBin = join(setup.root, "pathbin");
+  try {
+    await mkdir(userBin);
+    await mkdir(pathBin);
+    const foreign = join(pathBin, "coco");
+    await writeFile(foreign, "#!/usr/bin/env bash\necho foreign\n");
+    await chmod(foreign, 0o755);
+    const environment = {
+      ...setup.environment,
+      COCO_BIN_DIR: userBin,
+      PATH: `${pathBin}:${setup.environment.PATH}`,
+      COCO_INSTALL_TEST_MODE: "0",
+    };
+    assert.equal(await runInstaller(installers[0], environment), 0);
+    assert.equal(await readFile(foreign, "utf8"), "#!/usr/bin/env bash\necho foreign\n");
+    assert.equal(await readlink(join(setup.bin, "coco")), join(userBin, "coco"));
+  } finally {
+    await rm(setup.root, { force: true, recursive: true });
+  }
+});
+
+test("Given a coco auto-linked outside its bin dir, when CoCo is uninstalled, then the link is removed and uninstallation succeeds", async () => {
+  const setup = await fixture();
+  const userBin = join(setup.root, "userbin");
+  const pathBin = join(setup.root, "pathbin");
+  try {
+    await mkdir(userBin);
+    await mkdir(pathBin);
+    const environment = {
+      ...setup.environment,
+      COCO_BIN_DIR: userBin,
+      PATH: `${pathBin}:${setup.environment.PATH}`,
+      COCO_INSTALL_TEST_MODE: "0",
+    };
+    assert.equal(await runInstaller(installers[0], environment), 0);
+    await lstat(join(pathBin, "coco"));
+    assert.equal(await runInstaller(uninstaller, environment), 0);
+    await assert.rejects(lstat(join(pathBin, "coco")));
+    await assert.rejects(lstat(join(userBin, "coco")));
+    await assert.rejects(lstat(setup.install));
   } finally {
     await rm(setup.root, { force: true, recursive: true });
   }

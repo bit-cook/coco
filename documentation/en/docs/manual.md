@@ -44,8 +44,8 @@ The stable launcher selects the newest non-prerelease release and runs that rele
 To install an explicitly reviewed release, download the installer for that exact tag and pass the matching version:
 
 ```bash
-curl -fsSLO https://github.com/bit-cook/coco/releases/download/v1.0.0/install.sh
-COCO_VERSION=1.0.0 bash install.sh
+curl -fsSLO https://github.com/bit-cook/coco/releases/download/v1.0.1/install.sh
+COCO_VERSION=1.0.1 bash install.sh
 ```
 
 The installer verifies checksums and archive structure before replacing an installation. It uses a candidate-and-rollback process so a failed update does not intentionally destroy a working installation.
