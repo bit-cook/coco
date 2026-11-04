@@ -38,6 +38,24 @@ async function runBootstrap(packageRoot, args, environment) {
   });
 }
 
+test("Given the bootstrap exclusion list, when it is compared with the manifest generator, then the two hand-maintained lists match exactly", async () => {
+  // scripts/coco-bootstrap.cjs（运行时校验）与 scripts/runtime-integrity.mjs（清单
+  // 生成/校验）各有一份手维护的 PACKAGE_EXCLUDED。漂移的后果是运行时把清单未收的
+  // 文件判为 RUNTIME_INTEGRITY_UNEXPECTED_ENTRY，或清单收了包内没有的文件。
+  const readList = async (file) => {
+    const source = await readFile(join(root, file), "utf8");
+    const match = /PACKAGE_EXCLUDED = new Set\(\[([\s\S]*?)\]\)/.exec(source);
+    assert.ok(match, `${file} 应声明 PACKAGE_EXCLUDED`);
+    const paths = new Set([...match[1].matchAll(/"([^"]+)"/g)].map((entry) => entry[1]));
+    for (let task = 1; task <= 16; task += 1) paths.add(`scripts/qa-task-${task}.mjs`);
+    return paths;
+  };
+  const generated = await readList("scripts/runtime-integrity.mjs");
+  const runtime = await readList("scripts/coco-bootstrap.cjs");
+  assert.deepEqual([...generated].filter((path) => !runtime.has(path)), []);
+  assert.deepEqual([...runtime].filter((path) => !generated.has(path)), []);
+});
+
 test("Given the coco package root, when runtime identity is resolved, then it pins coco paths and the exact bundled pi", async () => {
   const runtime = await resolveCocoRuntime({ root });
   assert.equal(runtime.identity.appName, "coco");

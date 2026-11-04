@@ -24,6 +24,16 @@ const PACKAGE_EXCLUDED = new Set([
   "node_modules/@earendil-works/pi-coding-agent/node_modules/which/CHANGELOG.md",
   "node_modules/proper-lockfile/CHANGELOG.md",
   "node_modules/which/CHANGELOG.md",
+  // 与 scripts/runtime-integrity.mjs 的 PACKAGE_EXCLUDED 必须逐条一致（两份手维护
+  // 清单，漂移会让运行时校验把清单未收的文件判为 UNEXPECTED_ENTRY）。这些包的
+  // files 字段不含 CHANGELOG，npm pack 据此剥离，故清单同样不收。
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@aws-sdk/credential-provider-http/node_modules/@smithy/node-http-handler/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@aws-sdk/nested-clients/node_modules/@smithy/node-http-handler/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@smithy/core/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@smithy/credential-provider-imds/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@smithy/fetch-http-handler/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@smithy/signature-v4/CHANGELOG.md",
+  "node_modules/@earendil-works/pi-coding-agent/node_modules/@smithy/types/CHANGELOG.md",
   "node_modules/@earendil-works/pi-coding-agent/.runtime-integrity-cache.json",
 ]);
 for (let task = 1; task <= 16; task += 1) PACKAGE_EXCLUDED.add(`scripts/qa-task-${task}.mjs`);
